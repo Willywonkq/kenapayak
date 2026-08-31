@@ -1764,12 +1764,12 @@
         line-height: 1.55;
     }
 
-    /* --- GRID 2 : BARIS INFORMASI FILTER --- */
+    /* --- GRID 2 : BARIS SEKTOR/CLUSTER --- */
     .surat-pesanan-content .report-subtitle {
-        display: flex;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
         min-height: 36px;
         align-items: center;
-        justify-content: space-between;
         gap: 12px;
         margin: 0 0 10px !important;
         padding: 8px 12px;
@@ -1782,16 +1782,17 @@
         font-weight: 500 !important;
     }
 
-    .surat-pesanan-content .report-subtitle-items {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 4px 18px;
-        min-width: 0;
+    .surat-pesanan-content .report-subtitle-label {
+        justify-self: start;
+        color: #667085;
+        white-space: nowrap;
     }
 
-    .surat-pesanan-content .report-subtitle-items span {
-        white-space: nowrap;
+    .surat-pesanan-content .report-subtitle-value {
+        justify-self: center;
+        color: #344054;
+        font-weight: 850;
+        text-align: center;
     }
 
     .surat-pesanan-content .report-subtitle strong {
@@ -1802,6 +1803,7 @@
     .surat-pesanan-content .report-live-badge {
         display: inline-flex;
         flex: 0 0 auto;
+        justify-self: end;
         align-items: center;
         gap: 6px;
         padding: 5px 9px;
@@ -1942,8 +1944,14 @@
         }
 
         .surat-pesanan-content .report-subtitle {
-            align-items: flex-start;
-            flex-direction: column;
+            grid-template-columns: minmax(0, 1fr);
+            justify-items: center;
+            text-align: center !important;
+        }
+
+        .surat-pesanan-content .report-subtitle-label,
+        .surat-pesanan-content .report-live-badge {
+            justify-self: center;
         }
     }
 
@@ -2727,11 +2735,45 @@
             .trim();
     }
 
-    function resolveReportCompany() {
-        var unit = String($('#perusahaan').val() || '').trim().toUpperCase();
-        var sessionName = String($('#nama_perusahaan_session').val() || '').trim();
+    function pickValue(item, keys) {
+        item = item || {};
 
-        return extractCompanyName(sessionName) || sessionName || unit || '-';
+        for (var index = 0; index < keys.length; index++) {
+            var value = item[keys[index]];
+
+            if (value !== null && value !== undefined && value !== '') {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    /*
+     * Header memakai nama panjang perusahaan (nama PT), bukan singkatan unit.
+     * Urutan sumber: nama PT pada baris data, lalu nama PT dari session.
+     * Kode unit hanya dipakai bila kedua sumber di atas benar-benar kosong.
+     */
+    function resolveReportCompany(firstRow, sessionName) {
+        var rowName = pickValue(firstRow || {}, [
+            'NAMA_PT',
+            'nama_pt',
+            'NAMA_PERUSAHAAN',
+            'nama_perusahaan',
+            'ATAS_NAMA_PT',
+            'atas_nama_pt'
+        ]);
+
+        sessionName = String(
+            sessionName === undefined ? $('#nama_perusahaan_session').val() : sessionName
+        ).trim();
+
+        var resolved = extractCompanyName(rowName)
+            || String(rowName || '').trim()
+            || extractCompanyName(sessionName)
+            || sessionName;
+
+        return resolved || String($('#perusahaan').val() || '').trim().toUpperCase() || '-';
     }
 
     function getSummaryRenderContext(filterData) {
@@ -2740,8 +2782,7 @@
             tgl_akhir: filterData.tgl_akhir,
             tgl_bayar: filterData.tgl_bayar,
             flag_tgl: filterData.flag_tgl,
-            company_text: resolveReportCompany(),
-            unit_text: String(filterData.perusahaan || '').trim().toUpperCase(),
+            company_session_text: String($('#nama_perusahaan_session').val() || '').trim(),
             lokasi_text: $('#lokasi option:selected').text() || 'Semua Lokasi',
             sektor_text: $.trim($('#sektorentry').text()) || 'Semua Sektor',
             jenis_text: $('#jenis option:selected').text() || 'Semua',
@@ -2828,8 +2869,10 @@
         var tglAkhir = renderContext.tgl_akhir;
         var tglBayar = renderContext.tgl_bayar;
 
-        var companyText = renderContext.company_text;
-        var unitText = renderContext.unit_text;
+        var companyText = resolveReportCompany(
+            (data && data.length > 0) ? data[0] : {},
+            renderContext.company_session_text
+        );
         var lokasiText = renderContext.lokasi_text;
         var sektorText = renderContext.sektor_text;
         var jenisText = renderContext.jenis_text;
@@ -3022,24 +3065,18 @@
             html += '<br>Mode: Per Tgl Bayar + Tanda Jadi Aktif';
         }
 
-        if (unitText) {
-            html += '<br>Unit: ' + escapeHtml(unitText);
-        }
-
+        html += '<br>Lokasi: ' + escapeHtml(lokasiText);
+        html += '<br>Jenis Bgn: ' + escapeHtml(jenisText);
         html += '</div>';
         html += '</div>';
 
         /*
-         * GRID 2 — BARIS INFORMASI FILTER
-         * Isi sama persis dengan blok LOKASI/SEKTOR/JENIS BGN sebelumnya,
-         * hanya disusun dalam satu baris ringkas.
+         * GRID 2 — BARIS SEKTOR/CLUSTER
+         * Label di kiri, nilai sektor di tengah, badge status di kanan.
          */
         html += '<div class="report-subtitle">';
-        html += '<div class="report-subtitle-items">';
-        html += '<span>LOKASI: <strong>' + escapeHtml(lokasiText) + '</strong></span>';
-        html += '<span>SEKTOR: <strong>' + escapeHtml(sektorText) + '</strong></span>';
-        html += '<span>JENIS BGN: <strong>' + escapeHtml(jenisText) + '</strong></span>';
-        html += '</div>';
+        html += '<span class="report-subtitle-label">Sektor/Cluster:</span>';
+        html += '<span class="report-subtitle-value">' + escapeHtml(sektorText) + '</span>';
         html += '<span class="report-live-badge">Live data</span>';
         html += '</div>';
 
@@ -3280,12 +3317,12 @@
                 line-height: 1.35 !important;
             }
 
-            /* GRID 2 — BARIS INFORMASI FILTER */
+            /* GRID 2 — BARIS SEKTOR/CLUSTER */
             .report-subtitle {
-                display: flex !important;
+                display: grid !important;
+                grid-template-columns: 1fr auto 1fr !important;
                 min-height: 0 !important;
                 align-items: center !important;
-                justify-content: space-between !important;
                 gap: 8px !important;
                 margin: 0 0 6px !important;
                 padding: 5px 8px !important;
@@ -3298,11 +3335,17 @@
                 font-weight: 500 !important;
             }
 
-            .report-subtitle-items {
-                display: flex !important;
-                flex-wrap: wrap !important;
-                align-items: center !important;
-                gap: 2px 14px !important;
+            .report-subtitle-label {
+                justify-self: start !important;
+                color: #000 !important;
+                white-space: nowrap !important;
+            }
+
+            .report-subtitle-value {
+                justify-self: center !important;
+                color: #000 !important;
+                text-align: center !important;
+                font-weight: 700 !important;
             }
 
             .report-subtitle strong {
@@ -3312,6 +3355,7 @@
 
             .report-live-badge {
                 display: inline-flex !important;
+                justify-self: end !important;
                 align-items: center !important;
                 gap: 4px !important;
                 padding: 0 !important;
