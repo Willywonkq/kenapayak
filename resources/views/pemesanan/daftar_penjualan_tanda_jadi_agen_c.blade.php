@@ -759,16 +759,14 @@
         background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
     }
 
-    .penjualan-tanda-jadi-content .filter-panel-heading,
-    .penjualan-tanda-jadi-content .result-panel-heading {
+    .penjualan-tanda-jadi-content .filter-panel-heading {
         margin: 0;
         color: var(--ptj-text);
         font-size: 14px;
         font-weight: 700;
     }
 
-    .penjualan-tanda-jadi-content .filter-panel-hint,
-    .penjualan-tanda-jadi-content .result-panel-hint {
+    .penjualan-tanda-jadi-content .filter-panel-hint {
         margin: 3px 0 0;
         color: var(--ptj-muted);
         font-size: 11px;
@@ -870,37 +868,6 @@
         width: 112px;
         min-width: 112px;
         height: 38px;
-    }
-
-    .penjualan-tanda-jadi-content .result-panel {
-        padding: 0;
-        overflow: hidden;
-    }
-
-    .penjualan-tanda-jadi-content .result-panel-header {
-        min-height: 58px;
-        padding: 14px 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        border-bottom: 1px solid var(--ptj-border);
-    }
-
-    .penjualan-tanda-jadi-content .result-panel-header-icon {
-        width: 34px;
-        height: 34px;
-        display: inline-flex;
-        flex: 0 0 34px;
-        align-items: center;
-        justify-content: center;
-        color: var(--ptj-primary);
-        border-radius: 10px;
-        background: var(--ptj-primary-soft);
-        font-size: 13px;
-    }
-
-    .penjualan-tanda-jadi-content .result-panel-body {
-        padding: 18px 20px 20px;
     }
 
     @media (max-width: 991.98px) {
@@ -1567,31 +1534,16 @@
 </div>
 
 <div class="result-panel">
-    <div class="result-panel-header">
-        <span class="result-panel-header-icon">
-            <i class="fas fa-table"></i>
-        </span>
-
-        <div>
-            <h6 class="result-panel-heading">Hasil Penjualan</h6>
-            <p class="result-panel-hint">
-                Data akan ditampilkan sesuai kombinasi filter yang dipilih.
-            </p>
-        </div>
+    <div id="loading-info" style="display:none;">
+        <i class="fas fa-spinner fa-spin"></i>
+        Mengambil data...
     </div>
 
-    <div class="result-panel-body">
-        <div id="loading-info" style="display:none;">
-            <i class="fas fa-spinner fa-spin"></i>
-            Mengambil data...
-        </div>
-
-        <div id="main-display" class="result-wrapper">
-            <div class="empty-state-panel">
-                <i class="fas fa-table"></i>
-                <div>
-                    Silakan tentukan periode dan filter, lalu klik <strong>View</strong>.
-                </div>
+    <div id="main-display" class="result-wrapper">
+        <div class="empty-state-panel">
+            <i class="fas fa-table"></i>
+            <div>
+                Silakan tentukan periode dan filter, lalu klik <strong>View</strong>.
             </div>
         </div>
     </div>
