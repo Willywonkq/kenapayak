@@ -1955,10 +1955,152 @@
         }
     }
 
+    /* =========================================================
+       NOTIFIKASI TOAST — PERCOBAAN DI FITUR INI DULU
+       Muncul ketika hasil View tidak memuat data.
+       Bentuk kartu, radius, bayangan, dan palet biru mengikuti
+       panel-panel yang sudah ada agar tetap satu tema.
+       ========================================================= */
+    .surat-pesanan-content .sp-toast-stack {
+        position: fixed;
+        top: 88px;
+        right: 22px;
+        z-index: 1080;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: min(340px, calc(100vw - 32px));
+        pointer-events: none;
+    }
+
+    .surat-pesanan-content .sp-toast {
+        position: relative;
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr) 28px;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 14px 15px 18px;
+        overflow: hidden;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+        color: #172033;
+        opacity: 0;
+        transform: translateY(-10px) scale(0.98);
+        pointer-events: auto;
+        transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    .surat-pesanan-content .sp-toast::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background: linear-gradient(180deg, #38bdf8 0%, #2563eb 55%, #1d4ed8 100%);
+    }
+
+    .surat-pesanan-content .sp-toast.is-visible {
+        opacity: 1;
+        transform: none;
+    }
+
+    .surat-pesanan-content .sp-toast.is-leaving {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+    }
+
+    .surat-pesanan-content .sp-toast-icon {
+        display: inline-flex;
+        width: 38px;
+        height: 38px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 15px;
+    }
+
+    .surat-pesanan-content .sp-toast-text {
+        min-width: 0;
+        color: #172033;
+        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 13.5px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        line-height: 1.35;
+    }
+
+    .surat-pesanan-content .sp-toast-close {
+        display: inline-flex;
+        width: 28px;
+        height: 28px;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid #e4e7ec;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #667085;
+        cursor: pointer;
+        font-size: 11px;
+        transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .surat-pesanan-content .sp-toast-close:hover {
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+        background: #eff6ff;
+    }
+
+    .surat-pesanan-content .sp-toast-progress {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, #38bdf8, #2563eb);
+        transform-origin: left center;
+        animation-name: spToastProgress;
+        animation-timing-function: linear;
+        animation-fill-mode: forwards;
+    }
+
+    @keyframes spToastProgress {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .surat-pesanan-content .sp-toast {
+            transition: none;
+        }
+
+        .surat-pesanan-content .sp-toast-progress {
+            animation: none;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .surat-pesanan-content .sp-toast-stack {
+            top: 12px;
+            right: 12px;
+            left: 12px;
+            width: auto;
+        }
+    }
+
 </style>
 
 <div class="surat-pesanan-content">
 
+    <div
+        class="sp-toast-stack"
+        id="suratPesananToastStack"
+        aria-live="polite"
+        aria-atomic="true"
+    ></div>
 
     <div class="modal" id="suratPesananModal">
         <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -2290,6 +2432,7 @@
 
     function resetReportDisplay() {
         cancelActiveSummaryRequest();
+        hideSuratPesananToast(true);
         $('#loading-info').hide();
         $('#main-display').html(emptyReportHtml());
     }
@@ -2426,6 +2569,79 @@
             .replace(/\\/g, '\\\\')
             .replace(/'/g, "\\'")
             .replace(/\r?\n/g, ' ');
+    }
+
+    /*
+     * ================================================================
+     * NOTIFIKASI TOAST — PERCOBAAN DI FITUR INI DULU
+     * Dipakai ketika hasil View tidak memuat data. Baris
+     * "Data tidak ditemukan." pada tabel tetap dipertahankan;
+     * toast hanya menambah penanda visual, tidak mengubah isi laporan.
+     * ================================================================
+     */
+    var suratPesananToastTimer = null;
+    var suratPesananToastRemoveTimer = null;
+
+    function hideSuratPesananToast(immediate) {
+        window.clearTimeout(suratPesananToastTimer);
+        window.clearTimeout(suratPesananToastRemoveTimer);
+        suratPesananToastTimer = null;
+        suratPesananToastRemoveTimer = null;
+
+        var $toast = $('#suratPesananToastStack .sp-toast');
+
+        if (!$toast.length) {
+            return;
+        }
+
+        if (immediate === true) {
+            $toast.remove();
+            return;
+        }
+
+        $toast.removeClass('is-visible').addClass('is-leaving');
+
+        suratPesananToastRemoveTimer = window.setTimeout(function () {
+            $toast.remove();
+        }, 240);
+    }
+
+    function showSuratPesananToast(message) {
+        var $stack = $('#suratPesananToastStack');
+
+        if (!$stack.length) {
+            return;
+        }
+
+        /* Toast lama dibersihkan agar tidak menumpuk saat View diklik berulang. */
+        hideSuratPesananToast(true);
+
+        var duration = 4000;
+        var html = '';
+
+        html += '<div class="sp-toast" role="status">';
+        html += '<span class="sp-toast-icon" aria-hidden="true"><i class="fas fa-inbox"></i></span>';
+        html += '<span class="sp-toast-text">' + escapeHtml(message) + '</span>';
+        html += '<button type="button" class="sp-toast-close" onclick="hideSuratPesananToast()" aria-label="Tutup notifikasi">';
+        html += '<i class="fas fa-times"></i>';
+        html += '</button>';
+        html += '<span class="sp-toast-progress" style="animation-duration:' + duration + 'ms"></span>';
+        html += '</div>';
+
+        var $toast = $(html).appendTo($stack);
+
+        /* Beri jeda satu frame supaya transisi masuk tetap berjalan. */
+        if (window.requestAnimationFrame) {
+            window.requestAnimationFrame(function () {
+                $toast.addClass('is-visible');
+            });
+        } else {
+            $toast.addClass('is-visible');
+        }
+
+        suratPesananToastTimer = window.setTimeout(function () {
+            hideSuratPesananToast();
+        }, duration);
     }
 
     function missing_item() {
@@ -2929,6 +3145,7 @@
         var filterData = getFilterData();
         var renderContext = getSummaryRenderContext(filterData);
 
+        hideSuratPesananToast(true);
         $('#loading-info').show();
         $('#main-display').html('');
 
@@ -3260,6 +3477,10 @@
         html += '</div>';
 
         $('#main-display').html(html);
+
+        if (!data || data.length === 0) {
+            showSuratPesananToast('Data tidak ada');
+        }
     }
 
     
