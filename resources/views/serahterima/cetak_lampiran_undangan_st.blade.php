@@ -2,6 +2,7 @@
 {{-- HEADER ICON EXACT SERTIPIKAT V2-20260812 --}}
 {{-- INITIAL ICON VERSION V1-20260812-TABLE-CONSISTENT --}}
 {{-- UI REFRESH V1-20260901-VISUAL-ONLY --}}
+{{-- NOTICE REDESIGN V1-20260901-VISUAL-ONLY --}}
 @extends('layouts.template')
 
 @section('content')
@@ -1702,6 +1703,262 @@
         .lampiran-st-page .lampiran-st-empty {
             margin: 12px;
             padding: 26px 16px;
+        }
+    }
+
+    /* =========================================================
+       NOTICE REDESIGN V1-20260901 — VISUAL ONLY
+       Alert dibuat lebih modern: warna mengikuti jenis pesan
+       (warning/error/info/success) lewat custom property, sehingga
+       ikon, garis aksen, panel pesan, dan tombol selalu senada.
+       Tidak ada perubahan struktur HTML maupun JavaScript.
+       ========================================================= */
+
+    .lampiran-st-page .lampiran-st-notice,
+    .lampiran-st-notice {
+        --nt-accent: #2563eb;
+        --nt-accent-dark: #1d4ed8;
+        --nt-soft: #eff6ff;
+        --nt-line: #bfdbfe;
+        --nt-text: #1e40af;
+        --nt-glow: rgba(37, 99, 235, 0.26);
+    }
+
+    .lampiran-st-notice.is-warning {
+        --nt-accent: #f59e0b;
+        --nt-accent-dark: #d97706;
+        --nt-soft: #fffbeb;
+        --nt-line: #fde68a;
+        --nt-text: #92400e;
+        --nt-glow: rgba(245, 158, 11, 0.28);
+    }
+
+    .lampiran-st-notice.is-error {
+        --nt-accent: #ef4444;
+        --nt-accent-dark: #dc2626;
+        --nt-soft: #fef2f2;
+        --nt-line: #fecaca;
+        --nt-text: #991b1b;
+        --nt-glow: rgba(239, 68, 68, 0.26);
+    }
+
+    .lampiran-st-notice.is-info {
+        --nt-accent: #2563eb;
+        --nt-accent-dark: #1d4ed8;
+        --nt-soft: #eff6ff;
+        --nt-line: #bfdbfe;
+        --nt-text: #1e40af;
+        --nt-glow: rgba(37, 99, 235, 0.26);
+    }
+
+    .lampiran-st-notice.is-success {
+        --nt-accent: #10b981;
+        --nt-accent-dark: #059669;
+        --nt-soft: #ecfdf5;
+        --nt-line: #a7f3d0;
+        --nt-text: #065f46;
+        --nt-glow: rgba(16, 185, 129, 0.26);
+    }
+
+    /* --- Latar gelap --- */
+    .lampiran-st-page .lampiran-st-notice,
+    .lampiran-st-notice {
+        padding: 20px;
+        background: rgba(11, 19, 36, 0.55);
+        -webkit-backdrop-filter: blur(6px) saturate(115%);
+        backdrop-filter: blur(6px) saturate(115%);
+    }
+
+    .lampiran-st-notice.show {
+        animation: lampiranNoticeFade 0.2s ease-out;
+    }
+
+    @keyframes lampiranNoticeFade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* --- Kartu dialog --- */
+    .lampiran-st-page .lampiran-st-notice-dialog,
+    .lampiran-st-notice-dialog {
+        position: relative;
+        width: min(424px, calc(100vw - 34px));
+        padding-top: 4px;
+        border: 1px solid rgba(15, 23, 42, 0.10);
+        border-radius: 20px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.06),
+            0 18px 40px rgba(15, 23, 42, 0.20),
+            0 40px 90px rgba(15, 23, 42, 0.22);
+        animation: lampiranNoticePop 0.26s cubic-bezier(0.18, 0.92, 0.28, 1.06);
+    }
+
+    .lampiran-st-notice-dialog::before {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--nt-accent-dark), var(--nt-accent) 55%, var(--nt-line));
+        content: "";
+    }
+
+    @keyframes lampiranNoticePop {
+        from { opacity: 0; transform: translateY(14px) scale(0.94); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* --- Kepala: ikon + judul --- */
+    .lampiran-st-page .lampiran-st-notice-top,
+    .lampiran-st-notice-top {
+        align-items: center;
+        gap: 14px;
+        padding: 22px 22px 18px;
+        border-bottom: 0;
+        background:
+            radial-gradient(180px 90px at 44px 26px, var(--nt-soft), transparent 72%),
+            #ffffff;
+    }
+
+    .lampiran-st-page .lampiran-st-notice-icon,
+    .lampiran-st-notice-icon {
+        position: relative;
+        width: 50px;
+        height: 50px;
+        flex: 0 0 50px;
+        border: 0;
+        border-radius: 17px;
+        background: linear-gradient(135deg, var(--nt-accent), var(--nt-accent-dark));
+        color: #ffffff;
+        box-shadow:
+            0 10px 22px var(--nt-glow),
+            inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        font-size: 21px;
+    }
+
+    .lampiran-st-notice.is-warning .lampiran-st-notice-icon,
+    .lampiran-st-notice.is-error .lampiran-st-notice-icon,
+    .lampiran-st-notice.is-info .lampiran-st-notice-icon,
+    .lampiran-st-notice.is-success .lampiran-st-notice-icon {
+        border: 0;
+        background: linear-gradient(135deg, var(--nt-accent), var(--nt-accent-dark));
+        color: #ffffff;
+    }
+
+    /* Lingkaran halo yang memudar saat dialog muncul. */
+    .lampiran-st-notice-icon::after {
+        position: absolute;
+        inset: -5px;
+        border: 2px solid var(--nt-accent);
+        border-radius: 21px;
+        opacity: 0;
+        content: "";
+        animation: lampiranNoticeHalo 1.1s ease-out 0.1s;
+    }
+
+    @keyframes lampiranNoticeHalo {
+        0% { opacity: 0.55; transform: scale(0.86); }
+        100% { opacity: 0; transform: scale(1.22); }
+    }
+
+    .lampiran-st-page .lampiran-st-notice-title,
+    .lampiran-st-notice-title {
+        color: #0f172a;
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: -0.25px;
+        line-height: 1.22;
+    }
+
+    .lampiran-st-page .lampiran-st-notice-subtitle,
+    .lampiran-st-notice-subtitle {
+        margin-top: 5px;
+        color: var(--nt-text);
+        font-size: 10.5px;
+        font-weight: 750;
+        letter-spacing: 0.55px;
+        text-transform: uppercase;
+    }
+
+    /* --- Isi pesan jadi panel lembut --- */
+    .lampiran-st-page .lampiran-st-notice-body,
+    .lampiran-st-notice-body {
+        margin: 0 22px;
+        padding: 14px 16px;
+        border: 1px solid var(--nt-line);
+        border-left: 3px solid var(--nt-accent);
+        border-radius: 12px;
+        background: var(--nt-soft);
+        color: #334155;
+        font-size: 12.5px;
+        font-weight: 600;
+        line-height: 1.6;
+    }
+
+    /* --- Tombol --- */
+    .lampiran-st-page .lampiran-st-notice-actions,
+    .lampiran-st-notice-actions {
+        padding: 18px 22px 22px;
+    }
+
+    .lampiran-st-page .lampiran-st-notice-button,
+    .lampiran-st-notice-button {
+        min-width: 124px;
+        height: 42px;
+        padding: 8px 22px;
+        border: 0;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--nt-accent), var(--nt-accent-dark));
+        color: #ffffff;
+        font-size: 12.5px;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+        box-shadow: 0 10px 20px var(--nt-glow);
+        transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+    }
+
+    .lampiran-st-page .lampiran-st-notice-button:hover,
+    .lampiran-st-notice-button:hover {
+        background: linear-gradient(135deg, var(--nt-accent-dark), var(--nt-accent-dark));
+        filter: none;
+        transform: translateY(-1px);
+        box-shadow: 0 14px 26px var(--nt-glow);
+    }
+
+    .lampiran-st-notice-button:active {
+        transform: translateY(0);
+        box-shadow: 0 6px 14px var(--nt-glow);
+    }
+
+    .lampiran-st-notice-button:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 4px var(--nt-glow), 0 10px 20px var(--nt-glow);
+    }
+
+    @media (max-width: 480px) {
+        .lampiran-st-notice-top {
+            padding: 18px 18px 15px;
+        }
+
+        .lampiran-st-notice-body {
+            margin: 0 18px;
+        }
+
+        .lampiran-st-notice-actions {
+            padding: 15px 18px 18px;
+        }
+
+        .lampiran-st-notice-button {
+            width: 100%;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .lampiran-st-notice.show,
+        .lampiran-st-notice-dialog,
+        .lampiran-st-notice-icon::after {
+            animation: none;
         }
     }
 </style>
