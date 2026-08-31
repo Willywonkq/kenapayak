@@ -1988,7 +1988,11 @@
 </div>
 
 <div class="filter-panel">
-    <input type="hidden" id="nama_perusahaan_session" value="{{ session('nama_pt') ?? session('nama_perusahaan') ?? session('nama_unit') ?? '' }}">
+    <input
+        type="hidden"
+        id="nama_perusahaan_session"
+        value="{{ $namaPerusahaan ?? $nama_perusahaan ?? $namaPt ?? $nama_pt ?? session('nama_pt') ?? session('nama_perusahaan') ?? session('nama_unit') ?? session('nama_lokasi') ?? session('deskripsi_lokasi') ?? session('lokasi') ?? '' }}"
+    >
 
     <div class="row">
 
@@ -2750,30 +2754,109 @@
     }
 
     /*
+     * Nilai dianggap nama panjang perusahaan bila BUKAN sekadar kode unit.
+     * Kode unit (mis. "DTSA", "CGTK") ditolak agar header tidak menampilkan
+     * singkatan seperti sebelumnya.
+     */
+    function isLongCompanyName(value, unit) {
+        var name = String(value === null || value === undefined ? '' : value).trim();
+
+        if (name === '') {
+            return false;
+        }
+
+        if (unit && name.toUpperCase() === String(unit).toUpperCase()) {
+            return false;
+        }
+
+        // Kode unit umumnya satu kata pendek tanpa spasi.
+        return /\s/.test(name) || name.length > 8;
+    }
+
+    /*
+     * Sumber terakhir: teks header aplikasi yang selalu memuat baris
+     * "Unit : DTSA & Lokasi : PDSA - PT. Duta Sumara Abadi".
+     * Inilah string yang dibaca extractCompanyName() pada view Daftar
+     * Sertifikat Pecahan sehingga di sana nama PT bisa tampil penuh.
+     */
+    function scrapeCompanyNameFromPage() {
+        var headerSelectors = [
+            '.main-header',
+            '.navbar',
+            '.topbar',
+            '.app-header',
+            '.content-header',
+            '#header',
+            'header'
+        ];
+
+        var headerText = '';
+
+        for (var index = 0; index < headerSelectors.length; index++) {
+            var $header = $(headerSelectors[index]).first();
+
+            if ($header.length) {
+                headerText += ' ' + ($header.text() || '');
+            }
+        }
+
+        var fromHeader = extractCompanyName(headerText);
+
+        if (fromHeader) {
+            return fromHeader;
+        }
+
+        /*
+         * Bila layout tidak memakai selector di atas, telusuri isi halaman
+         * di luar konten laporan agar nama pembeli tidak ikut terbaca.
+         */
+        var $clone = $('body').clone();
+        $clone.find('.surat-pesanan-content, script, style, noscript').remove();
+
+        return extractCompanyName($clone.text());
+    }
+
+    /*
      * Header memakai nama panjang perusahaan (nama PT), bukan singkatan unit.
-     * Urutan sumber: nama PT pada baris data, lalu nama PT dari session.
-     * Kode unit hanya dipakai bila kedua sumber di atas benar-benar kosong.
+     * Urutan sumber:
+     *   1. kolom nama PT pada baris data hasil query;
+     *   2. variabel controller / session (hidden input);
+     *   3. teks header aplikasi ("Lokasi : XXX - PT ...");
+     *   4. kode unit, hanya bila ketiganya kosong.
      */
     function resolveReportCompany(firstRow, sessionName) {
+        var unit = String($('#perusahaan').val() || '').trim().toUpperCase();
+
         var rowName = pickValue(firstRow || {}, [
             'NAMA_PT',
             'nama_pt',
             'NAMA_PERUSAHAAN',
             'nama_perusahaan',
             'ATAS_NAMA_PT',
-            'atas_nama_pt'
+            'atas_nama_pt',
+            'NAMA_UNIT',
+            'nama_unit'
         ]);
 
         sessionName = String(
             sessionName === undefined ? $('#nama_perusahaan_session').val() : sessionName
         ).trim();
 
-        var resolved = extractCompanyName(rowName)
-            || String(rowName || '').trim()
-            || extractCompanyName(sessionName)
-            || sessionName;
+        var candidates = [
+            extractCompanyName(rowName),
+            rowName,
+            extractCompanyName(sessionName),
+            sessionName,
+            scrapeCompanyNameFromPage()
+        ];
 
-        return resolved || String($('#perusahaan').val() || '').trim().toUpperCase() || '-';
+        for (var index = 0; index < candidates.length; index++) {
+            if (isLongCompanyName(candidates[index], unit)) {
+                return String(candidates[index]).trim();
+            }
+        }
+
+        return unit || '-';
     }
 
     function getSummaryRenderContext(filterData) {
