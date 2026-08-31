@@ -2779,7 +2779,37 @@
      * Inilah string yang dibaca extractCompanyName() pada view Daftar
      * Sertifikat Pecahan sehingga di sana nama PT bisa tampil penuh.
      */
-    function scrapeCompanyNameFromPage() {
+    function escapeRegExp(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    /*
+     * Kumpulkan teks halaman yang berpotensi memuat identitas unit aktif.
+     * Nilai <input> ikut dibaca karena kotak unit pada topbar aplikasi
+     * berupa input readonly berisi
+     * "Unit : DTSA & Lokasi : PDSA - PT. Duta Sumara Abadi",
+     * dan jQuery .text() tidak membaca value input.
+     */
+    function collectUnitTextCandidates() {
+        var candidates = [];
+
+        function push(value) {
+            var text = String(value === null || value === undefined ? '' : value).trim();
+
+            if (text !== '') {
+                candidates.push(text);
+            }
+        }
+
+        $('input, textarea').not('.surat-pesanan-content input, .surat-pesanan-content textarea').each(function () {
+            push($(this).val());
+        });
+
+        $('[title]').not('.surat-pesanan-content [title]').each(function () {
+            push($(this).attr('title'));
+        });
+
         var headerSelectors = [
             '.main-header',
             '.navbar',
@@ -2790,38 +2820,56 @@
             'header'
         ];
 
-        var headerText = '';
-
         for (var index = 0; index < headerSelectors.length; index++) {
-            var $header = $(headerSelectors[index]).first();
-
-            if ($header.length) {
-                headerText += ' ' + ($header.text() || '');
-            }
+            $(headerSelectors[index]).each(function () {
+                var $clone = $(this).clone();
+                $clone.find('.surat-pesanan-content, script, style, noscript').remove();
+                push($clone.text());
+            });
         }
 
-        var fromHeader = extractCompanyName(headerText);
-
-        if (fromHeader) {
-            return fromHeader;
-        }
-
-        /*
-         * Bila layout tidak memakai selector di atas, telusuri isi halaman
-         * di luar konten laporan agar nama pembeli tidak ikut terbaca.
-         */
-        var $clone = $('body').clone();
-        $clone.find('.surat-pesanan-content, script, style, noscript').remove();
-
-        return extractCompanyName($clone.text());
+        return candidates;
     }
 
     /*
-     * Header memakai nama panjang perusahaan (nama PT), bukan singkatan unit.
+     * Ambil nama PT HANYA dari teks yang menyebut kode unit yang sedang
+     * dipilih. Pencarian bebas di seluruh halaman tidak dipakai karena
+     * layout juga memuat nama grup induk (mis. pada sidebar/footer),
+     * sehingga nama yang terbaca bisa bukan milik unit aktif.
+     */
+    function scrapeCompanyNameForUnit(unit) {
+        unit = String(unit || '').trim();
+
+        if (unit === '') {
+            return '';
+        }
+
+        var unitPattern = new RegExp('\\b' + escapeRegExp(unit) + '\\b', 'i');
+        var candidates = collectUnitTextCandidates();
+
+        for (var index = 0; index < candidates.length; index++) {
+            if (!unitPattern.test(candidates[index])) {
+                continue;
+            }
+
+            var name = extractCompanyName(candidates[index]);
+
+            if (isLongCompanyName(name, unit)) {
+                return name;
+            }
+        }
+
+        return '';
+    }
+
+    /*
+     * Header memakai nama panjang perusahaan (nama PT) milik unit aktif,
+     * bukan singkatan unit dan bukan nama grup induk.
      * Urutan sumber:
      *   1. kolom nama PT pada baris data hasil query;
-     *   2. variabel controller / session (hidden input);
-     *   3. teks header aplikasi ("Lokasi : XXX - PT ...");
+     *   2. teks halaman yang menyebut kode unit aktif (topbar "Unit : ... &
+     *      Lokasi : ... - PT ...");
+     *   3. variabel controller / session (hidden input);
      *   4. kode unit, hanya bila ketiganya kosong.
      */
     function resolveReportCompany(firstRow, sessionName) {
@@ -2845,9 +2893,9 @@
         var candidates = [
             extractCompanyName(rowName),
             rowName,
+            scrapeCompanyNameForUnit(unit),
             extractCompanyName(sessionName),
-            sessionName,
-            scrapeCompanyNameFromPage()
+            sessionName
         ];
 
         for (var index = 0; index < candidates.length; index++) {
