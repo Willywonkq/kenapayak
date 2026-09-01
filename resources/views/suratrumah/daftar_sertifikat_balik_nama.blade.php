@@ -1268,61 +1268,61 @@
        Modal informasi yang tampil saat hasil laporan tidak
        menghasilkan baris data sama sekali.
        ========================================================= */
-    #sertifikatBalikNamaNoDataAlertModal .modal-dialog {
-        max-width: 380px;
-    }
+        #sertifikatBalikNamaNoDataAlertModal .modal-dialog {
+            max-width: 380px;
+        }
 
-    #sertifikatBalikNamaNoDataAlertModal .modal-content {
-        border: 0;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
-    }
+        #sertifikatBalikNamaNoDataAlertModal .modal-content {
+            border: 0;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+        }
 
-    #sertifikatBalikNamaNoDataAlertModal .alert-icon-wrapper {
-        display: flex;
-        width: 64px;
-        height: 64px;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 16px;
-        border-radius: 50%;
-        background: #eff6ff;
-        color: #2563eb;
-        font-size: 28px;
-    }
+        #sertifikatBalikNamaNoDataAlertModal .alert-icon-wrapper {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #eff6ff;
+            color: #2563eb;
+            font-size: 28px;
+        }
 
-    #sertifikatBalikNamaNoDataAlertModal .alert-title {
-        margin-bottom: 8px;
-        color: #172033;
-        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
-        font-size: 18px;
-        font-weight: 700;
-    }
+        #sertifikatBalikNamaNoDataAlertModal .alert-title {
+            margin-bottom: 8px;
+            color: #172033;
+            font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+        }
 
-    #sertifikatBalikNamaNoDataAlertModal .alert-message {
-        margin-bottom: 24px;
-        color: #475569;
-        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
-        font-size: 14px;
-    }
+        #sertifikatBalikNamaNoDataAlertModal .alert-message {
+            margin-bottom: 24px;
+            color: #475569;
+            font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+            font-size: 14px;
+        }
 
-    #sertifikatBalikNamaNoDataAlertModal .alert-btn-ok {
-        width: 100%;
-        padding: 10px 32px;
-        border: 0;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: #ffffff;
-        font-size: 14px;
-        font-weight: 600;
-        transition: transform 0.15s, box-shadow 0.15s;
-    }
+        #sertifikatBalikNamaNoDataAlertModal .alert-btn-ok {
+            width: 100%;
+            padding: 10px 32px;
+            border: 0;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
 
-    #sertifikatBalikNamaNoDataAlertModal .alert-btn-ok:hover {
-        transform: translateY(-1px);
-        color: #ffffff;
-        box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
-    }
+        #sertifikatBalikNamaNoDataAlertModal .alert-btn-ok:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+        }
+
 </style>
 
 <!-- MODAL ALERT DATA KOSONG -->

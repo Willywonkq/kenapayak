@@ -2,8 +2,6 @@
 
 @section('content')
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap');
-
 .undangan-page,
 .undangan-page * {
     box-sizing: border-box;
@@ -710,118 +708,66 @@
     background: #eff6ff;
 }
 
-/* === MODAL ALERT MODERN (Desain Sesuai Referensi Terakhir Anda) === */
-#alertModal {
-    z-index: 1070;
-}
-#alertModal .modal-content {
-    border-radius: 24px;
-    border: none;
-    background: #ffffff;
-    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15);
-    overflow: hidden;
-    font-family: 'Quicksand', "Segoe UI", Tahoma, sans-serif;
-}
-.modern-alert-body {
-    padding: 40px 32px 32px;
-    text-align: center;
-}
-.modern-alert-icon-wrapper {
-    position: relative;
-    width: 86px;
-    height: 86px;
-    margin: 0 auto 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.modern-alert-icon-halo {
-    position: absolute;
-    inset: 0;
-    background: #eff6ff;
-    border-radius: 50%;
-}
-.modern-alert-icon-core {
-    position: relative;
-    z-index: 2;
-    width: 58px;
-    height: 58px;
-    background: #2563eb;
-    color: #ffffff;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
-}
-.modern-alert-particles {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none;
-}
-.modern-alert-particles::before {
-    content: '';
-    position: absolute;
-    top: 10px; right: -5px;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: #93c5fd;
-    box-shadow: 
-        18px -4px 0 2px #60a5fa,
-        22px 14px 0 -1px #bfdbfe,
-        14px 45px 0 1px #3b82f6;
-}
-.modern-alert-title {
-    color: #4b5563;
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 12px;
-    letter-spacing: 0.5px;
-}
-.modern-alert-message {
-    color: #9ca3af;
-    font-size: 15px;
-    font-weight: 500;
-    line-height: 1.6;
-    margin-bottom: 32px;
-}
-.modern-alert-btn-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 32px;
-    background: #2563eb;
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: 600;
-    border: none;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
-    margin-bottom: 18px;
-}
-.modern-alert-btn-pill:hover {
-    background: #1d4ed8;
-    transform: translateY(-2px);
-    box-shadow: 0 12px 20px rgba(37, 99, 235, 0.3);
-}
-.modern-alert-close-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: #6b7280;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: color 0.2s ease;
-}
-.modern-alert-close-link:hover {
-    color: #374151;
-}
+/* =========================================================
+   ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
+   Modal informasi yang tampil saat hasil laporan tidak
+   menghasilkan baris data sama sekali.
+   ========================================================= */
+    #undanganNoDataAlertModal .modal-dialog {
+        max-width: 380px;
+    }
+
+    #undanganNoDataAlertModal .modal-content {
+        border: 0;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+    }
+
+    #undanganNoDataAlertModal .alert-icon-wrapper {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 28px;
+    }
+
+    #undanganNoDataAlertModal .alert-title {
+        margin-bottom: 8px;
+        color: #172033;
+        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    #undanganNoDataAlertModal .alert-message {
+        margin-bottom: 24px;
+        color: #475569;
+        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 14px;
+    }
+
+    #undanganNoDataAlertModal .alert-btn-ok {
+        width: 100%;
+        padding: 10px 32px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    #undanganNoDataAlertModal .alert-btn-ok:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+    }
+
 
 @media (max-width: 1100px) {
     .undangan-filter-grid {
@@ -833,7 +779,7 @@
 }
 
 @media print {
-    .undangan-toolbar, .undangan-filter, #loadingInfo, #undanganModal, #alertModal, .main-sidebar, .control-sidebar, .main-header, .main-footer, .navbar, .sidebar {
+    .undangan-toolbar, .undangan-filter, #loadingInfo, #undanganModal, #undanganNoDataAlertModal, .main-sidebar, .control-sidebar, .main-header, .main-footer, .navbar, .sidebar {
         display: none !important;
     }
     html, body, .wrapper, .content-wrapper, .main-content, .content, .page-wrapper, .page-content, .container, .container-fluid, .undangan-page, .undangan-report-area, .undangan-paper {
@@ -1040,33 +986,27 @@
     </div>
 </div>
 
-<!-- Modal Alert Modern (Desain Bulat Pill dengan Partikel) -->
-<div class="modal fade" id="alertModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+<!-- MODAL ALERT DATA KOSONG -->
+<div class="modal fade" id="undanganNoDataAlertModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modern-alert-body">
-                <div class="modern-alert-icon-wrapper">
-                    <div class="modern-alert-icon-halo"></div>
-                    <div class="modern-alert-icon-core">
-                        <i class="fas fa-info"></i>
-                    </div>
-                    <div class="modern-alert-particles"></div>
+            <div class="modal-body text-center p-4" style="text-align: center; padding: 1.5rem;">
+                <div class="alert-icon-wrapper">
+                    <i class="fas fa-info-circle"></i>
                 </div>
-                
-                <h5 class="modern-alert-title">Information</h5>
-                <p class="modern-alert-message" id="alertModalMessage"></p>
-                
-                <button type="button" class="modern-alert-btn-pill" data-dismiss="modal">
-                    OK <i class="fas fa-arrow-right"></i>
-                </button>
-                <br>
-                <div class="modern-alert-close-link" data-dismiss="modal">
-                    <i class="fas fa-times"></i> Tutup Jendela
-                </div>
+                <div class="alert-title">Information</div>
+                <div class="alert-message" id="undanganNoDataMessage">Data tidak ditemukan.</div>
+                <button
+                    type="button"
+                    class="btn alert-btn-ok"
+                    data-dismiss="modal"
+                    onclick="hideUndanganNoDataAlert()"
+                >OK</button>
             </div>
         </div>
     </div>
 </div>
+
 @endsection
 
 @section('js')
@@ -1111,6 +1051,7 @@
                 lastUndanganRows = null;
                 lastLoadedUndanganFilter = null;
                 setUndanganPrintEnabled(false);
+                hideUndanganNoDataAlert();
             } else {
                 normalizeUndanganClusterState(false);
                 syncUndanganPrintState();
@@ -1453,9 +1394,48 @@
         };
     }
 
-    function showModernAlert(message) {
-        $('#alertModalMessage').text(message);
-        $('#alertModal').modal('show');
+    /*
+     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
+     * Hanya menampilkan pesan; pengambilan data dan render laporan
+     * tetap memakai alur yang sudah ada. Jika plugin modal tidak
+     * tersedia pada halaman ini, modal ditampilkan secara manual
+     * sehingga tampilannya tetap sama.
+     */
+    function showUndanganNoDataAlert(message) {
+        var $modal = $('#undanganNoDataAlertModal');
+
+        $('#undanganNoDataMessage').text(message || 'Data tidak ditemukan......!');
+
+        if (typeof $modal.modal === 'function') {
+            $modal.modal('show');
+            return;
+        }
+
+        if (!$('.undangan-nodata-backdrop').length) {
+            $('<div class="modal-backdrop fade show undangan-nodata-backdrop"></div>')
+                .appendTo(document.body);
+        }
+
+        $modal
+            .addClass('show')
+            .css('display', 'block')
+            .attr('aria-hidden', 'false');
+    }
+
+    function hideUndanganNoDataAlert() {
+        var $modal = $('#undanganNoDataAlertModal');
+
+        if (typeof $modal.modal === 'function') {
+            $modal.modal('hide');
+            return;
+        }
+
+        $modal
+            .removeClass('show')
+            .css('display', 'none')
+            .attr('aria-hidden', 'true');
+
+        $('.undangan-nodata-backdrop').remove();
     }
 
     function getData() {
@@ -1475,6 +1455,7 @@
         lastUndanganRows = null;
         lastLoadedUndanganFilter = null;
         setUndanganPrintEnabled(false);
+        hideUndanganNoDataAlert();
         $('#loadingInfo').show();
 
         $('#mainDisplay').html(
@@ -1531,13 +1512,13 @@
                     }
 
                     var isBelumDiundang = $('#belum_diundang').is(':checked');
-                    var alertMsg = "Data " + reportName + " periode ini tidak ada.....!";
+                    var alertMsg = "Data " + reportName + " periode ini tidak ditemukan......!";
 
                     if (isBelumDiundang) {
-                        alertMsg = "Data Konsumen Belum Ada " + reportName + " periode ini tidak ada.....!";
+                        alertMsg = "Data Konsumen Belum Ada " + reportName + " periode ini tidak ditemukan......!";
                     }
 
-                    showModernAlert(alertMsg);
+                    showUndanganNoDataAlert(alertMsg);
                 }
             },
             error: function (xhr, textStatus, errorThrown) {

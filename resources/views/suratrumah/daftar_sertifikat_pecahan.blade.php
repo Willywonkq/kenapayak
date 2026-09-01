@@ -1375,7 +1375,8 @@
                 <button
                     type="button"
                     class="btn alert-btn-ok"
-                    onclick="$('#sertipikatNoDataAlertModal').modal('hide')"
+                    data-dismiss="modal"
+                    onclick="hideSertipikatNoDataAlert()"
                 >OK</button>
             </div>
         </div>
@@ -1696,6 +1697,49 @@
         }, 180);
     }
 
+    /*
+     * Alert data kosong. Hanya menampilkan pesan; pengambilan data dan
+     * render laporan tetap memakai alur yang sudah ada. Jika plugin modal
+     * tidak tersedia pada halaman ini, modal ditampilkan secara manual
+     * sehingga tampilannya tetap sama.
+     */
+    function showSertipikatNoDataAlert(message) {
+        var $modal = $('#sertipikatNoDataAlertModal');
+
+        $('#sertipikatNoDataMessage').text(message || 'Data tidak ditemukan......!');
+
+        if (typeof $modal.modal === 'function') {
+            $modal.modal('show');
+            return;
+        }
+
+        if (!$('.sertipikat-nodata-backdrop').length) {
+            $('<div class="modal-backdrop fade show sertipikat-nodata-backdrop"></div>')
+                .appendTo(document.body);
+        }
+
+        $modal
+            .addClass('show')
+            .css('display', 'block')
+            .attr('aria-hidden', 'false');
+    }
+
+    function hideSertipikatNoDataAlert() {
+        var $modal = $('#sertipikatNoDataAlertModal');
+
+        if (typeof $modal.modal === 'function') {
+            $modal.modal('hide');
+            return;
+        }
+
+        $modal
+            .removeClass('show')
+            .css('display', 'none')
+            .attr('aria-hidden', 'true');
+
+        $('.sertipikat-nodata-backdrop').remove();
+    }
+
     function resetInitialState() {
         $('#blok_awal').val('A');
         $('#blok_akhir').val('ZZ');
@@ -1710,7 +1754,7 @@
         kstTotalCards = 0;
         kstSuggestionIndex = -1;
         
-        $('#sertipikatNoDataAlertModal').modal('hide');
+        hideSertipikatNoDataAlert();
 
         setPrintEnabled(false);
         $('#loading-info').hide();
@@ -1901,7 +1945,7 @@
     function getData() {
         if (!validateFilter()) return;
         
-        $('#sertipikatNoDataAlertModal').modal('hide');
+        hideSertipikatNoDataAlert();
 
         setPrintEnabled(false);
         $('#loading-info').show();
@@ -1927,8 +1971,7 @@
                         pesanKosong = 'Data Laporan Apartemen tidak ditemukan......!';
                     }
                     
-                    $('#sertipikatNoDataMessage').text(pesanKosong);
-                    $('#sertipikatNoDataAlertModal').modal('show');
+                    showSertipikatNoDataAlert(pesanKosong);
                 }
                 // ------------------------------
                 
