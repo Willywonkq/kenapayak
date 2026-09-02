@@ -848,6 +848,72 @@
     text-align: center;
 }
 
+/* =========================================================
+   FOOTER TANDA TANGAN
+   Nilai mengikuti Daftar Sertifikat Pecahan.
+   ========================================================= */
+.ajb-signature-footer {
+    width: min(100%, 980px);
+    min-height: 190px;
+    margin: 18px auto 2px;
+    padding: 0 34px 18px;
+    color: #344054;
+    font-size: 11px;
+}
+
+.ajb-signature-footer-date {
+    width: 50%;
+    margin: 0 0 8px auto;
+    text-align: center;
+    color: #475467;
+    font-weight: 600;
+}
+
+.ajb-signature-footer-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 90px;
+}
+
+.ajb-signature-footer-box {
+    text-align: center;
+}
+
+.ajb-signature-footer-role {
+    min-height: 20px;
+    color: #344054;
+    font-weight: 600;
+}
+
+.ajb-signature-footer-space {
+    height: 78px;
+}
+
+.ajb-signature-footer-line {
+    display: inline-flex;
+    width: min(100%, 220px);
+    align-items: flex-end;
+    justify-content: center;
+    color: #667085;
+}
+
+.ajb-signature-footer-line::before {
+    content: "(";
+    margin-right: 3px;
+}
+
+.ajb-signature-footer-line::after {
+    content: ")";
+    margin-left: 3px;
+}
+
+.ajb-signature-footer-line > span {
+    display: block;
+    width: 100%;
+    height: 10px;
+    border-bottom: 1px dotted #98a2b3;
+}
+
 #ajbSektorModal {
     position: fixed;
     inset: 0;
@@ -1057,6 +1123,19 @@
         width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
+    }
+    .ajb-signature-footer {
+        color: #000 !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+    .ajb-signature-footer-date,
+    .ajb-signature-footer-role,
+    .ajb-signature-footer-line {
+        color: #000 !important;
+    }
+    .ajb-signature-footer-line > span {
+        border-bottom-color: #444 !important;
     }
 }
 </style>
@@ -1426,6 +1505,26 @@
         }
 
         return text;
+    }
+
+    function ajbFormatTanggalIndonesia(dateValue) {
+        var date = dateValue instanceof Date
+            ? dateValue
+            : new Date(dateValue || new Date());
+
+        if (isNaN(date.getTime())) {
+            date = new Date();
+        }
+
+        var bulan = [
+            'Januari', 'Februari', 'Maret', 'April',
+            'Mei', 'Juni', 'Juli', 'Agustus',
+            'September', 'Oktober', 'November', 'Desember'
+        ];
+
+        return date.getDate()
+            + ' ' + bulan[date.getMonth()]
+            + ' ' + date.getFullYear();
     }
 
     /* Nama PT untuk header laporan, sama dengan fitur lain. */
@@ -1991,6 +2090,25 @@
         }
 
         html += '</tbody></table></div>';
+
+        var tanggalTandaTangan = ajbFormatTanggalIndonesia(new Date());
+
+        html += '<div class="ajb-signature-footer">';
+        html += '<div class="ajb-signature-footer-date">Jakarta, '
+            + ajbEscapeHtml(tanggalTandaTangan) + '</div>';
+        html += '<div class="ajb-signature-footer-grid">';
+        html += '<div class="ajb-signature-footer-box">';
+        html += '<div class="ajb-signature-footer-role">Yang menyerahkan,</div>';
+        html += '<div class="ajb-signature-footer-space"></div>';
+        html += '<div class="ajb-signature-footer-line"><span></span></div>';
+        html += '</div>';
+        html += '<div class="ajb-signature-footer-box">';
+        html += '<div class="ajb-signature-footer-role">Yang menerima,</div>';
+        html += '<div class="ajb-signature-footer-space"></div>';
+        html += '<div class="ajb-signature-footer-line"><span></span></div>';
+        html += '</div>';
+        html += '</div></div>';
+
         html += '</div>';
 
         $('#ajbMainDisplay').html(html);
@@ -2161,6 +2279,53 @@
 
             .ajb-center { text-align: center; }
             .ajb-left { text-align: left; }
+
+            .ajb-signature-footer {
+                width: 100%;
+                min-height: 170px;
+                margin: 16px auto 0;
+                padding: 0 24px 8px;
+                color: #000;
+                font-size: 10px;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .ajb-signature-footer-date {
+                width: 50%;
+                margin: 0 0 8px auto;
+                text-align: center;
+                color: #000;
+                font-weight: 600;
+            }
+
+            .ajb-signature-footer-grid {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 90px;
+            }
+
+            .ajb-signature-footer-box { text-align: center; }
+            .ajb-signature-footer-role,
+            .ajb-signature-footer-line { color: #000; }
+            .ajb-signature-footer-space { height: 70px; }
+
+            .ajb-signature-footer-line {
+                display: inline-flex;
+                width: min(100%, 220px);
+                align-items: flex-end;
+                justify-content: center;
+            }
+
+            .ajb-signature-footer-line::before { content: "("; margin-right: 3px; }
+            .ajb-signature-footer-line::after { content: ")"; margin-left: 3px; }
+
+            .ajb-signature-footer-line > span {
+                display: block;
+                width: 100%;
+                height: 10px;
+                border-bottom: 1px dotted #444;
+            }
         `;
 
         frameDocument.open();
