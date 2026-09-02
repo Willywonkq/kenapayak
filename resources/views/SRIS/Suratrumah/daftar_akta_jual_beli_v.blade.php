@@ -1275,8 +1275,24 @@
 
                 $('#ajbLokasi').html(html).val('*');
             },
-            error: function () {
-                // Pilihan Semua Lokasi tetap dapat dipakai.
+            error: function (xhr) {
+                /*
+                 * Jangan gagal diam-diam. Bila daftar lokasi tidak dapat
+                 * diambil, pilihan Semua Lokasi tetap dapat dipakai tetapi
+                 * penyebabnya terlihat pada dropdown.
+                 */
+                var keterangan = 'Daftar lokasi gagal dimuat';
+
+                if (xhr && xhr.status) {
+                    keterangan += ' (HTTP ' + xhr.status + ')';
+                }
+
+                $('#ajbLokasi').html(
+                    '<option value="*">Semua Lokasi</option>'
+                    + '<option value="*" disabled>'
+                    + ajbEscapeHtml(keterangan)
+                    + '</option>'
+                ).val('*');
             }
         });
     }
@@ -1538,14 +1554,14 @@
         html += '<br>Tgl. Akta Jual Beli : ' + ajbEscapeHtml(periode);
         html += '</div></div>';
         html += '<div class="ajb-report-date">';
-        html += 'Tanggal : ' + ajbEscapeHtml(today);
+        html += 'Lokasi : ' + ajbEscapeHtml(lokasiTampil);
+        html += '<br>Tanggal : ' + ajbEscapeHtml(today);
         html += '<br>Jumlah Data : ' + rows.length;
         html += '</div></div>';
 
         html += '<div class="ajb-report-subtitle">';
-        html += '<span class="ajb-subtitle-label">Lokasi : '
-            + ajbEscapeHtml(lokasiTampil) + '</span>';
-        html += '<strong class="ajb-subtitle-value">Sektor/Cluster : '
+        html += '<span class="ajb-subtitle-label">Sektor/Cluster:</span>';
+        html += '<strong class="ajb-subtitle-value">'
             + ajbEscapeHtml(sektorTampil) + '</strong>';
         html += '<span class="ajb-live-badge">Live data</span>';
         html += '</div>';

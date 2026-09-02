@@ -26,16 +26,19 @@ class daftar_akta_jual_beli_m extends Model
     /**
      * Master lokasi.
      *
-     * Data lokasi memang tersimpan di tabel LOKASI (kolom KD_LOKASI dan
-     * DESKRIPSI), dan STOK menyimpan KD_LOKASI per unit. Query desktop
-     * membacanya lewat subquery:
+     * Data lokasi memang tersimpan di tabel LOKASI. Query laporan desktop
+     * membuktikannya lewat dua baris berikut:
      *
      *     ( SELECT DESKRIPSI FROM LOKASI WHERE KD_LOKASI = STOK.KD_LOKASI )
+     *     ( STOK.KD_LOKASI = :lokasi OR :lokasi = '*' )
      *
-     * Daftar dibatasi ke lokasi yang benar-benar dipakai unit yang aktif
-     * memakai EXISTS ke STOK, sehingga hanya memakai kolom yang sudah pasti
-     * ada. Bila hasilnya kosong (misalnya karena selisih spasi pada kolom
-     * kode), seluruh isi LOKASI dikembalikan agar dropdown tidak kosong.
+     * Jadi LOKASI menyimpan KD_LOKASI dan DESKRIPSI, sedangkan STOK
+     * menyimpan KD_LOKASI per unit.
+     *
+     * Daftar dibaca langsung dan apa adanya seperti lookup desktop, tanpa
+     * disaring lewat STOK. Penyaringan lewat STOK harus membandingkan kolom
+     * kode yang sudah di-RTRIM, sehingga index tidak terpakai dan pencarian
+     * menjadi berat pada tabel STOK yang besar.
      */
     public function obtainLokasi($kdPerusahaan)
     {
@@ -50,39 +53,15 @@ class daftar_akta_jual_beli_m extends Model
                 RTRIM(LTRIM(LOKASI.KD_LOKASI)) AS KD_LOKASI,
                 LOKASI.DESKRIPSI AS DESKRIPSI
             FROM [SRIS_PUSAT].[dbo].[LOKASI] AS LOKASI WITH (NOLOCK)
-            WHERE EXISTS (
-                SELECT 1
-                FROM [SRIS_PUSAT].[dbo].[STOK] AS STOK WITH (NOLOCK)
-                WHERE RTRIM(LTRIM(STOK.KD_LOKASI))
-                        = RTRIM(LTRIM(LOKASI.KD_LOKASI))
-                  AND UPPER(RTRIM(LTRIM(STOK.KD_PERUSAHAAN)))
-                        = :kd_perusahaan
-            )
-            ORDER BY
-                LOKASI.DESKRIPSI,
-                LOKASI.KD_LOKASI
-        SQL;
-
-        $rows = DB::connection(self::CONNECTION)->select($sql, [
-            'kd_perusahaan' => $kdPerusahaan,
-        ]);
-
-        if (count($rows) > 0) {
-            return collect($rows);
-        }
-
-        $sqlSemua = <<<'SQL'
-            SELECT
-                RTRIM(LTRIM(LOKASI.KD_LOKASI)) AS KD_LOKASI,
-                LOKASI.DESKRIPSI AS DESKRIPSI
-            FROM [SRIS_PUSAT].[dbo].[LOKASI] AS LOKASI WITH (NOLOCK)
+            WHERE LOKASI.KD_LOKASI IS NOT NULL
+              AND RTRIM(LTRIM(LOKASI.KD_LOKASI)) <> ''
             ORDER BY
                 LOKASI.DESKRIPSI,
                 LOKASI.KD_LOKASI
         SQL;
 
         return collect(
-            DB::connection(self::CONNECTION)->select($sqlSemua)
+            DB::connection(self::CONNECTION)->select($sql)
         );
     }
 
