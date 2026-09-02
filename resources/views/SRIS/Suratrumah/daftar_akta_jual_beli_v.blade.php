@@ -1241,6 +1241,23 @@
        LOKASI
        ============================================== */
 
+    /*
+     * Kode lokasi ditulis di kiri lalu diberi spasi tetap sebelum
+     * deskripsi, sehingga dropdown terbaca dua kolom seperti lookup
+     * pada desktop. Spasi memakai NBSP agar tidak diringkas browser.
+     */
+    function ajbPadLokasiCode(kode) {
+        var teks = String(kode === null || kode === undefined ? '' : kode).trim();
+        var nbsp = String.fromCharCode(160);
+        var lebar = 6;
+
+        while (teks.length < lebar) {
+            teks += nbsp;
+        }
+
+        return teks + nbsp;
+    }
+
     function loadAjbLokasi() {
         var perusahaan = String($('#ajbPerusahaan').val() || '').trim();
 
@@ -1262,13 +1279,18 @@
                     ? response
                     : (response && Array.isArray(response.data) ? response.data : []);
 
-                var html = '<option value="*">Semua Lokasi</option>';
+                var html = '<option value="*" data-deskripsi="Semua Lokasi">'
+                    + 'Semua Lokasi</option>';
 
                 $.each(rows, function (index, item) {
-                    var kode = item.KD_LOKASI || item.kd_lokasi || '';
-                    var deskripsi = item.DESKRIPSI || item.deskripsi || kode;
+                    var kode = String(item.KD_LOKASI || item.kd_lokasi || '').trim();
+                    var deskripsi = String(
+                        item.DESKRIPSI || item.deskripsi || kode
+                    ).trim();
 
-                    html += '<option value="' + ajbEscapeHtml(kode) + '">'
+                    html += '<option value="' + ajbEscapeHtml(kode) + '"'
+                        + ' data-deskripsi="' + ajbEscapeHtml(deskripsi) + '">'
+                        + ajbEscapeHtml(ajbPadLokasiCode(kode))
                         + ajbEscapeHtml(deskripsi)
                         + '</option>';
                 });
@@ -1288,7 +1310,8 @@
                 }
 
                 $('#ajbLokasi').html(
-                    '<option value="*">Semua Lokasi</option>'
+                    '<option value="*" data-deskripsi="Semua Lokasi">'
+                    + 'Semua Lokasi</option>'
                     + '<option value="*" disabled>'
                     + ajbEscapeHtml(keterangan)
                     + '</option>'
@@ -1528,8 +1551,11 @@
             + ' s/d '
             + ajbFormatDate($('#ajbTglAkhir').val());
 
+        var $lokasiTerpilih = $('#ajbLokasi option:selected');
         var lokasiTampil = String(
-            $('#ajbLokasi option:selected').text() || 'Semua Lokasi'
+            $lokasiTerpilih.attr('data-deskripsi')
+            || $lokasiTerpilih.text()
+            || 'Semua Lokasi'
         ).trim();
 
         var sektorTampil = String(
