@@ -98,8 +98,9 @@
 
 .ajb-filter {
     position: relative;
+    z-index: 30;
     padding: 20px;
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid #dbe3ef;
     border-radius: 24px;
     background: #ffffff;
@@ -111,6 +112,7 @@
     position: absolute;
     inset: 0 auto 0 0;
     width: 5px;
+    border-radius: 24px 0 0 24px;
     background: linear-gradient(180deg, #38bdf8 0%, #2563eb 52%, #1d4ed8 100%);
 }
 
@@ -179,7 +181,6 @@
 }
 
 .ajb-input,
-.ajb-select,
 .ajb-lookup-display {
     width: 100%;
     min-width: 0;
@@ -197,15 +198,303 @@
 }
 
 .ajb-input:hover,
-.ajb-select:hover,
 .ajb-lookup-display:hover {
     border-color: #aebed1;
 }
 
-.ajb-input:focus,
-.ajb-select:focus {
+.ajb-input:focus {
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+/* =========================================================
+   RANGE TANGGAL
+   Dua input tanggal dan pemisah "s.d" digabung menjadi satu
+   kontrol bersegmen, sehingga terbaca sebagai satu rentang.
+   ========================================================= */
+.ajb-range--date {
+    grid-template-columns: minmax(84px, 1fr) auto minmax(84px, 1fr);
+    gap: 0;
+    height: 42px;
+    padding: 0 4px;
+    border: 1px solid #c8d3e1;
+    border-radius: 12px;
+    background: #ffffff;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ajb-range--date:hover {
+    border-color: #aebed1;
+}
+
+.ajb-range--date:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.ajb-range--date .ajb-input {
+    height: 38px;
+    padding: 8px 6px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+.ajb-range--date .ajb-input:hover,
+.ajb-range--date .ajb-input:focus {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.ajb-range--date .ajb-separator {
+    width: auto;
+    height: 22px;
+    padding: 0 8px;
+    border: 0;
+    border-left: 1px solid #e6ecf3;
+    border-right: 1px solid #e6ecf3;
+    border-radius: 0;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 8.5px;
+}
+
+/* Ikon kalender bawaan Chromium dirapikan; Firefox mengabaikannya. */
+.ajb-range--date input[type="date"]::-webkit-calendar-picker-indicator {
+    padding: 3px;
+    border-radius: 6px;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.ajb-range--date input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    background: #eff6ff;
+    opacity: 1;
+}
+
+/* =========================================================
+   DROPDOWN LOKASI
+   Memakai tabel dua kolom, bukan <select>, supaya deskripsi
+   selalu rata betapa pun panjang kode lokasinya.
+   ========================================================= */
+.ajb-lokasi {
+    position: relative;
+    z-index: 60;
+    width: 100%;
+    min-width: 0;
+}
+
+.ajb-lokasi-selected {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    align-items: center;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #c8d3e1;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #101828;
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ajb-lokasi-selected:hover {
+    border-color: #aebed1;
+}
+
+.ajb-lokasi.is-open .ajb-lokasi-selected {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.ajb-lokasi-code {
+    display: inline-flex;
+    width: 62px;
+    min-width: 62px;
+    flex: 0 0 62px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.ajb-lokasi-name {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    padding: 0 8px;
+    overflow: hidden;
+    color: #101828;
+    font-size: 12px;
+    font-weight: 650;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ajb-lokasi-arrow {
+    display: flex;
+    width: 30px;
+    min-width: 30px;
+    flex: 0 0 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    margin-right: 6px;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 9px;
+    transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.ajb-lokasi.is-open .ajb-lokasi-arrow {
+    transform: rotate(180deg);
+    background: #dbeafe;
+}
+
+.ajb-lokasi-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 10050;
+    display: none;
+    width: max(100%, 380px);
+    max-width: min(560px, calc(100vw - 48px));
+    padding: 8px;
+    border: 1px solid #d8e2ee;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16);
+}
+
+.ajb-lokasi.is-open .ajb-lokasi-panel {
+    display: block;
+    animation: ajbLokasiPanelIn 0.14s ease-out;
+}
+
+@keyframes ajbLokasiPanelIn {
+    from { opacity: 0; transform: translateY(-5px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ajb-lokasi-search {
+    width: 100%;
+    height: 38px;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border: 1px solid #c8d3e1;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #101828;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+    outline: 0;
+}
+
+.ajb-lokasi-search:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.ajb-lokasi-scroll {
+    max-height: 280px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #93c5fd #eff3f7;
+}
+
+.ajb-lokasi-scroll::-webkit-scrollbar {
+    width: 10px;
+}
+
+.ajb-lokasi-scroll::-webkit-scrollbar-track {
+    background: #eff3f7;
+}
+
+.ajb-lokasi-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid #eff3f7;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #60a5fa, #2563eb);
+}
+
+.ajb-lokasi-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 3px;
+    table-layout: fixed;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+}
+
+.ajb-lokasi-table td {
+    height: 36px;
+    padding: 6px 10px;
+    border: 0;
+    background: #ffffff;
+    color: #475467;
+    vertical-align: middle;
+}
+
+/* Lebar kolom kode dikunci, jadi deskripsi selalu mulai di titik sama. */
+.ajb-lokasi-table td:first-child {
+    width: 78px;
+    border-radius: 10px 0 0 10px;
+    color: #1d4ed8;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 10.5px;
+    font-weight: 800;
+}
+
+.ajb-lokasi-table td:last-child {
+    border-radius: 0 10px 10px 0;
+    overflow: hidden;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ajb-lokasi-table tbody tr {
+    cursor: pointer;
+}
+
+.ajb-lokasi-table tbody tr:hover td {
+    background: #f4f8ff;
+    color: #1d4ed8;
+}
+
+.ajb-lokasi-table tbody tr.is-active td {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.ajb-lokasi-table tbody tr.is-active td:first-child {
+    box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.ajb-lokasi-empty td {
+    color: #94a3b8;
+    cursor: default;
+    text-align: center;
+}
+
+.ajb-lokasi-empty:hover td {
+    background: #ffffff;
+    color: #94a3b8;
 }
 
 .ajb-lookup {
@@ -315,6 +604,7 @@
 
 .ajb-report-area {
     position: relative;
+    z-index: 1;
     margin-top: 18px;
     padding: 20px;
     overflow: hidden;
@@ -910,7 +1200,7 @@
 
             <div class="ajb-field">
                 <label class="ajb-label" for="ajbTglAwal">Tanggal AJB</label>
-                <div class="ajb-range">
+                <div class="ajb-range ajb-range--date">
                     <input type="date" id="ajbTglAwal" class="ajb-input">
                     <span class="ajb-separator">s.d</span>
                     <input type="date" id="ajbTglAkhir" class="ajb-input">
@@ -938,10 +1228,46 @@
             </div>
 
             <div class="ajb-field">
-                <label class="ajb-label" for="ajbLokasi">Lokasi</label>
-                <select id="ajbLokasi" class="ajb-select">
-                    <option value="*">Semua Lokasi</option>
-                </select>
+                <span class="ajb-label">Lokasi</span>
+                <div class="ajb-lokasi" id="ajbLokasiDropdown">
+                    <input type="hidden" id="ajbLokasi" value="*">
+                    <input type="hidden" id="ajbLokasiNama" value="Semua Lokasi">
+
+                    <button
+                        type="button"
+                        class="ajb-lokasi-selected"
+                        onclick="toggleAjbLokasiPanel(event)"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                    >
+                        <span class="ajb-lokasi-code" id="ajbLokasiCode">*</span>
+                        <span class="ajb-lokasi-name" id="ajbLokasiName">Semua Lokasi</span>
+                        <span class="ajb-lokasi-arrow" aria-hidden="true">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                    </button>
+
+                    <div class="ajb-lokasi-panel" id="ajbLokasiPanel" role="listbox">
+                        <input
+                            type="text"
+                            class="ajb-lokasi-search"
+                            id="ajbLokasiSearch"
+                            placeholder="Cari kode atau nama lokasi..."
+                            onkeyup="filterAjbLokasi(this.value)"
+                            autocomplete="off"
+                        >
+                        <div class="ajb-lokasi-scroll">
+                            <table class="ajb-lokasi-table">
+                                <tbody id="ajbLokasiBody">
+                                    <tr class="is-active" data-kode="*" data-nama="Semua Lokasi">
+                                        <td>*</td>
+                                        <td>Semua Lokasi</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="ajb-field">
@@ -1013,6 +1339,24 @@
         $(document).on('keydown', function (event) {
             if (event.key === 'Escape') {
                 toggleAjbSektorModal(false);
+                closeAjbLokasiPanel();
+            }
+        });
+
+        $(document).on('click', '#ajbLokasiBody tr', function () {
+            if ($(this).hasClass('ajb-lokasi-empty')) {
+                return;
+            }
+
+            chooseAjbLokasi(
+                $(this).attr('data-kode'),
+                $(this).attr('data-nama')
+            );
+        });
+
+        $(document).on('click', function (event) {
+            if (!$(event.target).closest('#ajbLokasiDropdown').length) {
+                closeAjbLokasiPanel();
             }
         });
     });
@@ -1241,21 +1585,60 @@
        LOKASI
        ============================================== */
 
-    /*
-     * Kode lokasi ditulis di kiri lalu diberi spasi tetap sebelum
-     * deskripsi, sehingga dropdown terbaca dua kolom seperti lookup
-     * pada desktop. Spasi memakai NBSP agar tidak diringkas browser.
-     */
-    function ajbPadLokasiCode(kode) {
-        var teks = String(kode === null || kode === undefined ? '' : kode).trim();
-        var nbsp = String.fromCharCode(160);
-        var lebar = 6;
-
-        while (teks.length < lebar) {
-            teks += nbsp;
+    function toggleAjbLokasiPanel(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
         }
 
-        return teks + nbsp;
+        var $dropdown = $('#ajbLokasiDropdown');
+        var akanDibuka = !$dropdown.hasClass('is-open');
+
+        $dropdown.toggleClass('is-open', akanDibuka);
+        $dropdown.find('.ajb-lokasi-selected')
+            .attr('aria-expanded', akanDibuka ? 'true' : 'false');
+
+        if (akanDibuka) {
+            $('#ajbLokasiSearch').val('');
+            filterAjbLokasi('');
+            $('#ajbLokasiSearch').trigger('focus');
+        }
+    }
+
+    function closeAjbLokasiPanel() {
+        $('#ajbLokasiDropdown').removeClass('is-open')
+            .find('.ajb-lokasi-selected')
+            .attr('aria-expanded', 'false');
+    }
+
+    function chooseAjbLokasi(kode, nama) {
+        kode = String(kode || '*');
+        nama = String(nama || 'Semua Lokasi');
+
+        $('#ajbLokasi').val(kode);
+        $('#ajbLokasiNama').val(nama);
+        $('#ajbLokasiCode').text(kode);
+        $('#ajbLokasiName').text(nama);
+
+        $('#ajbLokasiBody tr').removeClass('is-active');
+        $('#ajbLokasiBody tr').each(function () {
+            if (String($(this).attr('data-kode') || '') === kode) {
+                $(this).addClass('is-active');
+            }
+        });
+
+        closeAjbLokasiPanel();
+        resetAjbPrint();
+    }
+
+    function filterAjbLokasi(keyword) {
+        var search = String(keyword || '').toLowerCase().trim();
+
+        $('#ajbLokasiBody tr').not('.ajb-lokasi-empty').each(function () {
+            $(this).toggle(
+                $(this).text().toLowerCase().indexOf(search) !== -1
+            );
+        });
     }
 
     function loadAjbLokasi() {
@@ -1279,29 +1662,32 @@
                     ? response
                     : (response && Array.isArray(response.data) ? response.data : []);
 
-                var html = '<option value="*" data-deskripsi="Semua Lokasi">'
-                    + 'Semua Lokasi</option>';
+                var html = '';
+
+                html += '<tr class="is-active" data-kode="*" ';
+                html += 'data-nama="Semua Lokasi">';
+                html += '<td>*</td><td>Semua Lokasi</td></tr>';
 
                 $.each(rows, function (index, item) {
                     var kode = String(item.KD_LOKASI || item.kd_lokasi || '').trim();
-                    var deskripsi = String(
+                    var nama = String(
                         item.DESKRIPSI || item.deskripsi || kode
                     ).trim();
 
-                    html += '<option value="' + ajbEscapeHtml(kode) + '"'
-                        + ' data-deskripsi="' + ajbEscapeHtml(deskripsi) + '">'
-                        + ajbEscapeHtml(ajbPadLokasiCode(kode))
-                        + ajbEscapeHtml(deskripsi)
-                        + '</option>';
+                    html += '<tr data-kode="' + ajbEscapeHtml(kode) + '" ';
+                    html += 'data-nama="' + ajbEscapeHtml(nama) + '">';
+                    html += '<td>' + ajbEscapeHtml(kode) + '</td>';
+                    html += '<td title="' + ajbEscapeHtml(nama) + '">'
+                        + ajbEscapeHtml(nama) + '</td>';
+                    html += '</tr>';
                 });
 
-                $('#ajbLokasi').html(html).val('*');
+                $('#ajbLokasiBody').html(html);
             },
             error: function (xhr) {
                 /*
-                 * Jangan gagal diam-diam. Bila daftar lokasi tidak dapat
-                 * diambil, pilihan Semua Lokasi tetap dapat dipakai tetapi
-                 * penyebabnya terlihat pada dropdown.
+                 * Jangan gagal diam-diam. Pilihan Semua Lokasi tetap dapat
+                 * dipakai, tetapi penyebabnya terlihat pada daftar.
                  */
                 var keterangan = 'Daftar lokasi gagal dimuat';
 
@@ -1309,13 +1695,14 @@
                     keterangan += ' (HTTP ' + xhr.status + ')';
                 }
 
-                $('#ajbLokasi').html(
-                    '<option value="*" data-deskripsi="Semua Lokasi">'
-                    + 'Semua Lokasi</option>'
-                    + '<option value="*" disabled>'
+                $('#ajbLokasiBody').html(
+                    '<tr class="is-active" data-kode="*" '
+                    + 'data-nama="Semua Lokasi">'
+                    + '<td>*</td><td>Semua Lokasi</td></tr>'
+                    + '<tr class="ajb-lokasi-empty"><td colspan="2">'
                     + ajbEscapeHtml(keterangan)
-                    + '</option>'
-                ).val('*');
+                    + '</td></tr>'
+                );
             }
         });
     }
@@ -1551,11 +1938,8 @@
             + ' s/d '
             + ajbFormatDate($('#ajbTglAkhir').val());
 
-        var $lokasiTerpilih = $('#ajbLokasi option:selected');
         var lokasiTampil = String(
-            $lokasiTerpilih.attr('data-deskripsi')
-            || $lokasiTerpilih.text()
-            || 'Semua Lokasi'
+            $('#ajbLokasiNama').val() || 'Semua Lokasi'
         ).trim();
 
         var sektorTampil = String(
