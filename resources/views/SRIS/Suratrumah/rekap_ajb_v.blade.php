@@ -1428,9 +1428,16 @@
             $(this).val(String($(this).val() || '').toUpperCase());
         });
 
+        /*
+         * Mengubah pilihan Belum Ttd Akta langsung memuat ulang laporan,
+         * tanpa perlu menekan OK lagi. resetRajbPrint() dipanggil lebih
+         * dulu supaya tombol Print tidak sempat aktif untuk laporan lama
+         * bila filter ternyata belum sah dan permintaan dibatalkan.
+         */
         $('#rajbBelumTtdAkta').on('change', function () {
             syncRajbTanggalState();
             resetRajbPrint();
+            getRajbData();
         });
 
         syncRajbTanggalState();
