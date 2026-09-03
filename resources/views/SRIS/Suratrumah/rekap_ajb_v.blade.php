@@ -1241,15 +1241,17 @@
     <section class="rajb-filter">
         <input
             type="hidden"
+            autocomplete="off"
             id="rajbPerusahaan"
             value="{{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}"
         >
         <input
             type="hidden"
+            autocomplete="off"
             id="rajbNamaPerusahaan"
             value="{{ session('nama_pt') ?? session('nama_perusahaan') ?? session('nama_unit') ?? '' }}"
         >
-        <input type="hidden" id="rajbSektor" value="*">
+        <input type="hidden" id="rajbSektor" value="*" autocomplete="off">
 
         <div class="rajb-filter-grid">
             <div class="rajb-field">
@@ -1278,9 +1280,9 @@
             <div class="rajb-field">
                 <label class="rajb-label" for="rajbTglAwal">Tanggal AJB</label>
                 <div class="rajb-range">
-                    <input type="date" id="rajbTglAwal" class="rajb-input">
+                    <input type="date" id="rajbTglAwal" class="rajb-input" autocomplete="off">
                     <span class="rajb-separator">s.d</span>
-                    <input type="date" id="rajbTglAkhir" class="rajb-input">
+                    <input type="date" id="rajbTglAkhir" class="rajb-input" autocomplete="off">
                 </div>
             </div>
 
@@ -1307,8 +1309,8 @@
             <div class="rajb-field">
                 <span class="rajb-label">Lokasi</span>
                 <div class="rajb-lokasi" id="rajbLokasiDropdown">
-                    <input type="hidden" id="rajbLokasi" value="*">
-                    <input type="hidden" id="rajbLokasiNama" value="Semua Lokasi">
+                    <input type="hidden" id="rajbLokasi" value="*" autocomplete="off">
+                    <input type="hidden" id="rajbLokasiNama" value="Semua Lokasi" autocomplete="off">
 
                     <button
                         type="button"
@@ -1501,7 +1503,8 @@
         $('#rajbLokasiNama').val('Semua Lokasi');
         $('#rajbLokasiCode').text('*');
         $('#rajbLokasiName').text('Semua Lokasi');
-        $('#rajbLokasiBody tr').removeClass('is-active');
+        $('#rajbLokasiSearch').val('');
+        $('#rajbLokasiBody tr').removeClass('is-active').show();
         $('#rajbLokasiBody tr').filter(function () {
             return String($(this).attr('data-kode') || '') === '*';
         }).addClass('is-active');

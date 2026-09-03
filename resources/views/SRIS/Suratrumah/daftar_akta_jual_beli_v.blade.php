@@ -1174,15 +1174,17 @@
     <section class="ajb-filter">
         <input
             type="hidden"
+            autocomplete="off"
             id="ajbPerusahaan"
             value="{{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}"
         >
         <input
             type="hidden"
+            autocomplete="off"
             id="ajbNamaPerusahaan"
             value="{{ session('nama_pt') ?? session('nama_perusahaan') ?? session('nama_unit') ?? '' }}"
         >
-        <input type="hidden" id="ajbSektor" value="*">
+        <input type="hidden" id="ajbSektor" value="*" autocomplete="off">
 
         <div class="ajb-filter-grid">
             <div class="ajb-field">
@@ -1211,9 +1213,9 @@
             <div class="ajb-field">
                 <label class="ajb-label" for="ajbTglAwal">Tanggal AJB</label>
                 <div class="ajb-range">
-                    <input type="date" id="ajbTglAwal" class="ajb-input">
+                    <input type="date" id="ajbTglAwal" class="ajb-input" autocomplete="off">
                     <span class="ajb-separator">s.d</span>
-                    <input type="date" id="ajbTglAkhir" class="ajb-input">
+                    <input type="date" id="ajbTglAkhir" class="ajb-input" autocomplete="off">
                 </div>
             </div>
 
@@ -1240,8 +1242,8 @@
             <div class="ajb-field">
                 <span class="ajb-label">Lokasi</span>
                 <div class="ajb-lokasi" id="ajbLokasiDropdown">
-                    <input type="hidden" id="ajbLokasi" value="*">
-                    <input type="hidden" id="ajbLokasiNama" value="Semua Lokasi">
+                    <input type="hidden" id="ajbLokasi" value="*" autocomplete="off">
+                    <input type="hidden" id="ajbLokasiNama" value="Semua Lokasi" autocomplete="off">
 
                     <button
                         type="button"
@@ -1338,8 +1340,18 @@
     var lastAjbRows = null;
 
     $(document).ready(function () {
-        setAjbDefaultDate();
-        resetAjbPrint();
+        /*
+         * Browser memulihkan isi form saat halaman di-refresh, termasuk
+         * input hidden penampung kode lokasi dan sektor. Akibatnya filter
+         * yang terlihat kembali ke "Semua" tetapi nilai yang dikirim ke
+         * server masih memakai pilihan sebelumnya. Reset dipanggil
+         * bertahap karena pemulihan itu dapat terjadi setelah
+         * DOMContentLoaded.
+         */
+        resetAjbInitialState();
+        window.setTimeout(resetAjbInitialState, 10);
+        window.setTimeout(resetAjbInitialState, 100);
+
         loadAjbLokasi();
 
         $('#ajbBlokAwal, #ajbBlokAkhir').on('input', function () {
@@ -1371,13 +1383,53 @@
         });
     });
 
+    $(window).on('load', function () {
+        resetAjbInitialState();
+    });
+
     $(window).on('pageshow', function (event) {
         var pageEvent = event.originalEvent || event;
 
         if (pageEvent.persisted) {
-            resetAjbPrint();
+            resetAjbInitialState();
         }
     });
+
+    /*
+     * Mengembalikan seluruh filter dan area laporan ke keadaan awal,
+     * seperti saat fitur ini baru dibuka.
+     */
+    function resetAjbInitialState() {
+        $('#ajbBlokAwal').val('A');
+        $('#ajbBlokAkhir').val('Z');
+
+        $('#ajbSektor').val('*');
+        $('#ajbSektorEntry').text('Semua Sektor');
+
+        $('#ajbLokasi').val('*');
+        $('#ajbLokasiNama').val('Semua Lokasi');
+        $('#ajbLokasiCode').text('*');
+        $('#ajbLokasiName').text('Semua Lokasi');
+        $('#ajbLokasiSearch').val('');
+        $('#ajbLokasiBody tr').removeClass('is-active').show();
+        $('#ajbLokasiBody tr').filter(function () {
+            return String($(this).attr('data-kode') || '') === '*';
+        }).addClass('is-active');
+        closeAjbLokasiPanel();
+        toggleAjbSektorModal(false);
+
+        setAjbDefaultDate();
+        resetAjbPrint();
+
+        $('#ajbLoading').hide();
+        $('#ajbMainDisplay').html(
+            '<div class="ajb-paper">'
+            + '<div class="ajb-initial">'
+            + '<i class="fas fa-table ajb-initial-icon" aria-hidden="true"></i>'
+            + '<div>Silahkan isi filter kemudian klik OK</div>'
+            + '</div></div>'
+        );
+    }
 
     function setAjbDefaultDate() {
         var now = new Date();
