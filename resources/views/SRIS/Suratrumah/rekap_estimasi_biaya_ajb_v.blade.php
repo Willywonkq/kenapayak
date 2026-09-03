@@ -907,51 +907,32 @@
 
 /* =========================================================
    KELOMPOK CLUSTER PADA LAPORAN
-   Desktop menuliskan "Cluster : <nama>" di atas setiap tabel,
-   sehingga satu laporan dapat berisi beberapa tabel.
+   Seluruh baris tetap berada pada satu tabel. Setiap kali
+   cluster berganti, sebuah baris judul disisipkan di atasnya.
    ========================================================= */
-.reba-cluster-block {
-    margin-bottom: 18px;
-}
-
-.reba-cluster-block .reba-table-wrap,
-.reba-grand-total-wrap {
-    max-height: none;
-    min-height: 0;
-}
-
-.reba-cluster-block:last-of-type {
-    margin-bottom: 0;
-}
-
-.reba-cluster-title {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    margin-bottom: 7px;
-    padding: 8px 12px;
-    border: 1px solid #dbe3ef;
+.reba-cluster-row td {
+    padding: 9px 10px;
+    background: linear-gradient(90deg, #eff6ff 0%, #f8fbff 62%, #ffffff 100%) !important;
     border-left: 4px solid #2563eb;
-    border-radius: 12px;
-    background: linear-gradient(90deg, #eff6ff 0%, #f8fbff 100%);
     color: #1e40af;
     font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
-    font-size: 11.5px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
+    font-size: 11px;
+    font-weight: 850;
+    text-align: left;
 }
 
-.reba-cluster-label {
+.reba-cluster-row .reba-cluster-label {
+    margin-right: 7px;
     color: #64748b;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 900;
     letter-spacing: 0.11em;
     text-transform: uppercase;
 }
 
-.reba-cluster-count {
-    margin-left: auto;
-    padding: 3px 9px;
+.reba-cluster-row .reba-cluster-count {
+    float: right;
+    padding: 2px 9px;
     border: 1px solid #bfdbfe;
     border-radius: 999px;
     background: #ffffff;
@@ -959,6 +940,11 @@
     font-family: "SFMono-Regular", Consolas, monospace;
     font-size: 9.5px;
     font-weight: 800;
+}
+
+/* Modal lookup blok memuat banyak kolom, jadi dibuat lebih lebar. */
+.reba-modal-dialog.is-wide {
+    max-width: 1180px;
 }
 
 .reba-grand-total-row td {
@@ -1003,15 +989,10 @@
         min-width: 0 !important;
         max-width: 100% !important;
     }
-    .reba-cluster-title {
-        border: 1px solid #000 !important;
-        border-left: 4px solid #000 !important;
+    .reba-cluster-row td {
+        border-left: 1px solid #000 !important;
         background: #fff !important;
         color: #000 !important;
-    }
-    .reba-cluster-block {
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
     }
     .reba-signature-footer {
         color: #000 !important;
@@ -1196,7 +1177,7 @@
     </div>
 
     <div id="rebaBlokModal" class="reba-modal" aria-hidden="true">
-        <div class="reba-modal-dialog">
+        <div class="reba-modal-dialog is-wide">
             <div class="reba-modal-header">
                 <span id="rebaBlokModalTitle">Pilih Blok/Nomor</span>
                 <button
@@ -1722,32 +1703,58 @@
         });
     }
 
+    /*
+     * Kolom lookup mengikuti tampilan Search pada desktop: Blok Nomor,
+     * Nama Pembeli, No Virtual Acc, No Uang Muka, Tgl Uang Muka, Tipe,
+     * dan Lokasi, ditambah Cluster yang juga tersedia pada query.
+     */
+    var REBA_BLOK_COLUMNS = [
+        { judul: 'Blok Nomor', keys: ['BLOK_NOMOR', 'blok_nomor'] },
+        { judul: 'Nama Pembeli', keys: ['NAMA_PEMBELI', 'nama_pembeli'] },
+        { judul: 'No Virtual Acc', keys: ['NO_VIRTUAL_ACC', 'no_virtual_acc'] },
+        { judul: 'No Uang Muka', keys: ['NO_PPJB', 'no_ppjb'] },
+        { judul: 'Tgl Uang Muka', keys: ['TGL_PPJB', 'tgl_ppjb'], tanggal: true },
+        { judul: 'Tipe', keys: ['TIPE', 'tipe'] },
+        { judul: 'Lokasi', keys: ['LOKASI', 'lokasi'] },
+        { judul: 'Cluster', keys: ['NM_CLUSTER', 'nm_cluster'] }
+    ];
+
     function renderRebaBlokModal(rows) {
         rows = Array.isArray(rows) ? rows : [];
 
         var html = '';
         html += '<input type="text" class="reba-modal-search" ';
-        html += 'placeholder="Cari blok, nomor, nama pembeli, atau cluster..." ';
+        html += 'placeholder="Cari blok, nomor, nama pembeli, tipe, lokasi, atau cluster..." ';
         html += 'onkeyup="filterRebaBlok(this.value)">';
         html += '<div class="reba-modal-table-wrap">';
-        html += '<table class="reba-modal-table"><thead><tr>';
-        html += '<th>Blok/Nomor</th><th>Nama Pembeli</th><th>Cluster</th>';
+        html += '<table class="reba-modal-table" ';
+        html += 'style="min-width:1080px;"><thead><tr>';
+
+        $.each(REBA_BLOK_COLUMNS, function (index, kolom) {
+            html += '<th>' + rebaEscapeHtml(kolom.judul) + '</th>';
+        });
+
         html += '</tr></thead><tbody>';
 
         $.each(rows, function (index, item) {
             var blokNomor = rebaPick(item, ['BLOK_NOMOR', 'blok_nomor']) || '';
-            var pembeli = rebaPick(item, ['NAMA_PEMBELI', 'nama_pembeli']) || '';
-            var cluster = rebaPick(item, ['NM_CLUSTER', 'nm_cluster']) || '';
 
             html += '<tr onclick="addRebaBlok(\''
                 + rebaEscapeJs(blokNomor) + '\')">';
-            html += '<td>' + rebaEscapeHtml(blokNomor) + '</td>';
-            html += '<td>' + rebaEscapeHtml(pembeli) + '</td>';
-            html += '<td>' + rebaEscapeHtml(cluster) + '</td></tr>';
+
+            $.each(REBA_BLOK_COLUMNS, function (posisi, kolom) {
+                var isi = rebaPick(item, kolom.keys);
+
+                html += '<td>' + rebaEscapeHtml(
+                    kolom.tanggal ? rebaFormatDate(isi) : rebaValue(isi)
+                ) + '</td>';
+            });
+
+            html += '</tr>';
         });
 
         if (rows.length < 1) {
-            html += '<tr><td colspan="3" ';
+            html += '<tr><td colspan="' + REBA_BLOK_COLUMNS.length + '" ';
             html += 'style="padding:22px;text-align:center;">';
             html += 'Data blok/nomor tidak ditemukan.</td></tr>';
         }
@@ -1940,7 +1947,6 @@
         var groups = groupRebaRows(rows);
         var totalDevSemua = 0;
         var totalNotarisSemua = 0;
-        var nomorUrut = 0;
 
         var html = '';
 
@@ -1967,37 +1973,33 @@
         html += '<span class="reba-live-badge">Live data</span>';
         html += '</div>';
 
+        html += '<div class="reba-table-wrap">';
+        html += '<table class="reba-report-table" ' + rebaTableStyle() + '>';
+        html += rebaColgroup();
+        html += rebaTableHead();
+        html += '<tbody>';
+
         if (groups.length < 1) {
-            html += '<div class="reba-table-wrap">';
-            html += '<table class="reba-report-table" ' + rebaTableStyle() + '>';
-            html += rebaColgroup();
-            html += rebaTableHead();
-            html += '<tbody><tr><td colspan="9" class="reba-empty">';
+            html += '<tr><td colspan="9" class="reba-empty">';
             html += 'Data tidak ditemukan.';
-            html += '</td></tr></tbody></table></div>';
+            html += '</td></tr>';
         }
 
         /*
-         * Setiap cluster memakai tabel sendiri dengan judul di atasnya,
-         * mengikuti tampilan desktop saat cluster yang dipilih "Semua".
+         * Seluruh baris berada pada satu tabel. Setiap kali cluster
+         * berganti, sebuah baris judul disisipkan di atasnya, dan nomor
+         * urut dimulai lagi dari satu seperti tampilan desktop.
          */
         $.each(groups, function (posisi, group) {
             var totalDev = 0;
             var totalNotaris = 0;
 
-            html += '<div class="reba-cluster-block">';
-            html += '<div class="reba-cluster-title">';
+            html += '<tr class="reba-cluster-row"><td colspan="9">';
             html += '<span class="reba-cluster-label">Cluster :</span>';
-            html += '<span>' + rebaEscapeHtml(group.nama) + '</span>';
+            html += rebaEscapeHtml(group.nama);
             html += '<span class="reba-cluster-count">'
                 + group.rows.length + ' data</span>';
-            html += '</div>';
-
-            html += '<div class="reba-table-wrap">';
-            html += '<table class="reba-report-table" ' + rebaTableStyle() + '>';
-            html += rebaColgroup();
-            html += rebaTableHead();
-            html += '<tbody>';
+            html += '</td></tr>';
 
             $.each(group.rows, function (index, item) {
                 var dev = rebaNumber(rebaPick(item, ['TOTAL_DEV', 'total_dev']));
@@ -2007,10 +2009,9 @@
 
                 totalDev += dev;
                 totalNotaris += notaris;
-                nomorUrut += 1;
 
                 html += '<tr class="reba-data-row">';
-                html += '<td class="reba-center">' + nomorUrut + '</td>';
+                html += '<td class="reba-center">' + (index + 1) + '</td>';
                 html += '<td class="reba-left">'
                     + rebaEscapeHtml(rebaValue(rebaPick(item, ['NAMA_PEMBELI', 'nama_pembeli'])))
                     + '</td>';
@@ -2049,24 +2050,21 @@
             html += '<td class="reba-number">'
                 + rebaEscapeHtml(rebaFormatCurrency(totalNotaris)) + '</td>';
             html += '</tr>';
-
-            html += '</tbody></table></div></div>';
         });
 
         /* Total keseluruhan hanya berarti bila cluster lebih dari satu. */
         if (groups.length > 1) {
-            html += '<div class="reba-table-wrap reba-grand-total-wrap">';
-            html += '<table class="reba-report-table" ' + rebaTableStyle() + '>';
-            html += rebaColgroup();
-            html += '<tbody><tr class="reba-grand-total-row">';
+            html += '<tr class="reba-grand-total-row">';
             html += '<td colspan="7" class="reba-total-label">';
             html += 'T O T A L :</td>';
             html += '<td class="reba-number">'
                 + rebaEscapeHtml(rebaFormatCurrency(totalDevSemua)) + '</td>';
             html += '<td class="reba-number">'
                 + rebaEscapeHtml(rebaFormatCurrency(totalNotarisSemua)) + '</td>';
-            html += '</tr></tbody></table></div>';
+            html += '</tr>';
         }
+
+        html += '</tbody></table></div>';
 
         var tanggalTandaTangan = rebaFormatTanggalIndonesia(new Date());
 
@@ -2229,27 +2227,21 @@
 
             .reba-table-wrap { width: 100%; overflow: visible; border: 0; }
 
-            .reba-cluster-block {
-                margin-bottom: 10px;
-                break-inside: avoid;
-                page-break-inside: avoid;
-            }
-
-            .reba-cluster-title {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                margin-bottom: 4px;
-                padding: 4px 6px;
-                border: 1px solid #000;
-                background: #fff;
+            .reba-cluster-row td {
+                background: #fff !important;
                 color: #000;
-                font-size: 9px;
+                font-size: 8.4px;
                 font-weight: 700;
+                text-align: left;
             }
 
-            .reba-cluster-label { font-size: 8px; letter-spacing: .1em; }
-            .reba-cluster-count { margin-left: auto; font-size: 8px; }
+            .reba-cluster-row .reba-cluster-label {
+                margin-right: 5px;
+                font-size: 7.6px;
+                letter-spacing: .1em;
+            }
+
+            .reba-cluster-row .reba-cluster-count { float: right; font-size: 7.6px; }
 
             .reba-grand-total-row td {
                 background: #fff !important;
