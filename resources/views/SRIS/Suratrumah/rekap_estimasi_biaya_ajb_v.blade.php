@@ -633,72 +633,6 @@
     text-align: center;
 }
 
-/* =========================================================
-   FOOTER TANDA TANGAN
-   Nilai mengikuti Daftar Sertifikat Pecahan.
-   ========================================================= */
-.reba-signature-footer {
-    width: min(100%, 980px);
-    min-height: 190px;
-    margin: 18px auto 2px;
-    padding: 0 34px 18px;
-    color: #344054;
-    font-size: 11px;
-}
-
-.reba-signature-footer-date {
-    width: 50%;
-    margin: 0 0 8px auto;
-    text-align: center;
-    color: #475467;
-    font-weight: 600;
-}
-
-.reba-signature-footer-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 90px;
-}
-
-.reba-signature-footer-box {
-    text-align: center;
-}
-
-.reba-signature-footer-role {
-    min-height: 20px;
-    color: #344054;
-    font-weight: 600;
-}
-
-.reba-signature-footer-space {
-    height: 78px;
-}
-
-.reba-signature-footer-line {
-    display: inline-flex;
-    width: min(100%, 220px);
-    align-items: flex-end;
-    justify-content: center;
-    color: #667085;
-}
-
-.reba-signature-footer-line::before {
-    content: "(";
-    margin-right: 3px;
-}
-
-.reba-signature-footer-line::after {
-    content: ")";
-    margin-left: 3px;
-}
-
-.reba-signature-footer-line > span {
-    display: block;
-    width: 100%;
-    height: 10px;
-    border-bottom: 1px dotted #98a2b3;
-}
-
 .reba-number {
     color: #1e3a5f;
     text-align: right;
@@ -993,19 +927,6 @@
         border-left: 1px solid #000 !important;
         background: #fff !important;
         color: #000 !important;
-    }
-    .reba-signature-footer {
-        color: #000 !important;
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-    }
-    .reba-signature-footer-date,
-    .reba-signature-footer-role,
-    .reba-signature-footer-line {
-        color: #000 !important;
-    }
-    .reba-signature-footer-line > span {
-        border-bottom-color: #444 !important;
     }
 }
 </style>
@@ -1420,26 +1341,6 @@
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
         });
-    }
-
-    function rebaFormatTanggalIndonesia(dateValue) {
-        var date = dateValue instanceof Date
-            ? dateValue
-            : new Date(dateValue || new Date());
-
-        if (isNaN(date.getTime())) {
-            date = new Date();
-        }
-
-        var bulan = [
-            'Januari', 'Februari', 'Maret', 'April',
-            'Mei', 'Juni', 'Juli', 'Agustus',
-            'September', 'Oktober', 'November', 'Desember'
-        ];
-
-        return String(date.getDate()).padStart(2, '0')
-            + ' ' + bulan[date.getMonth()]
-            + ' ' + date.getFullYear();
     }
 
     /* Nama PT untuk header laporan, sama dengan fitur lain. */
@@ -1962,8 +1863,6 @@
         html += '</div></div>';
         html += '<div class="reba-report-date">';
         html += 'Tanggal : ' + rebaEscapeHtml(today);
-        html += '<br>Jumlah Data : ' + rows.length;
-        html += '<br>Jumlah Cluster : ' + groups.length;
         html += '</div></div>';
 
         html += '<div class="reba-report-subtitle">';
@@ -2065,24 +1964,6 @@
         }
 
         html += '</tbody></table></div>';
-
-        var tanggalTandaTangan = rebaFormatTanggalIndonesia(new Date());
-
-        html += '<div class="reba-signature-footer">';
-        html += '<div class="reba-signature-footer-date">Jakarta, '
-            + rebaEscapeHtml(tanggalTandaTangan) + '</div>';
-        html += '<div class="reba-signature-footer-grid">';
-        html += '<div class="reba-signature-footer-box">';
-        html += '<div class="reba-signature-footer-role">Yang menyerahkan,</div>';
-        html += '<div class="reba-signature-footer-space"></div>';
-        html += '<div class="reba-signature-footer-line"><span></span></div>';
-        html += '</div>';
-        html += '<div class="reba-signature-footer-box">';
-        html += '<div class="reba-signature-footer-role">Yang menerima,</div>';
-        html += '<div class="reba-signature-footer-space"></div>';
-        html += '<div class="reba-signature-footer-line"><span></span></div>';
-        html += '</div>';
-        html += '</div></div>';
 
         html += '</div>';
 
@@ -2298,52 +2179,6 @@
             .reba-number { text-align: right; }
             .reba-total-label { text-align: right; letter-spacing: .18em; }
 
-            .reba-signature-footer {
-                width: 100%;
-                min-height: 170px;
-                margin: 16px auto 0;
-                padding: 0 24px 8px;
-                color: #000;
-                font-size: 10px;
-                break-inside: avoid;
-                page-break-inside: avoid;
-            }
-
-            .reba-signature-footer-date {
-                width: 50%;
-                margin: 0 0 8px auto;
-                text-align: center;
-                color: #000;
-                font-weight: 600;
-            }
-
-            .reba-signature-footer-grid {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-                gap: 90px;
-            }
-
-            .reba-signature-footer-box { text-align: center; }
-            .reba-signature-footer-role,
-            .reba-signature-footer-line { color: #000; }
-            .reba-signature-footer-space { height: 70px; }
-
-            .reba-signature-footer-line {
-                display: inline-flex;
-                width: min(100%, 220px);
-                align-items: flex-end;
-                justify-content: center;
-            }
-
-            .reba-signature-footer-line::before { content: "("; margin-right: 3px; }
-            .reba-signature-footer-line::after { content: ")"; margin-left: 3px; }
-
-            .reba-signature-footer-line > span {
-                display: block;
-                width: 100%;
-                height: 10px;
-                border-bottom: 1px dotted #444;
-            }
         `;
 
         frameDocument.open();
