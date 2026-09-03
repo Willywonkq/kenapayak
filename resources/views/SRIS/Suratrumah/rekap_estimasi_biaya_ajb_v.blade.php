@@ -639,18 +639,6 @@
     font-variant-numeric: tabular-nums;
 }
 
-.reba-total-row td {
-    background: #eff6ff !important;
-    color: #1e3a5f;
-    font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
-    font-weight: 900;
-}
-
-.reba-total-label {
-    letter-spacing: 0.18em;
-    text-align: right;
-}
-
 /* Dipakai bersama oleh modal Cluster dan modal Blok/Nomor. */
 .reba-modal {
     position: fixed;
@@ -879,12 +867,6 @@
 /* Modal lookup blok memuat banyak kolom, jadi dibuat lebih lebar. */
 .reba-modal-dialog.is-wide {
     max-width: 1180px;
-}
-
-.reba-grand-total-row td {
-    background: #eff6ff;
-    color: #1e40af;
-    font-weight: 900;
 }
 
 @media screen and (max-width: 719px) {
@@ -1318,11 +1300,6 @@
         }
 
         return text;
-    }
-
-    function rebaNumber(value) {
-        var number = Number(value);
-        return isFinite(number) ? number : 0;
     }
 
     /* Kolom rupiah memakai pemisah ribuan tanpa desimal, seperti desktop. */
@@ -1846,8 +1823,6 @@
             + '-' + now.getFullYear();
 
         var groups = groupRebaRows(rows);
-        var totalDevSemua = 0;
-        var totalNotarisSemua = 0;
 
         var html = '';
 
@@ -1890,9 +1865,6 @@
          * urut dimulai lagi dari satu seperti tampilan desktop.
          */
         $.each(groups, function (posisi, group) {
-            var totalDev = 0;
-            var totalNotaris = 0;
-
             html += '<tr class="reba-cluster-row"><td colspan="9">';
             html += '<span class="reba-cluster-label">Cluster :</span>';
             html += rebaEscapeHtml(group.nama);
@@ -1901,14 +1873,6 @@
             html += '</td></tr>';
 
             $.each(group.rows, function (index, item) {
-                var dev = rebaNumber(rebaPick(item, ['TOTAL_DEV', 'total_dev']));
-                var notaris = rebaNumber(
-                    rebaPick(item, ['TOTAL_NOTARIS', 'total_notaris'])
-                );
-
-                totalDev += dev;
-                totalNotaris += notaris;
-
                 html += '<tr class="reba-data-row">';
                 html += '<td class="reba-center">' + (index + 1) + '</td>';
                 html += '<td class="reba-left">'
@@ -1938,30 +1902,7 @@
                 html += '</tr>';
             });
 
-            totalDevSemua += totalDev;
-            totalNotarisSemua += totalNotaris;
-
-            html += '<tr class="reba-total-row">';
-            html += '<td colspan="7" class="reba-total-label">';
-            html += 'Sub Total ' + rebaEscapeHtml(group.nama) + ' :</td>';
-            html += '<td class="reba-number">'
-                + rebaEscapeHtml(rebaFormatCurrency(totalDev)) + '</td>';
-            html += '<td class="reba-number">'
-                + rebaEscapeHtml(rebaFormatCurrency(totalNotaris)) + '</td>';
-            html += '</tr>';
         });
-
-        /* Total keseluruhan hanya berarti bila cluster lebih dari satu. */
-        if (groups.length > 1) {
-            html += '<tr class="reba-grand-total-row">';
-            html += '<td colspan="7" class="reba-total-label">';
-            html += 'T O T A L :</td>';
-            html += '<td class="reba-number">'
-                + rebaEscapeHtml(rebaFormatCurrency(totalDevSemua)) + '</td>';
-            html += '<td class="reba-number">'
-                + rebaEscapeHtml(rebaFormatCurrency(totalNotarisSemua)) + '</td>';
-            html += '</tr>';
-        }
 
         html += '</tbody></table></div>';
 
@@ -2124,12 +2065,6 @@
 
             .reba-cluster-row .reba-cluster-count { float: right; font-size: 7.6px; }
 
-            .reba-grand-total-row td {
-                background: #fff !important;
-                color: #000;
-                font-weight: 700;
-            }
-
             .reba-report-table {
                 width: 100% !important;
                 min-width: 0 !important;
@@ -2168,16 +2103,9 @@
 
             .reba-report-table th { text-align: center; font-weight: 700; }
 
-            .reba-total-row td {
-                background: #fff !important;
-                color: #000;
-                font-weight: 700;
-            }
-
             .reba-center { text-align: center; }
             .reba-left { text-align: left; }
             .reba-number { text-align: right; }
-            .reba-total-label { text-align: right; letter-spacing: .18em; }
 
         `;
 
