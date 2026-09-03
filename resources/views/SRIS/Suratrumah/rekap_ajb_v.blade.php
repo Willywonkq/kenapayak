@@ -1372,7 +1372,7 @@
                 <span class="rajb-label">Status Akta</span>
                 <div class="rajb-check-row">
                     <label class="rajb-checkbox">
-                        <input type="checkbox" id="rajbBelumTtdAkta">
+                        <input type="checkbox" id="rajbBelumTtdAkta" autocomplete="off">
                         <span>Belum Ttd Akta</span>
                     </label>
                 </div>
@@ -1420,8 +1420,16 @@
     var lastRajbRows = null;
 
     $(document).ready(function () {
-        setRajbDefaultDate();
-        resetRajbPrint();
+        /*
+         * Browser memulihkan isi form saat halaman di-refresh, sehingga
+         * centang Belum Ttd Akta dan isian blok dapat terbawa dari
+         * kunjungan sebelumnya. Reset dipanggil bertahap karena pemulihan
+         * itu dapat terjadi setelah DOMContentLoaded.
+         */
+        resetRajbInitialState();
+        window.setTimeout(resetRajbInitialState, 10);
+        window.setTimeout(resetRajbInitialState, 100);
+
         loadRajbLokasi();
 
         $('#rajbBlokAwal, #rajbBlokAkhir').on('input', function () {
@@ -1439,8 +1447,6 @@
             resetRajbPrint();
             getRajbData();
         });
-
-        syncRajbTanggalState();
 
         $(document).on('keydown', function (event) {
             if (event.key === 'Escape') {
@@ -1467,13 +1473,54 @@
         });
     });
 
+    $(window).on('load', function () {
+        resetRajbInitialState();
+    });
+
     $(window).on('pageshow', function (event) {
         var pageEvent = event.originalEvent || event;
 
         if (pageEvent.persisted) {
-            resetRajbPrint();
+            resetRajbInitialState();
         }
     });
+
+    /*
+     * Mengembalikan seluruh filter dan area laporan ke keadaan awal,
+     * seperti saat fitur ini baru dibuka.
+     */
+    function resetRajbInitialState() {
+        $('#rajbBlokAwal').val('A');
+        $('#rajbBlokAkhir').val('Z');
+        $('#rajbBelumTtdAkta').prop('checked', false);
+
+        $('#rajbSektor').val('*');
+        $('#rajbSektorEntry').text('Semua Sektor');
+
+        $('#rajbLokasi').val('*');
+        $('#rajbLokasiNama').val('Semua Lokasi');
+        $('#rajbLokasiCode').text('*');
+        $('#rajbLokasiName').text('Semua Lokasi');
+        $('#rajbLokasiBody tr').removeClass('is-active');
+        $('#rajbLokasiBody tr').filter(function () {
+            return String($(this).attr('data-kode') || '') === '*';
+        }).addClass('is-active');
+        closeRajbLokasiPanel();
+        toggleRajbSektorModal(false);
+
+        setRajbDefaultDate();
+        syncRajbTanggalState();
+        resetRajbPrint();
+
+        $('#rajbLoading').hide();
+        $('#rajbMainDisplay').html(
+            '<div class="rajb-paper">'
+            + '<div class="rajb-initial">'
+            + '<i class="fas fa-table rajb-initial-icon" aria-hidden="true"></i>'
+            + '<div>Silahkan isi filter kemudian klik OK</div>'
+            + '</div></div>'
+        );
+    }
 
     function setRajbDefaultDate() {
         var now = new Date();
