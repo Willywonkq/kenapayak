@@ -895,7 +895,82 @@
         border-top: 2px solid #334155 !important;
     }
 
+    /* Modal alert data kosong, mengikuti Daftar Surat Pesanan. */
+    #spSudahPpjbNoDataAlertModal .modal-dialog {
+        max-width: 380px;
+    }
+
+    #spSudahPpjbNoDataAlertModal .modal-content {
+        border: 0;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+    }
+
+    #spSudahPpjbNoDataAlertModal .alert-icon-wrapper {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 28px;
+    }
+
+    #spSudahPpjbNoDataAlertModal .alert-title {
+        margin-bottom: 8px;
+        color: #172033;
+        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    #spSudahPpjbNoDataAlertModal .alert-message {
+        margin-bottom: 24px;
+        color: #475569;
+        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 14px;
+    }
+
+    #spSudahPpjbNoDataAlertModal .alert-btn-ok {
+        width: 100%;
+        padding: 10px 32px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    #spSudahPpjbNoDataAlertModal .alert-btn-ok:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+    }
+
 </style>
+
+<div class="modal fade" id="spSudahPpjbNoDataAlertModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-4">
+                <div class="alert-icon-wrapper">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="alert-title">Information</div>
+                <div class="alert-message">Data tidak ada......!</div>
+                <button
+                    type="button"
+                    class="btn alert-btn-ok"
+                    onclick="$('#spSudahPpjbNoDataAlertModal').modal('hide')"
+                >OK</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="modal" id="spSudahPpjbModal">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -1091,6 +1166,7 @@
     }
 
     function clearReportState() {
+        $('#spSudahPpjbNoDataAlertModal').modal('hide');
         $('#loading-info').hide();
         $('#main-display').html(
             '<div class="empty-state-panel">' +
@@ -1465,6 +1541,8 @@
         var requestId = ++summaryRequestId;
         var filterData = getFilterData();
 
+        $('#spSudahPpjbNoDataAlertModal').modal('hide');
+
         /*
          * Snapshot label/filter. Jika user mengganti sektor saat request berjalan,
          * response lama tidak akan memakai label sektor baru.
@@ -1625,6 +1703,10 @@
         html += '</div>';
 
         $('#main-display').html(html);
+
+        if (!data || data.length === 0) {
+            $('#spSudahPpjbNoDataAlertModal').modal('show');
+        }
     }
 
     function valueOrEmpty(value) {
