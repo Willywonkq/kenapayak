@@ -853,7 +853,13 @@
 /* =========================================================
    STATUS APPROVE
    Tiga pilihan berdampingan, mengikuti radio pada desktop.
+   Hanya tampil saat Status Entry berisi Sudah Entry Pembeli
+   Baru, sama seperti desktop.
    ========================================================= */
+.rph-field.is-hidden {
+    display: none !important;
+}
+
 .rph-radio-row {
     display: flex;
     align-items: center;
@@ -1056,7 +1062,7 @@ select.rph-input {
                 </select>
             </div>
 
-            <div class="rph-field">
+            <div class="rph-field" id="rphStsApproveField">
                 <span class="rph-label">Status Approve</span>
                 <div class="rph-radio-row">
                     <label class="rph-radio">
@@ -1143,6 +1149,7 @@ select.rph-input {
         window.setTimeout(resetRphInitialState, 100);
 
         $('#rphStsEntry').on('change', function () {
+            syncRphStsApproveState();
             resetRphPrint();
         });
 
@@ -1179,6 +1186,7 @@ select.rph-input {
         $('#rphStsEntry').val('*');
         $('input[name="rphStsApprove"]').prop('checked', false);
         $('input[name="rphStsApprove"][value="*"]').prop('checked', true);
+        syncRphStsApproveState();
 
         toggleRphClusterModal(false);
 
@@ -1212,7 +1220,27 @@ select.rph-input {
         return (nilai === 'Y' || nilai === 'T') ? nilai : '*';
     }
 
+    /*
+     * Status Approve hanya berlaku saat Status Entry berisi Sudah Entry
+     * Pembeli Baru. Pada pilihan Status Entry yang lain isiannya
+     * disembunyikan dan dikembalikan ke Semua, mengikuti desktop.
+     */
+    function syncRphStsApproveState() {
+        var tampil = rphStsEntry() === 'Y';
+
+        if (!tampil) {
+            $('input[name="rphStsApprove"]').prop('checked', false);
+            $('input[name="rphStsApprove"][value="*"]').prop('checked', true);
+        }
+
+        $('#rphStsApproveField').toggleClass('is-hidden', !tampil);
+    }
+
     function rphStsApprove() {
+        if (rphStsEntry() !== 'Y') {
+            return '*';
+        }
+
         var nilai = String(
             $('input[name="rphStsApprove"]:checked').val() || '*'
         );
