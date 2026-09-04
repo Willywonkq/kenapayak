@@ -2344,6 +2344,37 @@
        PRINT
        ============================================== */
 
+    /*
+     * Lebar kolom untuk hasil cetak, dihitung dari colgroup laporan supaya
+     * proporsinya sama dengan tampilan layar. Dibuat sebagai persentase
+     * agar tetap benar berapa pun lebar kertas dan orientasi yang dipilih.
+     */
+    function rajbPrintColumnCss() {
+        var lebar = [];
+        var total = 0;
+
+        $('#rajbMainDisplay .rajb-report-table').first().find('col').each(function () {
+            var nilai = parseFloat(this.style.width) || $(this).width() || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        });
+
+        if (!total) {
+            return '';
+        }
+
+        var css = '';
+
+        $.each(lebar, function (index, nilai) {
+            css += '.rajb-report-table col:nth-child(' + (index + 1) + ')'
+                + ' { width: ' + ((nilai / total) * 100).toFixed(3)
+                + '% !important; }';
+        });
+
+        return css;
+    }
+
     function printRajbReport() {
         if (
             $('#rajbPrintButton').prop('disabled')
@@ -2409,20 +2440,20 @@
                 color: #000;
             }
 
-            .rajb-company { color: #000; font-size: 10px; font-weight: 700; }
+            .rajb-company { color: #000; font-size: 11px; font-weight: 700; }
             .rajb-title-wrap { text-align: center; }
 
             .rajb-report-title {
                 margin: 0;
                 color: #000;
                 font-family: Cambria, Georgia, "Times New Roman", serif;
-                font-size: 16px;
+                font-size: 17px;
                 font-weight: 700;
                 line-height: 1.2;
             }
 
             .rajb-report-center-meta,
-            .rajb-report-date { color: #000; font-size: 9px; line-height: 1.4; }
+            .rajb-report-date { color: #000; font-size: 10px; line-height: 1.35; }
             .rajb-report-date { text-align: right; }
 
             .rajb-report-subtitle {
@@ -2434,7 +2465,7 @@
                 padding: 7px 9px;
                 border: 1px solid #aaa;
                 color: #000;
-                font-size: 9px;
+                font-size: 10px;
             }
 
             .rajb-subtitle-value { text-align: center; font-weight: 700; }
@@ -2442,7 +2473,7 @@
             .rajb-live-badge {
                 justify-self: end;
                 color: #000;
-                font-size: 8px;
+                font-size: 9px;
                 font-weight: 700;
             }
 
@@ -2462,15 +2493,21 @@
                 width: 100% !important;
                 min-width: 0 !important;
                 max-width: 100%;
-                table-layout: fixed;
+                table-layout: auto;
                 border-collapse: collapse;
                 border-spacing: 0;
                 border: 1px solid #000;
                 color: #000;
-                font-size: 7.6px;
+                font-size: 10px;
             }
 
-            .rajb-report-table col { width: auto !important; }
+            /*
+             * Lebar kolom tidak lagi dipaksa auto. Dengan auto setiap kolom
+             * mendapat lebar yang sama, sehingga kolom nama terpotong
+             * menjadi dua baris sementara kolom nomor menyisakan ruang
+             * kosong. Persentase per kolom dihasilkan oleh
+             * rajbPrintColumnCss() dari colgroup laporan.
+             */
             .rajb-report-table thead { display: table-header-group; }
             .rajb-report-table tbody { display: table-row-group; }
 
@@ -2483,15 +2520,15 @@
             .rajb-report-table td {
                 position: static;
                 height: auto;
-                padding: 3.5px;
+                padding: 2.5px 4px;
                 border: 1px solid #000;
                 background: #fff;
                 color: #000;
                 box-shadow: none;
                 vertical-align: middle;
                 overflow: visible;
-                overflow-wrap: anywhere;
-                line-height: 1.25;
+                overflow-wrap: break-word;
+                line-height: 1.2;
             }
 
             .rajb-report-table th { text-align: center; font-weight: 700; }
@@ -2502,9 +2539,13 @@
                 font-weight: 700;
             }
 
-            .rajb-center { text-align: center; }
+            /*
+             * Tanggal dan angka tidak boleh dipenggal di tengah. Dengan
+             * table-layout otomatis, lebar kolomnya yang menyesuaikan.
+             */
+            .rajb-center { text-align: center; white-space: nowrap; }
             .rajb-left { text-align: left; }
-            .rajb-number { text-align: right; }
+            .rajb-number { text-align: right; white-space: nowrap; }
             .rajb-total-label { text-align: right; letter-spacing: .18em; }
 
             .rajb-signature-footer {
@@ -2560,7 +2601,7 @@
             '<!DOCTYPE html><html><head><meta charset="utf-8">'
             + '<meta name="viewport" content="width=device-width,initial-scale=1">'
             + '<title>Rekapitulasi PPAT/Akta Jual Beli</title>'
-            + '<style>' + printCss + '</style>'
+            + '<style>' + printCss + rajbPrintColumnCss() + '</style>'
             + '</head><body>' + reportHtml + '</body></html>'
         );
         frameDocument.close();

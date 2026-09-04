@@ -1910,6 +1910,37 @@ select.rph-input {
        PRINT
        ============================================== */
 
+    /*
+     * Lebar kolom untuk hasil cetak, dihitung dari colgroup laporan supaya
+     * proporsinya sama dengan tampilan layar. Dibuat sebagai persentase
+     * agar tetap benar berapa pun lebar kertas dan orientasi yang dipilih.
+     */
+    function rphPrintColumnCss() {
+        var lebar = [];
+        var total = 0;
+
+        $('#rphMainDisplay .rph-report-table').first().find('col').each(function () {
+            var nilai = parseFloat(this.style.width) || $(this).width() || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        });
+
+        if (!total) {
+            return '';
+        }
+
+        var css = '';
+
+        $.each(lebar, function (index, nilai) {
+            css += '.rph-report-table col:nth-child(' + (index + 1) + ')'
+                + ' { width: ' + ((nilai / total) * 100).toFixed(3)
+                + '% !important; }';
+        });
+
+        return css;
+    }
+
     function printRphReport() {
         if (
             $('#rphPrintButton').prop('disabled')
@@ -1975,20 +2006,20 @@ select.rph-input {
                 color: #000;
             }
 
-            .rph-company { color: #000; font-size: 10px; font-weight: 700; }
+            .rph-company { color: #000; font-size: 11px; font-weight: 700; }
             .rph-title-wrap { text-align: center; }
 
             .rph-report-title {
                 margin: 0;
                 color: #000;
                 font-family: Cambria, Georgia, "Times New Roman", serif;
-                font-size: 16px;
+                font-size: 17px;
                 font-weight: 700;
                 line-height: 1.2;
             }
 
             .rph-report-center-meta,
-            .rph-report-date { color: #000; font-size: 9px; line-height: 1.4; }
+            .rph-report-date { color: #000; font-size: 10px; line-height: 1.35; }
             .rph-report-date { text-align: right; }
 
             .rph-report-subtitle {
@@ -2000,7 +2031,7 @@ select.rph-input {
                 padding: 7px 9px;
                 border: 1px solid #aaa;
                 color: #000;
-                font-size: 9px;
+                font-size: 10px;
             }
 
             .rph-subtitle-value { text-align: center; font-weight: 700; }
@@ -2008,7 +2039,7 @@ select.rph-input {
             .rph-live-badge {
                 justify-self: end;
                 color: #000;
-                font-size: 8px;
+                font-size: 9px;
                 font-weight: 700;
             }
 
@@ -2027,32 +2058,38 @@ select.rph-input {
             .rph-cluster-row td {
                 background: #fff !important;
                 color: #000;
-                font-size: 8.4px;
+                font-size: 10px;
                 font-weight: 700;
                 text-align: left;
             }
 
             .rph-cluster-row .rph-cluster-label {
                 margin-right: 5px;
-                font-size: 7.6px;
+                font-size: 9px;
                 letter-spacing: .1em;
             }
 
-            .rph-cluster-row .rph-cluster-count { float: right; font-size: 7.6px; }
+            .rph-cluster-row .rph-cluster-count { float: right; font-size: 9px; }
 
             .rph-report-table {
                 width: 100% !important;
                 min-width: 0 !important;
                 max-width: 100%;
-                table-layout: fixed;
+                table-layout: auto;
                 border-collapse: collapse;
                 border-spacing: 0;
                 border: 1px solid #000;
                 color: #000;
-                font-size: 7.6px;
+                font-size: 10px;
             }
 
-            .rph-report-table col { width: auto !important; }
+            /*
+             * Lebar kolom tidak lagi dipaksa auto. Dengan auto setiap kolom
+             * mendapat lebar yang sama, sehingga kolom nama terpotong
+             * menjadi dua baris sementara kolom nomor menyisakan ruang
+             * kosong. Persentase per kolom dihasilkan oleh
+             * rphPrintColumnCss() dari colgroup laporan.
+             */
             .rph-report-table thead { display: table-header-group; }
             .rph-report-table tbody { display: table-row-group; }
 
@@ -2065,22 +2102,26 @@ select.rph-input {
             .rph-report-table td {
                 position: static;
                 height: auto;
-                padding: 3.5px;
+                padding: 2.5px 4px;
                 border: 1px solid #000;
                 background: #fff;
                 color: #000;
                 box-shadow: none;
                 vertical-align: middle;
                 overflow: visible;
-                overflow-wrap: anywhere;
-                line-height: 1.25;
+                overflow-wrap: break-word;
+                line-height: 1.2;
             }
 
             .rph-report-table th { text-align: center; font-weight: 700; }
 
-            .rph-center { text-align: center; }
+            /*
+             * Tanggal dan angka tidak boleh dipenggal di tengah. Dengan
+             * table-layout otomatis, lebar kolomnya yang menyesuaikan.
+             */
+            .rph-center { text-align: center; white-space: nowrap; }
             .rph-left { text-align: left; }
-            .rph-number { text-align: right; }
+            .rph-number { text-align: right; white-space: nowrap; }
 
         `;
 
@@ -2089,7 +2130,7 @@ select.rph-input {
             '<!DOCTYPE html><html><head><meta charset="utf-8">'
             + '<meta name="viewport" content="width=device-width,initial-scale=1">'
             + '<title>Rekap Peralihan Hak</title>'
-            + '<style>' + printCss + '</style>'
+            + '<style>' + printCss + rphPrintColumnCss() + '</style>'
             + '</head><body>' + reportHtml + '</body></html>'
         );
         frameDocument.close();

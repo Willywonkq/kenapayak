@@ -2170,6 +2170,37 @@
        PRINT
        ============================================== */
 
+    /*
+     * Lebar kolom untuk hasil cetak, dihitung dari colgroup laporan supaya
+     * proporsinya sama dengan tampilan layar. Dibuat sebagai persentase
+     * agar tetap benar berapa pun lebar kertas dan orientasi yang dipilih.
+     */
+    function ajbPrintColumnCss() {
+        var lebar = [];
+        var total = 0;
+
+        $('#ajbMainDisplay .ajb-report-table').first().find('col').each(function () {
+            var nilai = parseFloat(this.style.width) || $(this).width() || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        });
+
+        if (!total) {
+            return '';
+        }
+
+        var css = '';
+
+        $.each(lebar, function (index, nilai) {
+            css += '.ajb-report-table col:nth-child(' + (index + 1) + ')'
+                + ' { width: ' + ((nilai / total) * 100).toFixed(3)
+                + '% !important; }';
+        });
+
+        return css;
+    }
+
     function printAjbReport() {
         if (
             $('#ajbPrintButton').prop('disabled')
@@ -2288,7 +2319,7 @@
                 width: 100%;
                 min-width: 0;
                 max-width: 100%;
-                table-layout: fixed;
+                table-layout: auto;
                 border-collapse: collapse;
                 border-spacing: 0;
                 border: 1px solid #000;
@@ -2297,22 +2328,12 @@
             }
 
             /*
-             * Lebar kolom memakai persentase, bukan auto. Dengan auto setiap
-             * kolom mendapat lebar yang sama, sehingga kolom nama terpotong
+             * Lebar kolom tidak lagi dipaksa auto. Dengan auto setiap kolom
+             * mendapat lebar yang sama, sehingga kolom nama terpotong
              * menjadi dua baris sementara kolom nomor menyisakan ruang
-             * kosong. Persentase di bawah mengikuti proporsi colgroup pada
-             * tampilan layar.
+             * kosong. Persentase per kolom dihasilkan oleh
+             * ajbPrintColumnCss() dari colgroup laporan.
              */
-            .ajb-report-table col:nth-child(1) { width: 3.5% !important; }
-            .ajb-report-table col:nth-child(2) { width: 7.9% !important; }
-            .ajb-report-table col:nth-child(3) { width: 19.2% !important; }
-            .ajb-report-table col:nth-child(4) { width: 9.8% !important; }
-            .ajb-report-table col:nth-child(5) { width: 7.9% !important; }
-            .ajb-report-table col:nth-child(6) { width: 17.7% !important; }
-            .ajb-report-table col:nth-child(7) { width: 8.3% !important; }
-            .ajb-report-table col:nth-child(8) { width: 8.3% !important; }
-            .ajb-report-table col:nth-child(9) { width: 8.3% !important; }
-            .ajb-report-table col:nth-child(10) { width: 9.1% !important; }
             .ajb-report-table thead { display: table-header-group; }
             .ajb-report-table tbody { display: table-row-group; }
 
@@ -2332,7 +2353,7 @@
                 box-shadow: none;
                 vertical-align: middle;
                 overflow: visible;
-                overflow-wrap: anywhere;
+                overflow-wrap: break-word;
                 line-height: 1.2;
             }
 
@@ -2345,7 +2366,11 @@
                 text-align: left;
             }
 
-            .ajb-center { text-align: center; }
+            /*
+             * Tanggal dan nomor tidak boleh dipenggal di tengah. Dengan
+             * table-layout otomatis, lebar kolomnya yang menyesuaikan.
+             */
+            .ajb-center { text-align: center; white-space: nowrap; }
             .ajb-left { text-align: left; }
 
             .ajb-signature-footer {
@@ -2401,7 +2426,7 @@
             '<!DOCTYPE html><html><head><meta charset="utf-8">'
             + '<meta name="viewport" content="width=device-width,initial-scale=1">'
             + '<title>Daftar Akta Jual Beli</title>'
-            + '<style>' + printCss + '</style>'
+            + '<style>' + printCss + ajbPrintColumnCss() + '</style>'
             + '</head><body>' + reportHtml + '</body></html>'
         );
         frameDocument.close();

@@ -1935,6 +1935,37 @@
        PRINT
        ============================================== */
 
+    /*
+     * Lebar kolom untuk hasil cetak, dihitung dari colgroup laporan supaya
+     * proporsinya sama dengan tampilan layar. Dibuat sebagai persentase
+     * agar tetap benar berapa pun lebar kertas dan orientasi yang dipilih.
+     */
+    function rebaPrintColumnCss() {
+        var lebar = [];
+        var total = 0;
+
+        $('#rebaMainDisplay .reba-report-table').first().find('col').each(function () {
+            var nilai = parseFloat(this.style.width) || $(this).width() || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        });
+
+        if (!total) {
+            return '';
+        }
+
+        var css = '';
+
+        $.each(lebar, function (index, nilai) {
+            css += '.reba-report-table col:nth-child(' + (index + 1) + ')'
+                + ' { width: ' + ((nilai / total) * 100).toFixed(3)
+                + '% !important; }';
+        });
+
+        return css;
+    }
+
     function printRebaReport() {
         if (
             $('#rebaPrintButton').prop('disabled')
@@ -2000,20 +2031,20 @@
                 color: #000;
             }
 
-            .reba-company { color: #000; font-size: 10px; font-weight: 700; }
+            .reba-company { color: #000; font-size: 11px; font-weight: 700; }
             .reba-title-wrap { text-align: center; }
 
             .reba-report-title {
                 margin: 0;
                 color: #000;
                 font-family: Cambria, Georgia, "Times New Roman", serif;
-                font-size: 16px;
+                font-size: 17px;
                 font-weight: 700;
                 line-height: 1.2;
             }
 
             .reba-report-center-meta,
-            .reba-report-date { color: #000; font-size: 9px; line-height: 1.4; }
+            .reba-report-date { color: #000; font-size: 10px; line-height: 1.35; }
             .reba-report-date { text-align: right; }
 
             .reba-report-subtitle {
@@ -2025,7 +2056,7 @@
                 padding: 7px 9px;
                 border: 1px solid #aaa;
                 color: #000;
-                font-size: 9px;
+                font-size: 10px;
             }
 
             .reba-subtitle-value { text-align: center; font-weight: 700; }
@@ -2033,7 +2064,7 @@
             .reba-live-badge {
                 justify-self: end;
                 color: #000;
-                font-size: 8px;
+                font-size: 9px;
                 font-weight: 700;
             }
 
@@ -2052,32 +2083,38 @@
             .reba-cluster-row td {
                 background: #fff !important;
                 color: #000;
-                font-size: 8.4px;
+                font-size: 10px;
                 font-weight: 700;
                 text-align: left;
             }
 
             .reba-cluster-row .reba-cluster-label {
                 margin-right: 5px;
-                font-size: 7.6px;
+                font-size: 9px;
                 letter-spacing: .1em;
             }
 
-            .reba-cluster-row .reba-cluster-count { float: right; font-size: 7.6px; }
+            .reba-cluster-row .reba-cluster-count { float: right; font-size: 9px; }
 
             .reba-report-table {
                 width: 100% !important;
                 min-width: 0 !important;
                 max-width: 100%;
-                table-layout: fixed;
+                table-layout: auto;
                 border-collapse: collapse;
                 border-spacing: 0;
                 border: 1px solid #000;
                 color: #000;
-                font-size: 7.6px;
+                font-size: 10px;
             }
 
-            .reba-report-table col { width: auto !important; }
+            /*
+             * Lebar kolom tidak lagi dipaksa auto. Dengan auto setiap kolom
+             * mendapat lebar yang sama, sehingga kolom nama terpotong
+             * menjadi dua baris sementara kolom nomor menyisakan ruang
+             * kosong. Persentase per kolom dihasilkan oleh
+             * rebaPrintColumnCss() dari colgroup laporan.
+             */
             .reba-report-table thead { display: table-header-group; }
             .reba-report-table tbody { display: table-row-group; }
 
@@ -2090,22 +2127,26 @@
             .reba-report-table td {
                 position: static;
                 height: auto;
-                padding: 3.5px;
+                padding: 2.5px 4px;
                 border: 1px solid #000;
                 background: #fff;
                 color: #000;
                 box-shadow: none;
                 vertical-align: middle;
                 overflow: visible;
-                overflow-wrap: anywhere;
-                line-height: 1.25;
+                overflow-wrap: break-word;
+                line-height: 1.2;
             }
 
             .reba-report-table th { text-align: center; font-weight: 700; }
 
-            .reba-center { text-align: center; }
+            /*
+             * Tanggal dan angka tidak boleh dipenggal di tengah. Dengan
+             * table-layout otomatis, lebar kolomnya yang menyesuaikan.
+             */
+            .reba-center { text-align: center; white-space: nowrap; }
             .reba-left { text-align: left; }
-            .reba-number { text-align: right; }
+            .reba-number { text-align: right; white-space: nowrap; }
 
         `;
 
@@ -2114,7 +2155,7 @@
             '<!DOCTYPE html><html><head><meta charset="utf-8">'
             + '<meta name="viewport" content="width=device-width,initial-scale=1">'
             + '<title>Rekap Estimasi Biaya AJB</title>'
-            + '<style>' + printCss + '</style>'
+            + '<style>' + printCss + rebaPrintColumnCss() + '</style>'
             + '</head><body>' + reportHtml + '</body></html>'
         );
         frameDocument.close();
