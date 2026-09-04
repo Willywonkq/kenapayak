@@ -1390,9 +1390,84 @@
         margin: 0;
     }
 
+    /* Modal alert data kosong, mengikuti Daftar Surat Pesanan. */
+    #rencanaSTNoDataAlertModal .modal-dialog {
+        max-width: 380px;
+    }
+
+    #rencanaSTNoDataAlertModal .modal-content {
+        border: 0;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+    }
+
+    #rencanaSTNoDataAlertModal .alert-icon-wrapper {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 28px;
+    }
+
+    #rencanaSTNoDataAlertModal .alert-title {
+        margin-bottom: 8px;
+        color: #172033;
+        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    #rencanaSTNoDataAlertModal .alert-message {
+        margin-bottom: 24px;
+        color: #475569;
+        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 14px;
+    }
+
+    #rencanaSTNoDataAlertModal .alert-btn-ok {
+        width: 100%;
+        padding: 10px 32px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    #rencanaSTNoDataAlertModal .alert-btn-ok:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+    }
+
 </style>
 
 <div class="rencana-st-page">
+    <div class="modal fade" id="rencanaSTNoDataAlertModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-4">
+                    <div class="alert-icon-wrapper">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="alert-title">Information</div>
+                    <div class="alert-message">Data Rencana Serah Terima Periode tidak ada......!</div>
+                    <button
+                        type="button"
+                        class="btn alert-btn-ok"
+                        onclick="$('#rencanaSTNoDataAlertModal').modal('hide')"
+                    >OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="rencanaSTModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
@@ -1475,9 +1550,9 @@
                 <div class="filter-field">
                     <label class="filter-label" for="tgl_awal">Tgl. Rencana ST</label>
                     <div class="date-range">
-                        <input type="date" id="tgl_awal" class="field-control">
+                        <input type="date" id="tgl_awal" class="field-control" value="{{ now()->format('Y-m-d') }}" autocomplete="off">
                         <span class="range-text">s.d</span>
-                        <input type="date" id="tgl_akhir" class="field-control">
+                        <input type="date" id="tgl_akhir" class="field-control" value="{{ now()->format('Y-m-d') }}" autocomplete="off">
                     </div>
                 </div>
 
@@ -1540,7 +1615,7 @@
 
                 <div class="filter-field conditional-filter-row" id="cutoffRow">
                     <label class="filter-label" for="tgl_cutoff">Cut Off</label>
-                    <input type="date" id="tgl_cutoff" class="field-control">
+                    <input type="date" id="tgl_cutoff" class="field-control" value="{{ now()->format('Y-m-d') }}" autocomplete="off">
                     <div class="cutoff-help">Wajib diisi saat versi management aktif.</div>
                 </div>
             </div>
@@ -1584,11 +1659,13 @@
 @section('js')
 <script>
     $(document).ready(function () {
-        setDefaultDate();
         bindUppercaseBlock();
         bindConditionalFilters();
-        resetSummaryCards();
-        syncConditionalFilters();
+        resetPageState();
+
+        window.addEventListener('pageshow', function () {
+            resetPageState();
+        });
     });
 
     function setDefaultDate() {
@@ -1596,12 +1673,43 @@
         var year = now.getFullYear();
         var month = String(now.getMonth() + 1).padStart(2, '0');
         var day = String(now.getDate()).padStart(2, '0');
+        var today = year + '-' + month + '-' + day;
 
-        $('#tgl_awal').val(year + '-01-01');
-        $('#tgl_akhir').val(year + '-' + month + '-' + day);
+        $('#tgl_awal').val(today);
+        $('#tgl_akhir').val(today);
+        $('#tgl_cutoff').val(today);
+    }
 
-        
-        $('#tgl_cutoff').val(year + '-01-01');
+    function resetPageState() {
+        $('#rencanaSTNoDataAlertModal').modal('hide');
+        setDefaultDate();
+
+        $('#sektor').val('*');
+        $('#sektorentry').text('Semua Sektor');
+        $('#blok_awal').val('A');
+        $('#blok_akhir').val('ZZ');
+        $('#persentase_bayar').val('70');
+        $('#versi_management').prop('checked', false);
+
+        var defaultJenis = $('input[name="jenis"][value="NON_KAVLING"]');
+        $('input[name="jenis"]').prop('checked', false);
+
+        if (defaultJenis.length) {
+            defaultJenis.prop('checked', true);
+        } else {
+            $('input[name="jenis"]').first().prop('checked', true);
+        }
+
+        $('#loading-info').hide();
+        $('#main-display').html(
+            '<div class="initial-state">' +
+                '<div class="initial-state-icon"><i class="fas fa-table"></i></div>' +
+                '<div>Silakan pilih filter lalu klik <strong>View</strong>.</div>' +
+            '</div>'
+        );
+
+        resetSummaryCards();
+        syncConditionalFilters();
     }
 
     function bindUppercaseBlock() {
@@ -2240,6 +2348,7 @@
             return;
         }
 
+        $('#rencanaSTNoDataAlertModal').modal('hide');
         $('#loading-info').show();
         $('#main-display').html('');
 
@@ -2498,6 +2607,129 @@
 
         html += '</tbody></table></div></div>';
         $('#main-display').html(html);
+
+        if (rows.length === 0) {
+            $('#rencanaSTNoDataAlertModal').modal('show');
+        }
+    }
+
+    /*
+     * Penyesuaian tabel pada dokumen cetak.
+     *
+     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
+     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
+     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
+     *    kolom nomor menyisakan ruang kosong.
+     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
+     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
+     *    menjadi dua baris.
+     *
+     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
+     * nama kelas maupun struktur pembungkus laporan tiap fitur.
+     */
+    function applyPrintTableRules(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        var polaAngka = /^[0-9][0-9.,\/-]*$/;
+        var tabel = doc.querySelectorAll('table');
+        var aturan = '';
+
+        for (var i = 0; i < tabel.length; i++) {
+            var penanda = 'print-table-' + i;
+
+            tabel[i].setAttribute('data-print-table', penanda);
+            aturan += printTableColumnCss(tabel[i], penanda);
+            aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
+        }
+
+        if (aturan === '') {
+            return;
+        }
+
+        var gaya = doc.createElement('style');
+
+        gaya.setAttribute('data-print-table-rules', 'true');
+        gaya.appendChild(doc.createTextNode(aturan));
+        (doc.head || doc.documentElement).appendChild(gaya);
+    }
+
+    function printTableColumnCss(tabel, penanda) {
+        var kolom = tabel.querySelectorAll('colgroup > col');
+        var lebar = [];
+        var total = 0;
+
+        for (var i = 0; i < kolom.length; i++) {
+            var nilai = parseFloat(kolom[i].style.width) || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        }
+
+        if (total <= 0) {
+            return '';
+        }
+
+        var css = '';
+
+        for (var k = 0; k < lebar.length; k++) {
+            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
+                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
+        }
+
+        return css;
+    }
+
+    /*
+     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
+     * lagi sejajar dengan urutan kolom.
+     */
+    function printTableNowrapCss(tabel, penanda, polaAngka) {
+        var baris = tabel.querySelectorAll('tbody > tr');
+        var jumlahIsi = [];
+        var jumlahCocok = [];
+
+        for (var r = 0; r < baris.length; r++) {
+            var sel = baris[r].children;
+            var bergabung = false;
+
+            for (var c = 0; c < sel.length; c++) {
+                if ((sel[c].colSpan || 1) > 1 || (sel[c].rowSpan || 1) > 1) {
+                    bergabung = true;
+                    break;
+                }
+            }
+
+            if (bergabung) {
+                continue;
+            }
+
+            for (var k = 0; k < sel.length; k++) {
+                var teks = String(sel[k].textContent || '').trim();
+
+                if (teks === '' || teks === '-') {
+                    continue;
+                }
+
+                jumlahIsi[k] = (jumlahIsi[k] || 0) + 1;
+
+                if (polaAngka.test(teks)) {
+                    jumlahCocok[k] = (jumlahCocok[k] || 0) + 1;
+                }
+            }
+        }
+
+        var css = '';
+
+        for (var i = 0; i < jumlahIsi.length; i++) {
+            if (jumlahIsi[i] > 0 && jumlahCocok[i] === jumlahIsi[i]) {
+                css += '[data-print-table="' + penanda + '"] tbody > tr > td:nth-child('
+                    + (i + 1) + '){white-space:nowrap}';
+            }
+        }
+
+        return css;
     }
 
     function printRencanaSTReport() {
@@ -2593,7 +2825,7 @@
             .report-company {
                 color: #000 !important;
                 text-align: left !important;
-                font-size: 8px !important;
+                font-size: 10px !important;
                 font-weight: 700 !important;
                 line-height: 1.3 !important;
             }
@@ -2611,7 +2843,7 @@
             .report-period {
                 color: #000 !important;
                 text-align: right !important;
-                font-size: 7.5px !important;
+                font-size: 10px !important;
                 font-weight: 500 !important;
                 line-height: 1.35 !important;
             }
@@ -2630,7 +2862,7 @@
                 background: #fff !important;
                 color: #000 !important;
                 text-align: left !important;
-                font-size: 7.5px !important;
+                font-size: 10px !important;
                 font-weight: 500 !important;
             }
 
@@ -2662,7 +2894,7 @@
                 border-radius: 0 !important;
                 background: #fff !important;
                 color: #000 !important;
-                font-size: 7px !important;
+                font-size: 10px !important;
                 font-weight: 700 !important;
                 text-transform: uppercase !important;
             }
@@ -2698,13 +2930,13 @@
                 min-width: 0 !important;
                 max-width: 100% !important;
                 margin: 0 !important;
-                table-layout: fixed !important;
+                table-layout: auto !important;
                 border-collapse: collapse !important;
                 border-spacing: 0 !important;
                 border: 1px solid #000 !important;
                 background: #fff !important;
                 color: #000 !important;
-                font-size: 7.5px !important;
+                font-size: 10px !important;
             }
 
             .report-table thead {
@@ -2733,10 +2965,10 @@
                 box-shadow: none !important;
                 overflow: visible !important;
                 white-space: normal !important;
-                overflow-wrap: anywhere !important;
+                overflow-wrap: break-word !important;
                 word-break: normal !important;
                 vertical-align: middle !important;
-                font-size: 7.2px !important;
+                font-size: 10px !important;
                 line-height: 1.2 !important;
             }
 
@@ -2781,6 +3013,7 @@
             + '</html>'
         );
         frameDocument.close();
+        applyPrintTableRules(frameDocument);
 
         var cleanupPrintFrame = function () {
             $('#rencanaSTNativePrintFrame').remove();

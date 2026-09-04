@@ -1936,32 +1936,120 @@
        ============================================== */
 
     /*
-     * Lebar kolom untuk hasil cetak, dihitung dari colgroup laporan supaya
-     * proporsinya sama dengan tampilan layar. Dibuat sebagai persentase
-     * agar tetap benar berapa pun lebar kertas dan orientasi yang dipilih.
+     * Penyesuaian tabel pada dokumen cetak.
+     *
+     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
+     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
+     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
+     *    kolom nomor menyisakan ruang kosong.
+     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
+     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
+     *    menjadi dua baris.
+     *
+     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
+     * nama kelas maupun struktur pembungkus laporan tiap fitur.
      */
-    function rebaPrintColumnCss() {
+    function applyPrintTableRules(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        var polaAngka = /^[0-9][0-9.,\/-]*$/;
+        var tabel = doc.querySelectorAll('table');
+        var aturan = '';
+
+        for (var i = 0; i < tabel.length; i++) {
+            var penanda = 'print-table-' + i;
+
+            tabel[i].setAttribute('data-print-table', penanda);
+            aturan += printTableColumnCss(tabel[i], penanda);
+            aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
+        }
+
+        if (aturan === '') {
+            return;
+        }
+
+        var gaya = doc.createElement('style');
+
+        gaya.setAttribute('data-print-table-rules', 'true');
+        gaya.appendChild(doc.createTextNode(aturan));
+        (doc.head || doc.documentElement).appendChild(gaya);
+    }
+
+    function printTableColumnCss(tabel, penanda) {
+        var kolom = tabel.querySelectorAll('colgroup > col');
         var lebar = [];
         var total = 0;
 
-        $('#rebaMainDisplay .reba-report-table').first().find('col').each(function () {
-            var nilai = parseFloat(this.style.width) || $(this).width() || 0;
+        for (var i = 0; i < kolom.length; i++) {
+            var nilai = parseFloat(kolom[i].style.width) || 0;
 
             lebar.push(nilai);
             total += nilai;
-        });
+        }
 
-        if (!total) {
+        if (total <= 0) {
             return '';
         }
 
         var css = '';
 
-        $.each(lebar, function (index, nilai) {
-            css += '.reba-report-table col:nth-child(' + (index + 1) + ')'
-                + ' { width: ' + ((nilai / total) * 100).toFixed(3)
-                + '% !important; }';
-        });
+        for (var k = 0; k < lebar.length; k++) {
+            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
+                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
+        }
+
+        return css;
+    }
+
+    /*
+     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
+     * lagi sejajar dengan urutan kolom.
+     */
+    function printTableNowrapCss(tabel, penanda, polaAngka) {
+        var baris = tabel.querySelectorAll('tbody > tr');
+        var jumlahIsi = [];
+        var jumlahCocok = [];
+
+        for (var r = 0; r < baris.length; r++) {
+            var sel = baris[r].children;
+            var bergabung = false;
+
+            for (var c = 0; c < sel.length; c++) {
+                if ((sel[c].colSpan || 1) > 1 || (sel[c].rowSpan || 1) > 1) {
+                    bergabung = true;
+                    break;
+                }
+            }
+
+            if (bergabung) {
+                continue;
+            }
+
+            for (var k = 0; k < sel.length; k++) {
+                var teks = String(sel[k].textContent || '').trim();
+
+                if (teks === '' || teks === '-') {
+                    continue;
+                }
+
+                jumlahIsi[k] = (jumlahIsi[k] || 0) + 1;
+
+                if (polaAngka.test(teks)) {
+                    jumlahCocok[k] = (jumlahCocok[k] || 0) + 1;
+                }
+            }
+        }
+
+        var css = '';
+
+        for (var i = 0; i < jumlahIsi.length; i++) {
+            if (jumlahIsi[i] > 0 && jumlahCocok[i] === jumlahIsi[i]) {
+                css += '[data-print-table="' + penanda + '"] tbody > tr > td:nth-child('
+                    + (i + 1) + '){white-space:nowrap}';
+            }
+        }
 
         return css;
     }
@@ -2113,7 +2201,7 @@
              * mendapat lebar yang sama, sehingga kolom nama terpotong
              * menjadi dua baris sementara kolom nomor menyisakan ruang
              * kosong. Persentase per kolom dihasilkan oleh
-             * rebaPrintColumnCss() dari colgroup laporan.
+             * applyPrintTableRules() dari colgroup laporan.
              */
             .reba-report-table thead { display: table-header-group; }
             .reba-report-table tbody { display: table-row-group; }
@@ -2155,10 +2243,11 @@
             '<!DOCTYPE html><html><head><meta charset="utf-8">'
             + '<meta name="viewport" content="width=device-width,initial-scale=1">'
             + '<title>Rekap Estimasi Biaya AJB</title>'
-            + '<style>' + printCss + rebaPrintColumnCss() + '</style>'
+            + '<style>' + printCss + '</style>'
             + '</head><body>' + reportHtml + '</body></html>'
         );
         frameDocument.close();
+        applyPrintTableRules(frameDocument);
 
         window.setTimeout(function () {
             try {

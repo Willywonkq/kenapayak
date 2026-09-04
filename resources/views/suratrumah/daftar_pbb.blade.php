@@ -2034,6 +2034,125 @@ var showDetail = $('#pbbTampilNamaAlamatWp')
         }
         printPbbInNativeDialog();
     }
+    /*
+     * Penyesuaian tabel pada dokumen cetak.
+     *
+     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
+     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
+     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
+     *    kolom nomor menyisakan ruang kosong.
+     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
+     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
+     *    menjadi dua baris.
+     *
+     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
+     * nama kelas maupun struktur pembungkus laporan tiap fitur.
+     */
+    function applyPrintTableRules(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        var polaAngka = /^[0-9][0-9.,\/-]*$/;
+        var tabel = doc.querySelectorAll('table');
+        var aturan = '';
+
+        for (var i = 0; i < tabel.length; i++) {
+            var penanda = 'print-table-' + i;
+
+            tabel[i].setAttribute('data-print-table', penanda);
+            aturan += printTableColumnCss(tabel[i], penanda);
+            aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
+        }
+
+        if (aturan === '') {
+            return;
+        }
+
+        var gaya = doc.createElement('style');
+
+        gaya.setAttribute('data-print-table-rules', 'true');
+        gaya.appendChild(doc.createTextNode(aturan));
+        (doc.head || doc.documentElement).appendChild(gaya);
+    }
+
+    function printTableColumnCss(tabel, penanda) {
+        var kolom = tabel.querySelectorAll('colgroup > col');
+        var lebar = [];
+        var total = 0;
+
+        for (var i = 0; i < kolom.length; i++) {
+            var nilai = parseFloat(kolom[i].style.width) || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        }
+
+        if (total <= 0) {
+            return '';
+        }
+
+        var css = '';
+
+        for (var k = 0; k < lebar.length; k++) {
+            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
+                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
+        }
+
+        return css;
+    }
+
+    /*
+     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
+     * lagi sejajar dengan urutan kolom.
+     */
+    function printTableNowrapCss(tabel, penanda, polaAngka) {
+        var baris = tabel.querySelectorAll('tbody > tr');
+        var jumlahIsi = [];
+        var jumlahCocok = [];
+
+        for (var r = 0; r < baris.length; r++) {
+            var sel = baris[r].children;
+            var bergabung = false;
+
+            for (var c = 0; c < sel.length; c++) {
+                if ((sel[c].colSpan || 1) > 1 || (sel[c].rowSpan || 1) > 1) {
+                    bergabung = true;
+                    break;
+                }
+            }
+
+            if (bergabung) {
+                continue;
+            }
+
+            for (var k = 0; k < sel.length; k++) {
+                var teks = String(sel[k].textContent || '').trim();
+
+                if (teks === '' || teks === '-') {
+                    continue;
+                }
+
+                jumlahIsi[k] = (jumlahIsi[k] || 0) + 1;
+
+                if (polaAngka.test(teks)) {
+                    jumlahCocok[k] = (jumlahCocok[k] || 0) + 1;
+                }
+            }
+        }
+
+        var css = '';
+
+        for (var i = 0; i < jumlahIsi.length; i++) {
+            if (jumlahIsi[i] > 0 && jumlahCocok[i] === jumlahIsi[i]) {
+                css += '[data-print-table="' + penanda + '"] tbody > tr > td:nth-child('
+                    + (i + 1) + '){white-space:nowrap}';
+            }
+        }
+
+        return css;
+    }
+
     function printPbbInNativeDialog() {
         var reportHtml = $('#pbbMainDisplay').html();
         if (!reportHtml) {
@@ -2156,7 +2275,7 @@ html, body {
     border-radius: 999px;
     background: #ffffff;
     color: #000000;
-    font-size: 8.5px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -2181,7 +2300,7 @@ html, body {
     min-width: 0;
     max-width: 100%;
     margin: 0 auto;
-    table-layout: fixed;
+    table-layout: auto;
     border-collapse: collapse;
     border-spacing: 0;
     border: 1px solid #000000;
@@ -2192,7 +2311,7 @@ html, body {
     line-height: 1.35;
 }
 .pbb-report-table.pbb-detail-table {
-    font-size: 8.5px;
+    font-size: 10px;
     line-height: 1.25;
 }
 .pbb-report-table thead {
@@ -2213,17 +2332,17 @@ html, body {
     color: #000000;
     vertical-align: middle;
     overflow: visible;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 .pbb-report-table th {
     text-align: center;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     line-height: 1.25;
 }
 .pbb-report-table.pbb-detail-table th {
     padding: 4px;
-    font-size: 8.2px;
+    font-size: 10px;
     line-height: 1.2;
 }
 .pbb-sector-row td, .pbb-total-row td, .pbb-grand-total-row td {
@@ -2273,6 +2392,7 @@ html, body {
             + '</html>'
         );
         frameDocument.close();
+        applyPrintTableRules(frameDocument);
         var doPrint = function () {
             try {
                 frameWindow.focus();

@@ -1582,6 +1582,125 @@
         $btn.prop('disabled', !enabled).attr('aria-disabled', enabled ? 'false' : 'true');
     }
 
+    /*
+     * Penyesuaian tabel pada dokumen cetak.
+     *
+     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
+     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
+     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
+     *    kolom nomor menyisakan ruang kosong.
+     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
+     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
+     *    menjadi dua baris.
+     *
+     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
+     * nama kelas maupun struktur pembungkus laporan tiap fitur.
+     */
+    function applyPrintTableRules(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        var polaAngka = /^[0-9][0-9.,\/-]*$/;
+        var tabel = doc.querySelectorAll('table');
+        var aturan = '';
+
+        for (var i = 0; i < tabel.length; i++) {
+            var penanda = 'print-table-' + i;
+
+            tabel[i].setAttribute('data-print-table', penanda);
+            aturan += printTableColumnCss(tabel[i], penanda);
+            aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
+        }
+
+        if (aturan === '') {
+            return;
+        }
+
+        var gaya = doc.createElement('style');
+
+        gaya.setAttribute('data-print-table-rules', 'true');
+        gaya.appendChild(doc.createTextNode(aturan));
+        (doc.head || doc.documentElement).appendChild(gaya);
+    }
+
+    function printTableColumnCss(tabel, penanda) {
+        var kolom = tabel.querySelectorAll('colgroup > col');
+        var lebar = [];
+        var total = 0;
+
+        for (var i = 0; i < kolom.length; i++) {
+            var nilai = parseFloat(kolom[i].style.width) || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        }
+
+        if (total <= 0) {
+            return '';
+        }
+
+        var css = '';
+
+        for (var k = 0; k < lebar.length; k++) {
+            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
+                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
+        }
+
+        return css;
+    }
+
+    /*
+     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
+     * lagi sejajar dengan urutan kolom.
+     */
+    function printTableNowrapCss(tabel, penanda, polaAngka) {
+        var baris = tabel.querySelectorAll('tbody > tr');
+        var jumlahIsi = [];
+        var jumlahCocok = [];
+
+        for (var r = 0; r < baris.length; r++) {
+            var sel = baris[r].children;
+            var bergabung = false;
+
+            for (var c = 0; c < sel.length; c++) {
+                if ((sel[c].colSpan || 1) > 1 || (sel[c].rowSpan || 1) > 1) {
+                    bergabung = true;
+                    break;
+                }
+            }
+
+            if (bergabung) {
+                continue;
+            }
+
+            for (var k = 0; k < sel.length; k++) {
+                var teks = String(sel[k].textContent || '').trim();
+
+                if (teks === '' || teks === '-') {
+                    continue;
+                }
+
+                jumlahIsi[k] = (jumlahIsi[k] || 0) + 1;
+
+                if (polaAngka.test(teks)) {
+                    jumlahCocok[k] = (jumlahCocok[k] || 0) + 1;
+                }
+            }
+        }
+
+        var css = '';
+
+        for (var i = 0; i < jumlahIsi.length; i++) {
+            if (jumlahIsi[i] > 0 && jumlahCocok[i] === jumlahIsi[i]) {
+                css += '[data-print-table="' + penanda + '"] tbody > tr > td:nth-child('
+                    + (i + 1) + '){white-space:nowrap}';
+            }
+        }
+
+        return css;
+    }
+
     function printSertipikatReport() {
         if (
             $('#sertipikatPrintButton').prop('disabled')
@@ -1620,26 +1739,25 @@
             html, body { width: 100%; margin: 0; padding: 0; background: #fff; color: #000; font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
             *, *::before, *::after { box-sizing: border-box; }
             .report-header { display: grid; grid-template-columns: 1fr 1.45fr 1fr; gap: 12px; align-items: center; margin-bottom: 7px; padding: 10px 12px; border: 1px solid #777; background: #fff; color: #000; }
-            .report-company { color: #000; font-size: 10px; font-weight: 700; line-height: 1.35; }
-            .report-title { color: #000; text-align: center; font-family: Cambria, Georgia, "Times New Roman", serif; font-size: 16px; font-weight: 700; line-height: 1.2; }
-            .report-period { color: #000; text-align: right; font-size: 9px; line-height: 1.4; }
-            .report-subtitle { display: flex; min-height: 30px; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; padding: 7px 9px; border: 1px solid #aaa; background: #fff; color: #000; font-size: 9px; }
+            .report-company { color: #000; font-size: 11px; font-weight: 700; line-height: 1.35; }
+            .report-title { color: #000; text-align: center; font-family: Cambria, Georgia, "Times New Roman", serif; font-size: 17px; font-weight: 700; line-height: 1.2; }
+            .report-period { color: #000; text-align: right; font-size: 10px; line-height: 1.4; }
+            .report-subtitle { display: flex; min-height: 30px; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; padding: 7px 9px; border: 1px solid #aaa; background: #fff; color: #000; font-size: 10px; }
             .report-subtitle strong, .report-live-badge { color: #000; }
-            .report-live-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 8px; font-weight: 700; }
+            .report-live-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; }
             .report-live-badge::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #000; }
             .report-table-wrapper { width: 100%; max-width: 100%; max-height: none; min-height: 0; overflow: visible; border: 0; background: #fff; }
-            .report-table, .report-table.with-gabungan { width: 100%; min-width: 0; max-width: 100%; table-layout: fixed; border-collapse: collapse; border-spacing: 0; border: 1px solid #000; background: #fff; color: #000; font-size: 7.5px; }
-            .report-table col { width: auto !important; }
+            .report-table, .report-table.with-gabungan { width: 100%; min-width: 0; max-width: 100%; table-layout: auto; border-collapse: collapse; border-spacing: 0; border: 1px solid #000; background: #fff; color: #000; font-size: 10px; }
             .report-table thead { display: table-header-group; }
             .report-table tbody { display: table-row-group; }
             .report-table tr { break-inside: avoid; page-break-inside: avoid; }
-            .report-table th, .report-table td { position: static; height: auto; padding: 3px; border: 1px solid #000; background: #fff; color: #000; box-shadow: none; vertical-align: middle; overflow: visible; overflow-wrap: anywhere; word-break: break-word; line-height: 1.25; }
+            .report-table th, .report-table td { position: static; height: auto; padding: 3px; border: 1px solid #000; background: #fff; color: #000; box-shadow: none; vertical-align: middle; overflow: visible; overflow-wrap: break-word; line-height: 1.25; }
             .report-table th { text-align: center; font-weight: 700; }
             .report-table .group-heading, .report-table .sub-heading { background: #fff !important; color: #000 !important; font-weight: 700; }
             .report-table .name-cell, .report-table .multiline-cell, .number-cell, .center-cell { color: #000; }
             .number-cell { text-align: right; }
             .center-cell { text-align: center; }
-            .report-signature-footer { width: 100%; min-height: 170px; margin: 16px auto 0; padding: 0 24px 8px; color: #000; font-size: 10px; break-inside: avoid; page-break-inside: avoid; }
+            .report-signature-footer { width: 100%; min-height: 170px; margin: 16px auto 0; padding: 0 24px 8px; color: #000; font-size: 11px; break-inside: avoid; page-break-inside: avoid; }
             .report-signature-footer-date { width: 50%; margin: 0 0 8px auto; text-align: center; color: #000; font-weight: 600; }
             .report-signature-footer-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 90px; }
             .report-signature-footer-box { text-align: center; }
@@ -1657,17 +1775,17 @@
             .kst-card::before { display: none; }
             .kst-card-title { margin: 8px 0 14px; background: none; color: #000; text-align: center; font-size: 22px; font-weight: 700; letter-spacing: .04em; }
             .kst-card-meta { display: grid; grid-template-columns: minmax(0, 1fr) 180px; margin-bottom: 12px; overflow: hidden; border: 1px solid #000; border-radius: 0; background: #fff; box-shadow: none; }
-            .kst-info-table, .kst-log-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            .kst-info-table, .kst-log-table { width: 100%; border-collapse: collapse; table-layout: auto; }
             .kst-info-table td, .kst-log-table th, .kst-log-table td { border: 1px solid #000; background: #fff; color: #000; }
-            .kst-info-table td { height: 32px; padding: 5px 7px; font-size: 10px; }
+            .kst-info-table td { height: 32px; padding: 5px 7px; font-size: 11px; }
             .kst-info-label { width: 160px; font-weight: 700; white-space: nowrap; }
             .kst-info-separator { width: 16px; text-align: center; }
             .kst-block-box { display: flex; flex-direction: column; justify-content: center; border-left: 1px solid #000; padding: 12px; background: #fff; color: #000; }
-            .kst-block-label { text-align: center; color: #000; font-size: 10px; font-weight: 700; letter-spacing: .25em; }
+            .kst-block-label { text-align: center; color: #000; font-size: 11px; font-weight: 700; letter-spacing: .25em; }
             .kst-block-value { margin-top: 14px; text-align: center; font-size: 20px; font-weight: 700; }
-            .kst-log-table th { padding: 5px 4px; text-align: center; font-size: 9px; font-weight: 700; }
-            .kst-log-table td { height: 27px; padding: 3px 5px; font-size: 9px; }
-            .kst-card-caption { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; color: #000; font-size: 8px; font-weight: 600; }
+            .kst-log-table th { padding: 5px 4px; text-align: center; font-size: 10px; font-weight: 700; }
+            .kst-log-table td { height: 27px; padding: 3px 5px; font-size: 10px; }
+            .kst-card-caption { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; color: #000; font-size: 10px; font-weight: 600; }
         `;
 
         frameDocument.open();
@@ -1684,6 +1802,7 @@
             + '</html>'
         );
         frameDocument.close();
+        applyPrintTableRules(frameDocument);
 
         window.setTimeout(function () {
             try {

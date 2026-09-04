@@ -2128,6 +2128,125 @@
         });
     }
 
+    /*
+     * Penyesuaian tabel pada dokumen cetak.
+     *
+     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
+     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
+     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
+     *    kolom nomor menyisakan ruang kosong.
+     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
+     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
+     *    menjadi dua baris.
+     *
+     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
+     * nama kelas maupun struktur pembungkus laporan tiap fitur.
+     */
+    function applyPrintTableRules(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        var polaAngka = /^[0-9][0-9.,\/-]*$/;
+        var tabel = doc.querySelectorAll('table');
+        var aturan = '';
+
+        for (var i = 0; i < tabel.length; i++) {
+            var penanda = 'print-table-' + i;
+
+            tabel[i].setAttribute('data-print-table', penanda);
+            aturan += printTableColumnCss(tabel[i], penanda);
+            aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
+        }
+
+        if (aturan === '') {
+            return;
+        }
+
+        var gaya = doc.createElement('style');
+
+        gaya.setAttribute('data-print-table-rules', 'true');
+        gaya.appendChild(doc.createTextNode(aturan));
+        (doc.head || doc.documentElement).appendChild(gaya);
+    }
+
+    function printTableColumnCss(tabel, penanda) {
+        var kolom = tabel.querySelectorAll('colgroup > col');
+        var lebar = [];
+        var total = 0;
+
+        for (var i = 0; i < kolom.length; i++) {
+            var nilai = parseFloat(kolom[i].style.width) || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        }
+
+        if (total <= 0) {
+            return '';
+        }
+
+        var css = '';
+
+        for (var k = 0; k < lebar.length; k++) {
+            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
+                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
+        }
+
+        return css;
+    }
+
+    /*
+     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
+     * lagi sejajar dengan urutan kolom.
+     */
+    function printTableNowrapCss(tabel, penanda, polaAngka) {
+        var baris = tabel.querySelectorAll('tbody > tr');
+        var jumlahIsi = [];
+        var jumlahCocok = [];
+
+        for (var r = 0; r < baris.length; r++) {
+            var sel = baris[r].children;
+            var bergabung = false;
+
+            for (var c = 0; c < sel.length; c++) {
+                if ((sel[c].colSpan || 1) > 1 || (sel[c].rowSpan || 1) > 1) {
+                    bergabung = true;
+                    break;
+                }
+            }
+
+            if (bergabung) {
+                continue;
+            }
+
+            for (var k = 0; k < sel.length; k++) {
+                var teks = String(sel[k].textContent || '').trim();
+
+                if (teks === '' || teks === '-') {
+                    continue;
+                }
+
+                jumlahIsi[k] = (jumlahIsi[k] || 0) + 1;
+
+                if (polaAngka.test(teks)) {
+                    jumlahCocok[k] = (jumlahCocok[k] || 0) + 1;
+                }
+            }
+        }
+
+        var css = '';
+
+        for (var i = 0; i < jumlahIsi.length; i++) {
+            if (jumlahIsi[i] > 0 && jumlahCocok[i] === jumlahIsi[i]) {
+                css += '[data-print-table="' + penanda + '"] tbody > tr > td:nth-child('
+                    + (i + 1) + '){white-space:nowrap}';
+            }
+        }
+
+        return css;
+    }
+
     function printBalikNamaReport() {
         /*
          * V8 PRINT + ORIENTATION FIX
@@ -2237,7 +2356,7 @@
 
             .standard-report-company {
                 color: #000;
-                font-size: 9.5px;
+                font-size: 10px;
                 font-weight: 700;
             }
 
@@ -2252,7 +2371,7 @@
 
             .standard-report-period {
                 color: #000;
-                font-size: 8.5px;
+                font-size: 10px;
                 font-weight: 600;
                 line-height: 1.4;
                 text-align: right;
@@ -2268,7 +2387,7 @@
                 border: 1px solid #aaa;
                 background: #fff;
                 color: #000;
-                font-size: 8.5px;
+                font-size: 10px;
             }
 
             .standard-report-subtitle-label {
@@ -2284,7 +2403,7 @@
             .standard-report-live {
                 justify-self: end;
                 color: #000;
-                font-size: 7.5px;
+                font-size: 10px;
                 font-weight: 700;
             }
 
@@ -2303,13 +2422,13 @@
                 width: 100%;
                 min-width: 0;
                 max-width: 100%;
-                table-layout: fixed;
+                table-layout: auto;
                 border-collapse: collapse;
                 border-spacing: 0;
                 border: 1px solid #000;
                 background: #fff;
                 color: #000;
-                font-size: 6.8px;
+                font-size: 10px;
                 line-height: 1.2;
             }
 
@@ -2318,9 +2437,6 @@
              * Browser akan membagi tabel sesuai ukuran/orientasi kertas
              * yang dipilih user pada dialog print.
              */
-            .report-table col {
-                width: auto !important;
-            }
 
             .report-table thead {
                 display: table-header-group;
@@ -2345,13 +2461,13 @@
                 box-shadow: none;
                 vertical-align: middle;
                 overflow: visible;
-                overflow-wrap: anywhere;
+                overflow-wrap: break-word;
                 word-break: normal;
             }
 
             .report-table th {
                 text-align: center;
-                font-size: 6.5px;
+                font-size: 10px;
                 font-weight: 700;
                 line-height: 1.18;
             }
@@ -2385,6 +2501,7 @@
             + '</html>'
         );
         frameDocument.close();
+        applyPrintTableRules(frameDocument);
 
         /*
          * Tunggu document iframe selesai dibuat.

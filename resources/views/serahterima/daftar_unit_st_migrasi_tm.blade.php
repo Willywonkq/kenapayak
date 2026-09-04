@@ -1232,146 +1232,85 @@
         }
     }
 
-    /* =========================================================
-       NOTIFIKASI TOAST — PERCOBAAN DI FITUR INI DULU
-       Muncul ketika hasil View tidak memuat data.
-       Bentuk kartu, radius, bayangan, dan palet biru mengikuti
-       panel-panel yang sudah ada agar tetap satu tema.
-       ========================================================= */
-    .dst-page .sp-toast-stack {
-        position: fixed;
-        top: 88px;
-        right: 22px;
-        z-index: 1080;
+    /* Modal alert data kosong, mengikuti Daftar Surat Pesanan. */
+    #daftarUnitSTNoDataAlertModal .modal-dialog {
+        max-width: 380px;
+    }
+
+    #daftarUnitSTNoDataAlertModal .modal-content {
+        border: 0;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+    }
+
+    #daftarUnitSTNoDataAlertModal .alert-icon-wrapper {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
         display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: min(340px, calc(100vw - 32px));
-        pointer-events: none;
-    }
-
-    .dst-page .sp-toast {
-        position: relative;
-        display: grid;
-        grid-template-columns: 38px minmax(0, 1fr) 28px;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 14px 15px 18px;
-        overflow: hidden;
-        border: 1px solid #dbe3ef;
-        border-radius: 14px;
-        background: #ffffff;
-        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
-        color: #172033;
-        opacity: 0;
-        transform: translateY(-10px) scale(0.98);
-        pointer-events: auto;
-        transition: opacity 0.22s ease, transform 0.22s ease;
-    }
-
-    .dst-page .sp-toast::before {
-        content: "";
-        position: absolute;
-        inset: 0 auto 0 0;
-        width: 4px;
-        background: linear-gradient(180deg, #38bdf8 0%, #2563eb 55%, #1d4ed8 100%);
-    }
-
-    .dst-page .sp-toast.is-visible {
-        opacity: 1;
-        transform: none;
-    }
-
-    .dst-page .sp-toast.is-leaving {
-        opacity: 0;
-        transform: translateY(-8px) scale(0.98);
-    }
-
-    .dst-page .sp-toast-icon {
-        display: inline-flex;
-        width: 38px;
-        height: 38px;
         align-items: center;
         justify-content: center;
-        border-radius: 12px;
+        border-radius: 50%;
         background: #eff6ff;
         color: #2563eb;
-        font-size: 15px;
+        font-size: 28px;
     }
 
-    .dst-page .sp-toast-text {
-        min-width: 0;
+    #daftarUnitSTNoDataAlertModal .alert-title {
+        margin-bottom: 8px;
         color: #172033;
         font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
-        font-size: 13.5px;
-        font-weight: 800;
-        letter-spacing: -0.01em;
-        line-height: 1.35;
+        font-size: 18px;
+        font-weight: 700;
     }
 
-    .dst-page .sp-toast-close {
-        display: inline-flex;
-        width: 28px;
-        height: 28px;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border: 1px solid #e4e7ec;
-        border-radius: 9px;
-        background: #ffffff;
-        color: #667085;
-        cursor: pointer;
-        font-size: 11px;
-        transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    #daftarUnitSTNoDataAlertModal .alert-message {
+        margin-bottom: 24px;
+        color: #475569;
+        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 14px;
     }
 
-    .dst-page .sp-toast-close:hover {
-        color: #1d4ed8;
-        border-color: #bfdbfe;
-        background: #eff6ff;
-    }
-
-    .dst-page .sp-toast-progress {
-        position: absolute;
-        left: 0;
-        bottom: 0;
+    #daftarUnitSTNoDataAlertModal .alert-btn-ok {
         width: 100%;
-        height: 3px;
-        background: linear-gradient(90deg, #38bdf8, #2563eb);
-        transform-origin: left center;
-        animation-name: spToastProgress;
-        animation-timing-function: linear;
-        animation-fill-mode: forwards;
+        padding: 10px 32px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        transition: transform 0.15s, box-shadow 0.15s;
     }
 
-    @keyframes spToastProgress {
-        from { transform: scaleX(1); }
-        to { transform: scaleX(0); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .dst-page .sp-toast {
-            transition: none;
-        }
-
-        .dst-page .sp-toast-progress {
-            animation: none;
-        }
-    }
-
-    @media (max-width: 767.98px) {
-        .dst-page .sp-toast-stack {
-            top: 12px;
-            right: 12px;
-            left: 12px;
-            width: auto;
-        }
+    #daftarUnitSTNoDataAlertModal .alert-btn-ok:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
     }
 
 
 </style>
 
 <div class="dst-page">
+    <div class="modal fade" id="daftarUnitSTNoDataAlertModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-4">
+                    <div class="alert-icon-wrapper">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="alert-title">Information</div>
+                    <div class="alert-message">Data Serah Terima Periode tidak ada......!</div>
+                    <button
+                        type="button"
+                        class="btn alert-btn-ok"
+                        onclick="$('#daftarUnitSTNoDataAlertModal').modal('hide')"
+                    >OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <input
         type="hidden"
         id="perusahaan"
@@ -1479,7 +1418,8 @@
                             type="date"
                             id="tgl_awal"
                             class="dst-control"
-                            value="{{ now()->startOfYear()->format('Y-m-d') }}"
+                            value="{{ now()->format('Y-m-d') }}"
+                            autocomplete="off"
                         >
                         <span class="dst-range-separator">s.d</span>
                         <input
@@ -1487,6 +1427,7 @@
                             id="tgl_akhir"
                             class="dst-control"
                             value="{{ now()->format('Y-m-d') }}"
+                            autocomplete="off"
                         >
                     </div>
                 </div>
@@ -1498,7 +1439,8 @@
                             type="date"
                             id="tgl_st1"
                             class="dst-control"
-                            value="{{ now()->startOfYear()->format('Y-m-d') }}"
+                            value="{{ now()->format('Y-m-d') }}"
+                            autocomplete="off"
                         >
                         <span class="dst-range-separator">s.d</span>
                         <input
@@ -1506,6 +1448,7 @@
                             id="tgl_st2"
                             class="dst-control"
                             value="{{ now()->format('Y-m-d') }}"
+                            autocomplete="off"
                         >
                     </div>
                 </div>
@@ -1656,6 +1599,12 @@ document.addEventListener('DOMContentLoaded', function () {
     /* Label sektor bersih (tanpa kode) untuk grid 2 hasil laporan. */
     let sektorLabel = 'Semua Sektor';
 
+    resetPageState();
+
+    window.addEventListener('pageshow', function () {
+        resetPageState();
+    });
+
     okButton.addEventListener('click', getSummary);
     printButton.addEventListener('click', printReport);
     sektorLookupButton.addEventListener('click', openSektorModal);
@@ -1672,6 +1621,59 @@ document.addEventListener('DOMContentLoaded', function () {
             closeSektorModal();
         }
     });
+
+    function getTodayValue() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+
+        return year + '-' + month + '-' + day;
+    }
+
+    function resetPageState() {
+        $('#daftarUnitSTNoDataAlertModal').modal('hide');
+        const today = getTodayValue();
+
+        ['tgl_awal', 'tgl_akhir', 'tgl_st1', 'tgl_st2'].forEach(function (id) {
+            document.getElementById(id).value = today;
+        });
+
+        sektor.value = '*';
+        sektorDisplay.value = 'Semua Sektor';
+        sektorLabel = 'Semua Sektor';
+        document.getElementById('blok_awal').value = 'A';
+        document.getElementById('blok_akhir').value = 'ZZ';
+
+        const defaultStatus = document.querySelector(
+            'input[name="st_aktif"][value="A"]'
+        );
+
+        if (defaultStatus) {
+            defaultStatus.checked = true;
+        }
+
+        sektorSearch.value = '';
+        sektorModal.classList.remove('is-open');
+        sektorModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('dst-modal-open');
+        renderSektorState('Tekan ikon pencarian untuk memuat data.', false);
+
+        setLoading(false);
+
+        const reportShell = mainDisplay.closest('.dst-report-shell');
+        reportShell?.classList.add('dst-report-shell--initial');
+        mainDisplay.classList.add('dst-paper--initial');
+        mainDisplay.innerHTML =
+            '<div class="dst-initial">' +
+                '<span class="dst-initial-icon" aria-hidden="true">' +
+                    '<i class="fas fa-table"></i>' +
+                '</span>' +
+                '<span class="dst-initial-text">' +
+                    'Silakan pilih filter lalu klik <strong>View</strong>.' +
+                '</span>' +
+            '</div>';
+    }
 
     async function openSektorModal() {
         if (!perusahaan.value) {
@@ -1893,6 +1895,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        $('#daftarUnitSTNoDataAlertModal').modal('hide');
         const reportShell = mainDisplay.closest('.dst-report-shell');
         reportShell?.classList.remove('dst-report-shell--initial');
         mainDisplay.classList.remove('dst-paper--initial');
@@ -2172,6 +2175,129 @@ document.addEventListener('DOMContentLoaded', function () {
 
         html += '</tbody></table></div></div>';
         mainDisplay.innerHTML = html;
+
+        if (rows.length === 0) {
+            $('#daftarUnitSTNoDataAlertModal').modal('show');
+        }
+    }
+
+    /*
+     * Penyesuaian tabel pada dokumen cetak.
+     *
+     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
+     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
+     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
+     *    kolom nomor menyisakan ruang kosong.
+     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
+     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
+     *    menjadi dua baris.
+     *
+     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
+     * nama kelas maupun struktur pembungkus laporan tiap fitur.
+     */
+    function applyPrintTableRules(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        var polaAngka = /^[0-9][0-9.,\/-]*$/;
+        var tabel = doc.querySelectorAll('table');
+        var aturan = '';
+
+        for (var i = 0; i < tabel.length; i++) {
+            var penanda = 'print-table-' + i;
+
+            tabel[i].setAttribute('data-print-table', penanda);
+            aturan += printTableColumnCss(tabel[i], penanda);
+            aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
+        }
+
+        if (aturan === '') {
+            return;
+        }
+
+        var gaya = doc.createElement('style');
+
+        gaya.setAttribute('data-print-table-rules', 'true');
+        gaya.appendChild(doc.createTextNode(aturan));
+        (doc.head || doc.documentElement).appendChild(gaya);
+    }
+
+    function printTableColumnCss(tabel, penanda) {
+        var kolom = tabel.querySelectorAll('colgroup > col');
+        var lebar = [];
+        var total = 0;
+
+        for (var i = 0; i < kolom.length; i++) {
+            var nilai = parseFloat(kolom[i].style.width) || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        }
+
+        if (total <= 0) {
+            return '';
+        }
+
+        var css = '';
+
+        for (var k = 0; k < lebar.length; k++) {
+            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
+                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
+        }
+
+        return css;
+    }
+
+    /*
+     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
+     * lagi sejajar dengan urutan kolom.
+     */
+    function printTableNowrapCss(tabel, penanda, polaAngka) {
+        var baris = tabel.querySelectorAll('tbody > tr');
+        var jumlahIsi = [];
+        var jumlahCocok = [];
+
+        for (var r = 0; r < baris.length; r++) {
+            var sel = baris[r].children;
+            var bergabung = false;
+
+            for (var c = 0; c < sel.length; c++) {
+                if ((sel[c].colSpan || 1) > 1 || (sel[c].rowSpan || 1) > 1) {
+                    bergabung = true;
+                    break;
+                }
+            }
+
+            if (bergabung) {
+                continue;
+            }
+
+            for (var k = 0; k < sel.length; k++) {
+                var teks = String(sel[k].textContent || '').trim();
+
+                if (teks === '' || teks === '-') {
+                    continue;
+                }
+
+                jumlahIsi[k] = (jumlahIsi[k] || 0) + 1;
+
+                if (polaAngka.test(teks)) {
+                    jumlahCocok[k] = (jumlahCocok[k] || 0) + 1;
+                }
+            }
+        }
+
+        var css = '';
+
+        for (var i = 0; i < jumlahIsi.length; i++) {
+            if (jumlahIsi[i] > 0 && jumlahCocok[i] === jumlahIsi[i]) {
+                css += '[data-print-table="' + penanda + '"] tbody > tr > td:nth-child('
+                    + (i + 1) + '){white-space:nowrap}';
+            }
+        }
+
+        return css;
     }
 
     function printReport() {
@@ -2267,7 +2393,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .report-company {
                 color: #000 !important;
                 text-align: left !important;
-                font-size: 8px !important;
+                font-size: 10px !important;
                 font-weight: 700 !important;
                 line-height: 1.3 !important;
             }
@@ -2285,7 +2411,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .report-period {
                 color: #000 !important;
                 text-align: right !important;
-                font-size: 7.5px !important;
+                font-size: 10px !important;
                 font-weight: 500 !important;
                 line-height: 1.35 !important;
             }
@@ -2304,7 +2430,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 background: #fff !important;
                 color: #000 !important;
                 text-align: left !important;
-                font-size: 7.5px !important;
+                font-size: 10px !important;
                 font-weight: 500 !important;
             }
 
@@ -2336,7 +2462,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 border-radius: 0 !important;
                 background: #fff !important;
                 color: #000 !important;
-                font-size: 7px !important;
+                font-size: 10px !important;
                 font-weight: 700 !important;
                 text-transform: uppercase !important;
             }
@@ -2372,13 +2498,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 min-width: 0 !important;
                 max-width: 100% !important;
                 margin: 0 !important;
-                table-layout: fixed !important;
+                table-layout: auto !important;
                 border-collapse: collapse !important;
                 border-spacing: 0 !important;
                 border: 1px solid #000 !important;
                 background: #fff !important;
                 color: #000 !important;
-                font-size: 7px !important;
+                font-size: 10px !important;
             }
 
             .report-table thead {
@@ -2407,10 +2533,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 box-shadow: none !important;
                 overflow: visible !important;
                 white-space: normal !important;
-                overflow-wrap: anywhere !important;
+                overflow-wrap: break-word !important;
                 word-break: normal !important;
                 vertical-align: middle !important;
-                font-size: 6.8px !important;
+                font-size: 10px !important;
                 line-height: 1.18 !important;
             }
 
@@ -2464,6 +2590,7 @@ document.addEventListener('DOMContentLoaded', function () {
             + '</html>'
         );
         frameDocument.close();
+        applyPrintTableRules(frameDocument);
 
         const cleanupPrintFrame = function () {
             const currentFrame = document.getElementById('unitSTNativePrintFrame');

@@ -2238,17 +2238,334 @@
     }
 
 
+    /*
+     * Penyesuaian tabel pada dokumen cetak.
+     *
+     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
+     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
+     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
+     *    kolom nomor menyisakan ruang kosong.
+     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
+     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
+     *    menjadi dua baris.
+     *
+     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
+     * nama kelas maupun struktur pembungkus laporan tiap fitur.
+     */
+    function applyPrintTableRules(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        var polaAngka = /^[0-9][0-9.,\/-]*$/;
+        var tabel = doc.querySelectorAll('table');
+        var aturan = '';
+
+        for (var i = 0; i < tabel.length; i++) {
+            var penanda = 'print-table-' + i;
+
+            tabel[i].setAttribute('data-print-table', penanda);
+            aturan += printTableColumnCss(tabel[i], penanda);
+            aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
+        }
+
+        if (aturan === '') {
+            return;
+        }
+
+        var gaya = doc.createElement('style');
+
+        gaya.setAttribute('data-print-table-rules', 'true');
+        gaya.appendChild(doc.createTextNode(aturan));
+        (doc.head || doc.documentElement).appendChild(gaya);
+    }
+
+    function printTableColumnCss(tabel, penanda) {
+        var kolom = tabel.querySelectorAll('colgroup > col');
+        var lebar = [];
+        var total = 0;
+
+        for (var i = 0; i < kolom.length; i++) {
+            var nilai = parseFloat(kolom[i].style.width) || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        }
+
+        if (total <= 0) {
+            return '';
+        }
+
+        var css = '';
+
+        for (var k = 0; k < lebar.length; k++) {
+            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
+                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
+        }
+
+        return css;
+    }
+
+    /*
+     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
+     * lagi sejajar dengan urutan kolom.
+     */
+    function printTableNowrapCss(tabel, penanda, polaAngka) {
+        var baris = tabel.querySelectorAll('tbody > tr');
+        var jumlahIsi = [];
+        var jumlahCocok = [];
+
+        for (var r = 0; r < baris.length; r++) {
+            var sel = baris[r].children;
+            var bergabung = false;
+
+            for (var c = 0; c < sel.length; c++) {
+                if ((sel[c].colSpan || 1) > 1 || (sel[c].rowSpan || 1) > 1) {
+                    bergabung = true;
+                    break;
+                }
+            }
+
+            if (bergabung) {
+                continue;
+            }
+
+            for (var k = 0; k < sel.length; k++) {
+                var teks = String(sel[k].textContent || '').trim();
+
+                if (teks === '' || teks === '-') {
+                    continue;
+                }
+
+                jumlahIsi[k] = (jumlahIsi[k] || 0) + 1;
+
+                if (polaAngka.test(teks)) {
+                    jumlahCocok[k] = (jumlahCocok[k] || 0) + 1;
+                }
+            }
+        }
+
+        var css = '';
+
+        for (var i = 0; i < jumlahIsi.length; i++) {
+            if (jumlahIsi[i] > 0 && jumlahCocok[i] === jumlahIsi[i]) {
+                css += '[data-print-table="' + penanda + '"] tbody > tr > td:nth-child('
+                    + (i + 1) + '){white-space:nowrap}';
+            }
+        }
+
+        return css;
+    }
+
+    /*
+     * Mencetak lewat frame terpisah seperti fitur lain, menggantikan
+     * window.print() yang ikut membawa seluruh halaman.
+     *
+     * Tidak membuat request baru dan tidak mengubah data. Yang dicetak
+     * adalah laporan yang sudah dirender oleh tombol OK.
+     *
+     * @page hanya mengatur margin dan tidak mengunci size/orientation,
+     * sehingga pilihan Portrait/Landscape tetap tersedia.
+     */
     function printBalikNamaReport() {
-        /*
-         * Tidak membuat request baru dan tidak mengubah data.
-         * Yang dicetak adalah report yang sudah berhasil dirender oleh tombol OK.
-         */
         if (!$('#mainDisplay .report-paper').length) {
             alert('Silahkan tampilkan laporan terlebih dahulu dengan menekan OK.');
             return;
         }
 
-        window.print();
+        var reportHtml = $('#mainDisplay').html();
+
+        if (!reportHtml) {
+            return;
+        }
+
+        $('#balikNamaNativePrintFrame').remove();
+
+        var frame = document.createElement('iframe');
+        frame.id = 'balikNamaNativePrintFrame';
+        frame.setAttribute('aria-hidden', 'true');
+        frame.style.position = 'fixed';
+        frame.style.right = '0';
+        frame.style.bottom = '0';
+        frame.style.width = '0';
+        frame.style.height = '0';
+        frame.style.border = '0';
+        frame.style.opacity = '0';
+        frame.style.pointerEvents = 'none';
+        document.body.appendChild(frame);
+
+        var frameWindow = frame.contentWindow;
+        var frameDocument = frame.contentDocument || frameWindow.document;
+
+        var printCss = `
+            @page { margin: 8mm; }
+
+            html, body {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                background: #fff;
+                color: #000;
+                font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+            }
+
+            *, *::before, *::after { box-sizing: border-box; }
+
+            .report-paper { width: 100%; margin: 0; padding: 0; }
+
+            .baliknama-report-header {
+                display: grid;
+                grid-template-columns: 1fr 1.45fr 1fr;
+                gap: 12px;
+                align-items: center;
+                margin-bottom: 7px;
+                padding: 10px 12px;
+                border: 1px solid #777;
+                background: #fff;
+                color: #000;
+            }
+
+            .baliknama-report-company { color: #000; font-size: 11px; font-weight: 700; }
+
+            .baliknama-report-title {
+                color: #000;
+                text-align: center;
+                font-family: Cambria, Georgia, "Times New Roman", serif;
+                font-size: 17px;
+                font-weight: 700;
+                line-height: 1.2;
+            }
+
+            .baliknama-report-period {
+                color: #000;
+                text-align: right;
+                font-size: 10px;
+                line-height: 1.35;
+            }
+
+            .baliknama-report-subtitle {
+                display: flex;
+                min-height: 30px;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-bottom: 7px;
+                padding: 7px 9px;
+                border: 1px solid #aaa;
+                background: #fff;
+                color: #000;
+                font-size: 10px;
+            }
+
+            .baliknama-report-subtitle-label,
+            .baliknama-report-sector-value,
+            .baliknama-report-live-badge { color: #000; }
+
+            .baliknama-report-live-badge {
+                border: 0;
+                background: #fff;
+                font-size: 10px;
+                font-weight: 700;
+            }
+
+            .desktop-report-table-wrap {
+                width: 100%;
+                overflow: visible;
+                border: 0;
+                background: #fff;
+            }
+
+            .desktop-report-table {
+                width: 100%;
+                min-width: 0;
+                max-width: 100%;
+                table-layout: auto;
+                border-collapse: collapse;
+                border-spacing: 0;
+                border: 1px solid #000;
+                background: #fff;
+                color: #000;
+                font-size: 10px;
+            }
+
+            .desktop-report-table thead { display: table-header-group; }
+            .desktop-report-table tbody { display: table-row-group; }
+
+            .desktop-report-table tr {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .desktop-report-table th,
+            .desktop-report-table td {
+                position: static;
+                height: auto;
+                padding: 2.5px 4px;
+                border: 1px solid #000;
+                background: #fff;
+                color: #000;
+                box-shadow: none;
+                vertical-align: middle;
+                overflow: visible;
+                overflow-wrap: break-word;
+                line-height: 1.2;
+            }
+
+            .desktop-report-table th { text-align: center; font-weight: 700; }
+
+            .report-signature-section {
+                width: 100%;
+                margin-top: 16px;
+                color: #000;
+                font-size: 10px;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .report-signature-date { margin-bottom: 8px; color: #000; font-weight: 600; }
+
+            .report-signature-primary {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 90px;
+            }
+
+            .report-signature-box,
+            .report-signature-approval { text-align: center; color: #000; }
+            .report-signature-role,
+            .report-signature-name,
+            .report-signature-line { color: #000; }
+            .report-signature-space { height: 70px; }
+
+            .report-signature-line {
+                display: block;
+                width: min(100%, 220px);
+                margin: 0 auto;
+                border-bottom: 1px dotted #444;
+            }
+        `;
+
+        frameDocument.open();
+        frameDocument.write(
+            '<!DOCTYPE html><html><head><meta charset="utf-8">'
+            + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            + '<title>Daftar Sertifikat Balik Nama</title>'
+            + '<style>' + printCss + '</style>'
+            + '</head><body>' + reportHtml + '</body></html>'
+        );
+        frameDocument.close();
+        applyPrintTableRules(frameDocument);
+
+        window.setTimeout(function () {
+            try {
+                frameWindow.focus();
+                frameWindow.print();
+            } finally {
+                window.setTimeout(function () {
+                    $('#balikNamaNativePrintFrame').remove();
+                }, 1200);
+            }
+        }, 180);
     }
 
 

@@ -1663,6 +1663,125 @@
         $('#mainDisplay').html(html);
     }
 
+    /*
+     * Penyesuaian tabel pada dokumen cetak.
+     *
+     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
+     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
+     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
+     *    kolom nomor menyisakan ruang kosong.
+     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
+     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
+     *    menjadi dua baris.
+     *
+     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
+     * nama kelas maupun struktur pembungkus laporan tiap fitur.
+     */
+    function applyPrintTableRules(doc) {
+        if (!doc || !doc.querySelectorAll) {
+            return;
+        }
+
+        var polaAngka = /^[0-9][0-9.,\/-]*$/;
+        var tabel = doc.querySelectorAll('table');
+        var aturan = '';
+
+        for (var i = 0; i < tabel.length; i++) {
+            var penanda = 'print-table-' + i;
+
+            tabel[i].setAttribute('data-print-table', penanda);
+            aturan += printTableColumnCss(tabel[i], penanda);
+            aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
+        }
+
+        if (aturan === '') {
+            return;
+        }
+
+        var gaya = doc.createElement('style');
+
+        gaya.setAttribute('data-print-table-rules', 'true');
+        gaya.appendChild(doc.createTextNode(aturan));
+        (doc.head || doc.documentElement).appendChild(gaya);
+    }
+
+    function printTableColumnCss(tabel, penanda) {
+        var kolom = tabel.querySelectorAll('colgroup > col');
+        var lebar = [];
+        var total = 0;
+
+        for (var i = 0; i < kolom.length; i++) {
+            var nilai = parseFloat(kolom[i].style.width) || 0;
+
+            lebar.push(nilai);
+            total += nilai;
+        }
+
+        if (total <= 0) {
+            return '';
+        }
+
+        var css = '';
+
+        for (var k = 0; k < lebar.length; k++) {
+            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
+                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
+        }
+
+        return css;
+    }
+
+    /*
+     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
+     * lagi sejajar dengan urutan kolom.
+     */
+    function printTableNowrapCss(tabel, penanda, polaAngka) {
+        var baris = tabel.querySelectorAll('tbody > tr');
+        var jumlahIsi = [];
+        var jumlahCocok = [];
+
+        for (var r = 0; r < baris.length; r++) {
+            var sel = baris[r].children;
+            var bergabung = false;
+
+            for (var c = 0; c < sel.length; c++) {
+                if ((sel[c].colSpan || 1) > 1 || (sel[c].rowSpan || 1) > 1) {
+                    bergabung = true;
+                    break;
+                }
+            }
+
+            if (bergabung) {
+                continue;
+            }
+
+            for (var k = 0; k < sel.length; k++) {
+                var teks = String(sel[k].textContent || '').trim();
+
+                if (teks === '' || teks === '-') {
+                    continue;
+                }
+
+                jumlahIsi[k] = (jumlahIsi[k] || 0) + 1;
+
+                if (polaAngka.test(teks)) {
+                    jumlahCocok[k] = (jumlahCocok[k] || 0) + 1;
+                }
+            }
+        }
+
+        var css = '';
+
+        for (var i = 0; i < jumlahIsi.length; i++) {
+            if (jumlahIsi[i] > 0 && jumlahCocok[i] === jumlahIsi[i]) {
+                css += '[data-print-table="' + penanda + '"] tbody > tr > td:nth-child('
+                    + (i + 1) + '){white-space:nowrap}';
+            }
+        }
+
+        return css;
+    }
+
     function printUndanganReport() {
         if ($('#undanganPrintButton').prop('disabled') || !Array.isArray(lastUndanganRows) || !$('#mainDisplay .report-table').length) {
             return;
@@ -1696,20 +1815,20 @@
             *, *::before, *::after { box-sizing: border-box; }
             .undangan-paper { width: calc(100% - 16mm); max-width: calc(100% - 16mm); margin: 8mm auto 0; padding: 0; }
             .undangan-report-header { display: grid; grid-template-columns: 1fr 1.45fr 1fr; gap: 12px; align-items: center; margin-bottom: 7px; padding: 10px 12px; border: 1px solid #777; background: #fff; }
-            .undangan-company { color: #000; font-size: 10px; font-weight: 700; }
+            .undangan-company { color: #000; font-size: 11px; font-weight: 700; }
             .undangan-title-wrap { text-align: center; }
-            .undangan-report-title { margin: 0; color: #000; font-family: Cambria, Georgia, "Times New Roman", serif; font-size: 16px; font-weight: 700; line-height: 1.2; }
-            .undangan-report-center-meta, .undangan-report-date { color: #000; font-size: 9px; line-height: 1.4; }
+            .undangan-report-title { margin: 0; color: #000; font-family: Cambria, Georgia, "Times New Roman", serif; font-size: 17px; font-weight: 700; line-height: 1.2; }
+            .undangan-report-center-meta, .undangan-report-date { color: #000; font-size: 10px; line-height: 1.4; }
             .undangan-report-date { text-align: right; }
-            .undangan-report-subtitle { display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; gap: 10px; margin-bottom: 7px; padding: 7px 9px; border: 1px solid #aaa; color: #000; font-size: 9px; }
+            .undangan-report-subtitle { display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; gap: 10px; margin-bottom: 7px; padding: 7px 9px; border: 1px solid #aaa; color: #000; font-size: 10px; }
             .undangan-sector-value { text-align: center; font-weight: 700; }
-            .undangan-live-badge { justify-self: end; color: #000; font-size: 8px; font-weight: 700; }
+            .undangan-live-badge { justify-self: end; color: #000; font-size: 10px; font-weight: 700; }
             .undangan-live-badge::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 4px; border-radius: 50%; background: #000; }
             .undangan-table-wrap { width: 100%; overflow: visible; border: 0; }
-            .report-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; color: #000; font-size: 8.5px; }
+            .report-table { width: 100%; min-width: 0; table-layout: auto; border-collapse: collapse; color: #000; font-size: 10px; }
             .report-table thead { display: table-header-group; }
             .report-table tr { page-break-inside: avoid; break-inside: avoid; }
-            .report-table th, .report-table td { position: static; height: auto; padding: 4px; border: 1px solid #000; background: #fff; color: #000; overflow: visible; overflow-wrap: anywhere; }
+            .report-table th, .report-table td { position: static; height: auto; padding: 4px; border: 1px solid #000; background: #fff; color: #000; overflow: visible; overflow-wrap: break-word; }
             .report-table th { font-weight: 700; text-align: center; }
             .sector-row td { background: #fff !important; color: #000; font-weight: 700; }
             .center { text-align: center; }
@@ -1720,6 +1839,7 @@
             '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Daftar Surat Undangan</title><style>' + printCss + '</style></head><body>' + reportHtml + '</body></html>'
         );
         frameDocument.close();
+        applyPrintTableRules(frameDocument);
 
         window.setTimeout(function () {
             try {
