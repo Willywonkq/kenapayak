@@ -2235,20 +2235,20 @@
                 color: #000;
             }
 
-            .ajb-company { color: #000; font-size: 10px; font-weight: 700; }
+            .ajb-company { color: #000; font-size: 11px; font-weight: 700; }
             .ajb-title-wrap { text-align: center; }
 
             .ajb-report-title {
                 margin: 0;
                 color: #000;
                 font-family: Cambria, Georgia, "Times New Roman", serif;
-                font-size: 16px;
+                font-size: 17px;
                 font-weight: 700;
                 line-height: 1.2;
             }
 
             .ajb-report-center-meta,
-            .ajb-report-date { color: #000; font-size: 9px; line-height: 1.4; }
+            .ajb-report-date { color: #000; font-size: 10px; line-height: 1.35; }
             .ajb-report-date { text-align: right; }
 
             .ajb-report-subtitle {
@@ -2260,7 +2260,7 @@
                 padding: 7px 9px;
                 border: 1px solid #aaa;
                 color: #000;
-                font-size: 9px;
+                font-size: 10px;
             }
 
             .ajb-subtitle-value { text-align: center; font-weight: 700; }
@@ -2268,7 +2268,7 @@
             .ajb-live-badge {
                 justify-self: end;
                 color: #000;
-                font-size: 8px;
+                font-size: 9px;
                 font-weight: 700;
             }
 
@@ -2293,10 +2293,26 @@
                 border-spacing: 0;
                 border: 1px solid #000;
                 color: #000;
-                font-size: 8px;
+                font-size: 10px;
             }
 
-            .ajb-report-table col { width: auto !important; }
+            /*
+             * Lebar kolom memakai persentase, bukan auto. Dengan auto setiap
+             * kolom mendapat lebar yang sama, sehingga kolom nama terpotong
+             * menjadi dua baris sementara kolom nomor menyisakan ruang
+             * kosong. Persentase di bawah mengikuti proporsi colgroup pada
+             * tampilan layar.
+             */
+            .ajb-report-table col:nth-child(1) { width: 3.5% !important; }
+            .ajb-report-table col:nth-child(2) { width: 7.9% !important; }
+            .ajb-report-table col:nth-child(3) { width: 19.2% !important; }
+            .ajb-report-table col:nth-child(4) { width: 9.8% !important; }
+            .ajb-report-table col:nth-child(5) { width: 7.9% !important; }
+            .ajb-report-table col:nth-child(6) { width: 17.7% !important; }
+            .ajb-report-table col:nth-child(7) { width: 8.3% !important; }
+            .ajb-report-table col:nth-child(8) { width: 8.3% !important; }
+            .ajb-report-table col:nth-child(9) { width: 8.3% !important; }
+            .ajb-report-table col:nth-child(10) { width: 9.1% !important; }
             .ajb-report-table thead { display: table-header-group; }
             .ajb-report-table tbody { display: table-row-group; }
 
@@ -2309,7 +2325,7 @@
             .ajb-report-table td {
                 position: static;
                 height: auto;
-                padding: 3.5px;
+                padding: 2.5px 4px;
                 border: 1px solid #000;
                 background: #fff;
                 color: #000;
@@ -2317,7 +2333,7 @@
                 vertical-align: middle;
                 overflow: visible;
                 overflow-wrap: anywhere;
-                line-height: 1.25;
+                line-height: 1.2;
             }
 
             .ajb-report-table th { text-align: center; font-weight: 700; }
