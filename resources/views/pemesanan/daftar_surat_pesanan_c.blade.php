@@ -3428,21 +3428,23 @@
             var tanggalGrup = null;
             var unitGrupTerlihat = {};
             var nomorUnitGrup = 0;
+            var barisGrup = 0;
 
             $.each(data, function (index, item) {
                 var tanggal = dateGroupKey(item);
 
                 if (tanggalGrup !== null && tanggal !== tanggalGrup) {
-                    html += renderSummaryRow(
+                    html += renderDateSubtotalRow(
                         columns,
-                        'report-subtotal-row',
-                        'JUMLAH / TGL. ' + tanggalGrup + ' =',
-                        akumulatorGrup
+                        tanggalGrup,
+                        akumulatorGrup,
+                        barisGrup
                     );
 
                     akumulatorGrup = createSummaryAccumulator(columns);
                     unitGrupTerlihat = {};
                     nomorUnitGrup = 0;
+                    barisGrup = 0;
                 }
 
                 tanggalGrup = tanggal;
@@ -3457,6 +3459,7 @@
 
                 accumulateSummary(akumulatorGrup, columns, item, kunciUnit);
                 accumulateSummary(akumulatorTotal, columns, item, kunciUnit);
+                barisGrup += 1;
 
                 html += '<tr>';
 
@@ -3478,11 +3481,11 @@
             });
 
             if (tanggalGrup !== null) {
-                html += renderSummaryRow(
+                html += renderDateSubtotalRow(
                     columns,
-                    'report-subtotal-row',
-                    'JUMLAH / TGL. ' + tanggalGrup + ' =',
-                    akumulatorGrup
+                    tanggalGrup,
+                    akumulatorGrup,
+                    barisGrup
                 );
             }
 
@@ -3580,6 +3583,27 @@
         }
 
         return html;
+    }
+
+    /*
+     * Subtotal per tanggal dilewati ketika tanggal itu hanya berisi satu
+     * baris untuk satu unit, karena angkanya akan sama persis dengan baris
+     * tepat di atasnya sehingga hanya menambah baris tanpa menambah
+     * informasi. Tanggal dengan lebih dari satu unit, atau satu unit yang
+     * memiliki beberapa baris pembayaran, tetap diberi subtotal karena di
+     * situ penjumlahannya benar-benar berarti.
+     */
+    function renderDateSubtotalRow(columns, tanggal, akumulator, jumlahBaris) {
+        if (akumulator.unit <= 1 && jumlahBaris <= 1) {
+            return '';
+        }
+
+        return renderSummaryRow(
+            columns,
+            'report-subtotal-row',
+            'JUMLAH / TGL. ' + tanggal + ' =',
+            akumulator
+        );
     }
 
     function findBlokColumnIndex(columns) {
