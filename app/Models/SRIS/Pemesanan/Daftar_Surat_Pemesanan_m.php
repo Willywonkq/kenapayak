@@ -1637,24 +1637,29 @@ class Daftar_Surat_Pemesanan_m extends Model
              * Urutan mengikuti hasil desktop.
              *
              * Query desktop tidak memiliki ORDER BY sama sekali; ia berupa
-             * UNION (bukan UNION ALL) dari tiga SELECT. SQL Server membuang
-             * duplikat dengan menyortir seluruh daftar kolom sesuai urutan
-             * SELECT, dan dua kolom pertamanya adalah TGL_UANG_MUKA lalu
-             * NO_UANG_MUKA. Itulah sebabnya laporan desktop selalu tersusun
-             * menurut Tgl. Surat Pesanan, baik saat filter memakai Tgl. Entry
-             * Surat Pesanan maupun Tgl. Surat Pesanan; pilihan tanggal hanya
-             * menentukan baris mana yang ikut, bukan urutannya.
+             * UNION (bukan UNION ALL) dari tiga SELECT, jadi tidak ada
+             * ORDER BY di sisi query. Urutan yang terlihat pada laporan
+             * dibentuk oleh report desktop sendiri: dikelompokkan menurut
+             * TGL_UANG_MUKA lalu diurutkan menurut BLOK_NOMOR di dalam tiap
+             * tanggal.
              *
-             * Sebelumnya di sini diurutkan menurut blok_nomor lebih dulu,
-             * sehingga urutan web berbeda dengan desktop.
+             * Contoh dari laporan desktop untuk tanggal 04-06-2026:
+             * AP6/B15, AP6/B16, AP6/B17, ... AP6/B28, AP6/C07, AP6/C15, ...
+             * AP6/C22, lalu BOM/020. Nomor surat pesanan pada baris tersebut
+             * melompat-lompat (0108, 0107, 0111, 0118, ...), jadi NO_UANG_MUKA
+             * jelas bukan kunci urutan kedua.
+             *
+             * Karena pengelompokan memakai TGL_UANG_MUKA, urutan tetap sama
+             * baik filter memakai Tgl. Entry Surat Pesanan maupun Tgl. Surat
+             * Pesanan; pilihan tanggal hanya menentukan baris mana yang ikut.
              *
              * NULLS FIRST dipakai karena PostgreSQL menaruh NULL di akhir pada
              * urutan menaik, sedangkan SQL Server menaruhnya di awal.
              */
             ORDER BY
                 b.tgl_uang_muka NULLS FIRST,
-                b.no_uang_muka NULLS FIRST,
                 b.blok_nomor NULLS FIRST,
+                b.no_uang_muka NULLS FIRST,
                 b.tgl_bayar NULLS FIRST,
                 b.uang_muka_id
         SQL;
