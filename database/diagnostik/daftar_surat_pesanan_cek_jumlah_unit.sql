@@ -242,3 +242,32 @@ ORDER BY 2 DESC;
  *    candidate_count = 21 dengan row_count = 5 berarti model yang berjalan
  *    di server bukan versi ini.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * PENYEBAB SEBENARNYA — SUDAH DITEMUKAN DAN DIPERBAIKI
+ *
+ * Bukan query, bukan data, bukan filter. Penyebabnya ada di tahap hydrate
+ * pada PHP, di method hydrateNasabahNames().
+ *
+ * Setelah query utama selesai, method itu mengisi kolom NASABAH_NAMA lalu
+ * MEMBUANG setiap baris yang nama pembelinya tidak dapat ditemukan:
+ *
+ *     if ($row->NASABAH_NAMA !== '-') {
+ *         $filtered[] = $row;
+ *     }
+ *     ...
+ *     $rows = $filtered;
+ *
+ * Query desktop memanggil dbo.F_GET_PEMBELI_DP(UANG_MUKA_ID) hanya pada
+ * daftar SELECT dan tidak pernah menyaring berdasarkan hasilnya, sehingga
+ * surat pesanan tanpa data pembeli tetap muncul dengan kolom Nama Pembeli
+ * berisi '-'.
+ *
+ * Karena itu tahap kandidat menghasilkan 21 baris untuk 04-06-2026 tetapi
+ * laporan hanya menampilkan 5: enam belas sisanya belum memiliki baris di
+ * sr_pembeli_dp / sr_pembeli_ppjb sehingga dibuang di PHP.
+ *
+ * Penyaringan tersebut sudah dihapus. Baris tanpa nama pembeli kini tetap
+ * tampil dengan tanda '-', sama seperti desktop.
+ * ===================================================================== */

@@ -2026,10 +2026,16 @@ class Daftar_Surat_Pemesanan_m extends Model
 
         /*
          * Bentuk output sama seperti STRING_AGG(DISTINCT UPPER(...) ORDER BY ...).
-         * Row tanpa nama dibuang seperti WHERE pada query lama.
+         *
+         * Baris tanpa nama pembeli TIDAK dibuang.
+         *
+         * Query desktop memanggil dbo.F_GET_PEMBELI_DP(UANG_MUKA_ID) hanya pada
+         * daftar SELECT dan tidak pernah menyaring berdasarkan hasilnya, jadi
+         * surat pesanan yang datanya belum lengkap tetap muncul dengan kolom
+         * Nama Pembeli berisi '-'. Pembuangan baris di sini membuat laporan web
+         * kehilangan sebagian besar unit dibanding desktop, misalnya tanggal
+         * 04-06-2026 hanya menampilkan 5 dari 21 surat pesanan.
          */
-        $filtered = [];
-
         foreach ($rows as $row) {
             $umId = trim((string) ($row->UANG_MUKA_ID_INTERNAL ?? ''));
             $ppjbId = trim((string) ($row->PPJB_ID_INTERNAL ?? ''));
@@ -2070,13 +2076,7 @@ class Daftar_Surat_Pemesanan_m extends Model
             unset($row->UANG_MUKA_ID_INTERNAL);
             unset($row->NASABAH_ID_INLINE_INTERNAL);
             unset($row->NAMA_PEMBELI_INLINE_INTERNAL);
-
-            if ($row->NASABAH_NAMA !== '-') {
-                $filtered[] = $row;
-            }
         }
-
-        $rows = $filtered;
     }
 
     /**
