@@ -1925,16 +1925,39 @@
         box-shadow: inset 4px 0 0 #2563eb !important;
     }
 
-    /* Baris TOTAL di bagian bawah laporan. */
+    /* Baris subtotal per tanggal dan baris TOTAL di bagian bawah laporan. */
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td,
     .surat-pesanan-content .report-table tbody tr.report-total-row td {
         color: #0f172a !important;
         background: #eff6ff !important;
-        font-weight: 900 !important;
+        font-weight: 700 !important;
         letter-spacing: 0.02em;
+        white-space: nowrap !important;
     }
 
-    .surat-pesanan-content .report-table tbody tr.report-total-row td.total-value {
+    .surat-pesanan-content .report-table tbody tr.report-total-row td {
+        font-weight: 900 !important;
+    }
+
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td.total-value,
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td.summary-unit {
+        border-top: 1px solid #94a3b8 !important;
+    }
+
+    .surat-pesanan-content .report-table tbody tr.report-total-row td.total-value,
+    .surat-pesanan-content .report-table tbody tr.report-total-row td.summary-unit {
         border-top: 2px solid #334155 !important;
+    }
+
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td.summary-unit,
+    .surat-pesanan-content .report-table tbody tr.report-total-row td.summary-unit {
+        text-align: left !important;
+    }
+
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row:hover td,
+    .surat-pesanan-content .report-table tbody tr.report-total-row:hover td {
+        background: #dbeafe !important;
+        box-shadow: none !important;
     }
 
     .surat-pesanan-content .report-table .empty-row {
@@ -3153,8 +3176,17 @@
             );
         }
 
-        addColumn('No.', function (item, index) {
-            return (index + 1) + '.';
+        addColumn('No.', function (item, index, nomorUnit) {
+            /*
+             * Desktop hanya memberi nomor pada baris pertama tiap surat pesanan
+             * dan mengulang penomoran di setiap tanggal. Baris pembayaran
+             * berikutnya untuk surat pesanan yang sama dibiarkan kosong.
+             */
+            if (nomorUnit === null || nomorUnit === undefined) {
+                return '';
+            }
+
+            return nomorUnit + '.';
         }, 'center');
 
         addColumn('Tgl Surat<br>Pesanan', function (item) {
@@ -3340,7 +3372,47 @@
             html += '<td colspan="' + columns.length + '" class="empty-row">Data tidak ditemukan.</td>';
             html += '</tr>';
         } else {
+            /*
+             * Laporan desktop memberi subtotal di setiap pergantian tanggal
+             * surat pesanan lalu satu baris TOTAL di bagian bawah. Data sudah
+             * terurut menurut tgl_uang_muka dari model, sehingga pengelompokan
+             * cukup dilakukan atas baris yang berurutan.
+             */
+            var akumulatorTotal = createSummaryAccumulator(columns);
+            var akumulatorGrup = createSummaryAccumulator(columns);
+            var tanggalGrup = null;
+            var unitGrupTerlihat = {};
+            var nomorUnitGrup = 0;
+
             $.each(data, function (index, item) {
+                var tanggal = dateGroupKey(item);
+
+                if (tanggalGrup !== null && tanggal !== tanggalGrup) {
+                    html += renderSummaryRow(
+                        columns,
+                        'report-subtotal-row',
+                        'JUMLAH / TGL. ' + tanggalGrup + ' =',
+                        akumulatorGrup
+                    );
+
+                    akumulatorGrup = createSummaryAccumulator(columns);
+                    unitGrupTerlihat = {};
+                    nomorUnitGrup = 0;
+                }
+
+                tanggalGrup = tanggal;
+
+                var kunciUnit = unitGroupKey(item);
+                var unitBaru = !unitGrupTerlihat[kunciUnit];
+
+                if (unitBaru) {
+                    unitGrupTerlihat[kunciUnit] = true;
+                    nomorUnitGrup += 1;
+                }
+
+                accumulateSummary(akumulatorGrup, columns, item, kunciUnit);
+                accumulateSummary(akumulatorTotal, columns, item, kunciUnit);
+
                 html += '<tr>';
 
                 $.each(columns, function (columnIndex, column) {
@@ -3352,13 +3424,24 @@
                         style = ' style="text-align:center;"';
                     }
 
-                    html += '<td' + style + '>' + column.render(item, index) + '</td>';
+                    html += '<td' + style + '>';
+                    html += column.render(item, index, unitBaru ? nomorUnitGrup : null);
+                    html += '</td>';
                 });
 
                 html += '</tr>';
             });
 
-            html += renderTotalRow(columns, data);
+            if (tanggalGrup !== null) {
+                html += renderSummaryRow(
+                    columns,
+                    'report-subtotal-row',
+                    'JUMLAH / TGL. ' + tanggalGrup + ' =',
+                    akumulatorGrup
+                );
+            }
+
+            html += renderSummaryRow(columns, 'report-total-row', 'T O T A L', akumulatorTotal);
         }
 
         html += '</tbody>';
@@ -3412,43 +3495,98 @@
     }
 
     /*
-     * Baris TOTAL di bagian bawah laporan, mengikuti tampilan desktop.
-     * Label memuat jumlah unit, lalu tiap kolom nilai uang menampilkan
-     * jumlahnya. Kolom lain dibiarkan kosong.
+     * Kolom Blok/Nomor dipakai sebagai tempat jumlah unit pada baris subtotal
+     * per tanggal maupun baris TOTAL, mengikuti tampilan desktop.
      */
-    function renderTotalRow(columns, data) {
-        var indeksPertama = -1;
-
+    function findBlokColumnIndex(columns) {
         for (var i = 0; i < columns.length; i++) {
-            if (columns[i].sumOf) {
-                indeksPertama = i;
-                break;
+            if (String(columns[i].title).indexOf('Blok') === 0) {
+                return i;
             }
         }
 
-        if (indeksPertama < 0) {
-            return '';
+        return columns.length > 3 ? 3 : 1;
+    }
+
+    /*
+     * Satu surat pesanan bisa memiliki lebih dari satu baris pembayaran.
+     * Kunci ini dipakai agar unit yang sama hanya dihitung sekali.
+     */
+    function unitGroupKey(item) {
+        var kunci = valueOrEmpty(item.UANG_MUKA_ID_INTERNAL);
+
+        if (String(kunci).trim() === '') {
+            kunci = valueOrEmpty(item.NO_UANG_MUKA);
         }
 
-        var html = '<tr class="report-total-row">';
+        return String(kunci).trim().toUpperCase();
+    }
 
-        html += '<td colspan="' + indeksPertama + '" style="text-align:right;">';
-        html += 'T O T A L : ' + data.length + ' Unit</td>';
+    function dateGroupKey(item) {
+        return formatDateIndo(item.TGL_UANG_MUKA);
+    }
 
-        for (var k = indeksPertama; k < columns.length; k++) {
-            if (!columns[k].sumOf) {
+    function createSummaryAccumulator(columns) {
+        var akumulator = {
+            unit: 0,
+            jumlah: [],
+            unitTerhitung: {}
+        };
+
+        for (var i = 0; i < columns.length; i++) {
+            akumulator.jumlah.push(0);
+        }
+
+        return akumulator;
+    }
+
+    /*
+     * Desktop hanya menghitung baris pertama tiap surat pesanan. Baris
+     * pembayaran berikutnya untuk surat pesanan yang sama tidak menambah
+     * jumlah unit maupun nilainya, sehingga subtotal tidak dobel.
+     */
+    function accumulateSummary(akumulator, columns, item, kunciUnit) {
+        if (akumulator.unitTerhitung[kunciUnit]) {
+            return;
+        }
+
+        akumulator.unitTerhitung[kunciUnit] = true;
+        akumulator.unit += 1;
+
+        for (var i = 0; i < columns.length; i++) {
+            if (columns[i].sumOf) {
+                akumulator.jumlah[i] += parseNumber(columns[i].sumOf(item));
+            }
+        }
+    }
+
+    /*
+     * Baris ringkasan laporan. Label berada di sebelah kiri kolom Blok/Nomor,
+     * jumlah unit tepat di bawah kolom Blok/Nomor, lalu tiap kolom nilai uang
+     * menampilkan jumlahnya. Kolom lain dibiarkan kosong.
+     */
+    function renderSummaryRow(columns, kelas, label, akumulator) {
+        var indeksBlok = findBlokColumnIndex(columns);
+
+        if (indeksBlok < 1) {
+            indeksBlok = 1;
+        }
+
+        var html = '<tr class="' + kelas + '">';
+
+        html += '<td colspan="' + indeksBlok + '" style="text-align:right;">';
+        html += escapeHtml(label) + '</td>';
+
+        html += '<td class="summary-unit">' + akumulator.unit + ' Unit</td>';
+
+        for (var i = indeksBlok + 1; i < columns.length; i++) {
+            if (!columns[i].sumOf) {
                 html += '<td></td>';
                 continue;
             }
 
-            var jumlah = 0;
-
-            for (var r = 0; r < data.length; r++) {
-                jumlah += parseNumber(columns[k].sumOf(data[r]));
-            }
-
             html += '<td class="total-value" style="text-align:right;">';
-            html += formatNumber(jumlah) + '</td>';
+            html += formatNumber(akumulator.jumlah[i]) + '</td>';
         }
 
         return html + '</tr>';
@@ -3866,14 +4004,24 @@
                 background: #fff !important;
             }
 
+            .report-table tbody tr.report-subtotal-row td,
             .report-table tbody tr.report-total-row td {
                 background: #fff !important;
                 color: #000 !important;
                 font-weight: 700 !important;
+                white-space: nowrap !important;
             }
 
-            .report-table tbody tr.report-total-row td.total-value {
+            .report-table tbody tr.report-subtotal-row td.total-value,
+            .report-table tbody tr.report-subtotal-row td.summary-unit,
+            .report-table tbody tr.report-total-row td.total-value,
+            .report-table tbody tr.report-total-row td.summary-unit {
                 border-top: 1px solid #000 !important;
+            }
+
+            .report-table tbody tr.report-subtotal-row td.summary-unit,
+            .report-table tbody tr.report-total-row td.summary-unit {
+                text-align: left !important;
             }
 
             .empty-row {

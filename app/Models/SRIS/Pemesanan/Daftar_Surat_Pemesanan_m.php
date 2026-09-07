@@ -1452,7 +1452,16 @@ class Daftar_Surat_Pemesanan_m extends Model
 
                 FROM candidate_um AS um
 
-                INNER JOIN {$schema}.sr_bayar_uang_muka AS bum
+                /*
+                 * LEFT JOIN, bukan INNER JOIN.
+                 *
+                 * Dengan INNER JOIN, surat pesanan yang belum punya baris
+                 * pembayaran sama sekali di sr_bayar_uang_muka ikut hilang dari
+                 * laporan, padahal unitnya tetap harus tampil dengan kolom
+                 * Jumlah Bayar / Tanggal Bayar kosong. Inilah penyebab jumlah
+                 * unit di web jauh lebih sedikit daripada desktop.
+                 */
+                LEFT JOIN {$schema}.sr_bayar_uang_muka AS bum
                     ON bum.uang_muka_id = um.uang_muka_id
 
                 INNER JOIN stok_enriched AS stok
