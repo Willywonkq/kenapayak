@@ -156,3 +156,49 @@ ORDER BY d.no_surat_pesanan;
  *              tidak lagi membuang unit sejak join diubah menjadi
  *              LEFT JOIN, jadi cukup sebagai informasi.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 4 — Kode perusahaan tiap surat pesanan pada 04-06-2026
+ *
+ * Ditambahkan setelah hasil QUERY 1 keluar: 21 surat pesanan lolos filter
+ * KD_PERUSAHAAN = 'DTSA', tetapi web hanya menampilkan 5. Selisih 26 - 21
+ * juga tepat 5. Query ini memastikan apakah 5 yang tampil di web justru
+ * yang kd_perusahaan-nya BUKAN DTSA.
+ * ===================================================================== */
+SELECT
+    UPPER(BTRIM(CAST(s.kd_perusahaan AS text)))         AS kd_perusahaan,
+    BTRIM(CAST(um.no_uang_muka AS text))                AS no_surat_pesanan,
+    BTRIM(CAST(s.blok AS text)) || '/' || BTRIM(CAST(s.nomor AS text))
+                                                        AS blok_nomor,
+    CAST(um.stok_id AS text)                            AS stok_id
+FROM public.sr_uang_muka AS um
+INNER JOIN public.sr_stok AS s
+        ON s.stok_id = um.stok_id
+WHERE um.tgl_uang_muka >= DATE '2026-06-04'
+  AND um.tgl_uang_muka <  DATE '2026-06-04' + INTERVAL '1 day'
+  AND UPPER(BTRIM(COALESCE(CAST(um.flag_aktif AS text), ''))) = 'A'
+  AND NULLIF(BTRIM(COALESCE(CAST(um.parent_id AS text), '')), '') IS NULL
+ORDER BY kd_perusahaan, blok_nomor;
+
+
+/* =====================================================================
+ * QUERY 5 — Sebaran surat pesanan per kode perusahaan, seluruh periode
+ * laporan (01-07-2023 s.d 07-09-2026).
+ *
+ * Ini pembanding langsung untuk angka TOTAL. Bila muncul satu kode dengan
+ * jumlah sekitar 805 dan kode lain sekitar 261, berarti laporan web
+ * memakai kode perusahaan yang salah.
+ * ===================================================================== */
+SELECT
+    UPPER(BTRIM(CAST(s.kd_perusahaan AS text)))     AS kd_perusahaan,
+    COUNT(DISTINCT um.uang_muka_id)                 AS jumlah_surat_pesanan
+FROM public.sr_uang_muka AS um
+INNER JOIN public.sr_stok AS s
+        ON s.stok_id = um.stok_id
+WHERE um.tgl_uang_muka >= DATE '2023-07-01'
+  AND um.tgl_uang_muka <  DATE '2026-09-07' + INTERVAL '1 day'
+  AND UPPER(BTRIM(COALESCE(CAST(um.flag_aktif AS text), ''))) = 'A'
+  AND NULLIF(BTRIM(COALESCE(CAST(um.parent_id AS text), '')), '') IS NULL
+GROUP BY 1
+ORDER BY 2 DESC;

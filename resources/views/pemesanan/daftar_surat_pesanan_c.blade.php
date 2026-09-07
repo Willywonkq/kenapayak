@@ -2238,7 +2238,14 @@
 
             <div class="lookup-row">
                 <div class="filter-label">Unit</div>
-                <input type="text" id="perusahaan" class="form-control" value="{{ session('kd_unit') ?? 'CGTK' }}" readonly>
+                {{--
+                    Nilai cadangan disamakan dengan model. Model memakai
+                    session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA',
+                    sedangkan di sini sebelumnya jatuh ke 'CGTK'. Bila
+                    session('kd_unit') kosong, laporan jadi menyaring unit
+                    yang berbeda dari yang dimaksud tanpa pesan apa pun.
+                --}}
+                <input type="text" id="perusahaan" class="form-control" value="{{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}" readonly>
             </div>
 
             <div class="lookup-row">
