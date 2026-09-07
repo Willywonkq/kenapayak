@@ -1666,11 +1666,12 @@
             html += '<td colspan="14" class="empty-row">Data tidak ditemukan.</td>';
             html += '</tr>';
         } else {
+            var totalHargaJual = 0;
             var totalJmlBayar = 0;
 
             $.each(data, function (index, item) {
-                var jmlBayar = parseNumber(item.JML_BAYAR);
-                totalJmlBayar += jmlBayar;
+                totalHargaJual += parseNumber(item.HARGA_JUAL);
+                totalJmlBayar += parseNumber(item.JML_BAYAR);
 
                 html += '<tr>';
                 html += '<td style="text-align:center;">' + (index + 1) + '.</td>';
@@ -1690,8 +1691,14 @@
                 html += '</tr>';
             });
 
+            /*
+             * Desktop menjumlahkan dua kolom nominal: HARGA JUAL dan JML BAYAR.
+             * Kolom NAMA PEMBELI di antara keduanya dibiarkan kosong.
+             */
             html += '<tr class="report-total-row">';
-            html += '<td colspan="9" style="text-align:right;">TOTAL</td>';
+            html += '<td colspan="7" style="text-align:right;">TOTAL</td>';
+            html += '<td class="total-value" style="text-align:right;">' + formatNumber(totalHargaJual) + '</td>';
+            html += '<td></td>';
             html += '<td class="total-value" style="text-align:right;">' + formatNumber(totalJmlBayar) + '</td>';
             html += '<td colspan="4"></td>';
             html += '</tr>';
