@@ -1925,6 +1925,18 @@
         box-shadow: inset 4px 0 0 #2563eb !important;
     }
 
+    /* Baris TOTAL di bagian bawah laporan. */
+    .surat-pesanan-content .report-table tbody tr.report-total-row td {
+        color: #0f172a !important;
+        background: #eff6ff !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.02em;
+    }
+
+    .surat-pesanan-content .report-table tbody tr.report-total-row td.total-value {
+        border-top: 2px solid #334155 !important;
+    }
+
     .surat-pesanan-content .report-table .empty-row {
         height: 130px !important;
         color: #64748b !important;
@@ -3092,11 +3104,18 @@
 
         var columns = [];
 
-        function addColumn(title, render, align) {
+        /*
+         * sumOf diisi untuk kolom nilai uang yang ikut dijumlahkan pada baris
+         * TOTAL di bagian bawah laporan, mengikuti tampilan desktop. Kolom luas
+         * dan persentase sengaja tidak dijumlahkan karena penjumlahannya tidak
+         * bermakna, sama seperti desktop.
+         */
+        function addColumn(title, render, align, sumOf) {
             columns.push({
                 title: title,
                 render: render,
-                align: align || 'left'
+                align: align || 'left',
+                sumOf: sumOf || null
             });
         }
 
@@ -3176,16 +3195,22 @@
 
         addColumn('Harga DPP<br>(Excl. PPN)', function (item) {
             return formatNumber(item.HRGJUAL_SBLM_PPN);
-        }, 'right');
+        }, 'right', function (item) {
+            return item.HRGJUAL_SBLM_PPN;
+        });
 
         addColumn('Harga Jual<br>(Incl. PPN)', function (item) {
             return formatNumber(item.HARGA_JUAL);
-        }, 'right');
+        }, 'right', function (item) {
+            return item.HARGA_JUAL;
+        });
 
         if (!modeTandaJadiAktif || modeGabungan) {
             addColumn('Jumlah Bayar<br>Tanda Jadi', function (item) {
                 return formatNumber(item.JUMLAH_BAYAR);
-            }, 'right');
+            }, 'right', function (item) {
+                return item.JUMLAH_BAYAR;
+            });
 
             addColumn('Tanggal<br>Bayar BF', function (item) {
                 return formatDateIndo(item.TGL_BAYAR);
@@ -3211,12 +3236,16 @@
 
             addColumn('Harga Jual<br>Setelah PPJB', function (item) {
                 return formatNumber(item.HARGA_JUAL_PPJB);
-            }, 'right');
+            }, 'right', function (item) {
+                return item.HARGA_JUAL_PPJB;
+            });
 
             if (modePerTglBayar || modeGabungan) {
                 addColumn('Total Bayar<br>per ' + formatDateIndo(tglBayar), function (item) {
                     return formatNumber(item.TOTAL_BAYAR_PER_TGL || item.TOTAL_BAYAR);
-                }, 'right');
+                }, 'right', function (item) {
+                    return item.TOTAL_BAYAR_PER_TGL || item.TOTAL_BAYAR;
+                });
             }
 
             addColumn('%<br>Bayar', function (item) {
@@ -3225,14 +3254,18 @@
 
             addColumn('Nilai BGB', function (item) {
                 return formatNumber(item.NILAI_BGB);
-            }, 'right');
+            }, 'right', function (item) {
+                return item.NILAI_BGB;
+            });
         }
 
         if (modeTandaJadiAktif || modeGabungan) {
             if (modeTandaJadiAktif && !modeGabungan) {
                 addColumn('Harga Jual<br>Setelah PPJB', function (item) {
                     return formatNumber(item.HARGA_JUAL_PPJB);
-                }, 'right');
+                }, 'right', function (item) {
+                    return item.HARGA_JUAL_PPJB;
+                });
             }
 
             addColumn('No. Bukti<br>Tahap I', function (item) {
@@ -3324,6 +3357,8 @@
 
                 html += '</tr>';
             });
+
+            html += renderTotalRow(columns, data);
         }
 
         html += '</tbody>';
@@ -3364,6 +3399,59 @@
             .trim();
 
         return name;
+    }
+
+    function parseNumber(value) {
+        if (value === null || value === undefined || value === '') {
+            return 0;
+        }
+
+        var number = Number(value);
+
+        return isNaN(number) ? 0 : number;
+    }
+
+    /*
+     * Baris TOTAL di bagian bawah laporan, mengikuti tampilan desktop.
+     * Label memuat jumlah unit, lalu tiap kolom nilai uang menampilkan
+     * jumlahnya. Kolom lain dibiarkan kosong.
+     */
+    function renderTotalRow(columns, data) {
+        var indeksPertama = -1;
+
+        for (var i = 0; i < columns.length; i++) {
+            if (columns[i].sumOf) {
+                indeksPertama = i;
+                break;
+            }
+        }
+
+        if (indeksPertama < 0) {
+            return '';
+        }
+
+        var html = '<tr class="report-total-row">';
+
+        html += '<td colspan="' + indeksPertama + '" style="text-align:right;">';
+        html += 'T O T A L : ' + data.length + ' Unit</td>';
+
+        for (var k = indeksPertama; k < columns.length; k++) {
+            if (!columns[k].sumOf) {
+                html += '<td></td>';
+                continue;
+            }
+
+            var jumlah = 0;
+
+            for (var r = 0; r < data.length; r++) {
+                jumlah += parseNumber(columns[k].sumOf(data[r]));
+            }
+
+            html += '<td class="total-value" style="text-align:right;">';
+            html += formatNumber(jumlah) + '</td>';
+        }
+
+        return html + '</tr>';
     }
 
     function valueOrEmpty(value) {
@@ -3776,6 +3864,16 @@
             .report-table tbody tr:nth-child(even) td,
             .report-table tbody tr:hover td {
                 background: #fff !important;
+            }
+
+            .report-table tbody tr.report-total-row td {
+                background: #fff !important;
+                color: #000 !important;
+                font-weight: 700 !important;
+            }
+
+            .report-table tbody tr.report-total-row td.total-value {
+                border-top: 1px solid #000 !important;
             }
 
             .empty-row {
