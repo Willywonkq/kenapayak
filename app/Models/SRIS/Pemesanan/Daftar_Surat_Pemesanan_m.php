@@ -1718,6 +1718,13 @@ class Daftar_Surat_Pemesanan_m extends Model
                 'total_ms' => round((microtime(true) - $perfStartedAt) * 1000, 2),
                 'candidate_count' => $candidateCount,
                 'row_count' => count($rows),
+                /*
+                 * Nama database ikut dicatat agar terlihat bila aplikasi
+                 * ternyata menunjuk database yang berbeda dari yang dipakai
+                 * saat memeriksa data secara manual.
+                 */
+                'koneksi' => self::CONNECTION,
+                'database' => DB::connection(self::CONNECTION)->getDatabaseName(),
                 'flag_tgl' => $flagTgl,
                 'tgl_awal' => $tglAwal,
                 'tgl_akhir' => $tglAkhir,
