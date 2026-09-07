@@ -1925,28 +1925,44 @@
         box-shadow: inset 4px 0 0 #2563eb !important;
     }
 
-    /* Baris subtotal per tanggal dan baris TOTAL di bagian bawah laporan. */
-    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td,
-    .surat-pesanan-content .report-table tbody tr.report-total-row td {
-        color: #0f172a !important;
-        background: #eff6ff !important;
+    /*
+     * Baris subtotal per tanggal.
+     *
+     * Dibuat setipis mungkin agar terbaca sebagai garis pemisah, bukan
+     * sebagai baris data tambahan. Garis vertikal antar sel dihilangkan
+     * supaya sel-sel kosongnya tidak tampak seperti deretan kotak.
+     */
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td {
+        height: 24px !important;
+        padding: 2px 9px !important;
+        color: #64748b !important;
+        background: #f8fafc !important;
+        border-top: 1px solid #e2e8f0 !important;
+        border-right: 0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        font-size: 9.5px !important;
         font-weight: 700 !important;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.03em;
         white-space: nowrap !important;
     }
 
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td.summary-unit,
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td.total-value {
+        color: #334155 !important;
+    }
+
+    /* Baris TOTAL tetap tegas karena hanya ada satu di seluruh laporan. */
     .surat-pesanan-content .report-table tbody tr.report-total-row td {
-        font-weight: 900 !important;
-    }
-
-    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td.total-value,
-    .surat-pesanan-content .report-table tbody tr.report-subtotal-row td.summary-unit {
-        border-top: 1px solid #94a3b8 !important;
-    }
-
-    .surat-pesanan-content .report-table tbody tr.report-total-row td.total-value,
-    .surat-pesanan-content .report-table tbody tr.report-total-row td.summary-unit {
+        height: 40px !important;
+        padding: 7px 9px !important;
+        color: #0f172a !important;
+        background: #eff6ff !important;
         border-top: 2px solid #334155 !important;
+        border-right: 0 !important;
+        font-size: 11px !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.04em;
+        white-space: nowrap !important;
     }
 
     .surat-pesanan-content .report-table tbody tr.report-subtotal-row td.summary-unit,
@@ -1954,7 +1970,11 @@
         text-align: left !important;
     }
 
-    .surat-pesanan-content .report-table tbody tr.report-subtotal-row:hover td,
+    .surat-pesanan-content .report-table tbody tr.report-subtotal-row:hover td {
+        background: #f1f5f9 !important;
+        box-shadow: none !important;
+    }
+
     .surat-pesanan-content .report-table tbody tr.report-total-row:hover td {
         background: #dbeafe !important;
         box-shadow: none !important;
@@ -4074,6 +4094,21 @@
                 color: #000 !important;
                 font-weight: 700 !important;
                 white-space: nowrap !important;
+            }
+
+            /*
+             * Sel kosong pada baris ringkasan dibiarkan tanpa garis vertikal
+             * agar hasil cetak menyerupai desktop, yang hanya menampilkan
+             * satu garis mendatar lalu angkanya.
+             */
+            .report-table tbody tr.report-subtotal-row td,
+            .report-table tbody tr.report-total-row td {
+                border-left: 0 !important;
+                border-right: 0 !important;
+            }
+
+            .report-table tbody tr.report-subtotal-row td {
+                padding: 1px 4px !important;
             }
 
             .report-table tbody tr.report-subtotal-row td.total-value,
