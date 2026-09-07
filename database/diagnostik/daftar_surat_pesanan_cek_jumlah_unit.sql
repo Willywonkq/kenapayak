@@ -202,3 +202,43 @@ WHERE um.tgl_uang_muka >= DATE '2023-07-01'
   AND NULLIF(BTRIM(COALESCE(CAST(um.parent_id AS text), '')), '') IS NULL
 GROUP BY 1
 ORDER BY 2 DESC;
+
+
+/* =====================================================================
+ * HASIL PEMERIKSAAN — apa yang sudah terbukti
+ *
+ * QUERY 3 : ke-20 surat pesanan versi desktop ADA di sr_uang_muka,
+ *           tanggalnya benar, flag_aktif 'A', flag_batal dan parent_id
+ *           kosong. Data tidak kurang.
+ *
+ * QUERY 1 : 29 -> 28 -> 26 -> 26 -> 26 -> 21 -> 21.
+ *           t3 = t3b, jadi stok_id tidak bermasalah.
+ *           t5 = t4, jadi semua sudah punya baris bayar.
+ *
+ * QUERY 4 : 21 baris ber-kd_perusahaan DTSA pada 04-06-2026, dan 5 sisanya
+ *           milik MKPP/SPCC/SPCH/SPCK dengan nomor surat pesanan berawalan
+ *           lain. Jadi 5 unit yang tampil di web BUKAN kelompok non-DTSA.
+ *
+ * QUERY 5 : DTSA 796 surat pesanan untuk seluruh periode, mendekati angka
+ *           805 pada laporan desktop.
+ *
+ * KESIMPULAN
+ * Database lengkap dan tahap kandidat pada model menghasilkan 21 baris
+ * untuk 04-06-2026. Seluruh join sesudah candidate_um adalah LEFT JOIN dan
+ * tidak ada WHERE tambahan, sehingga query tidak mungkin memangkas 21
+ * menjadi 5. Sisa kemungkinan hanya satu: nilai filter yang benar-benar
+ * dikirim ke model berbeda dari yang diduga.
+ *
+ * LANGKAH BERIKUTNYA
+ * 1. Jalankan laporan sekali lagi. Header laporan kini menyebutkan Unit
+ *    dan setiap penyaring yang sedang aktif (Status, Tipe Bayar, BGB,
+ *    Agen, Sales). Bila salah satunya muncul, itulah penyebabnya.
+ * 2. Bila header hanya menampilkan Unit, nyalakan APP_DEBUG lalu lihat
+ *    storage/logs/laravel.log pada entri
+ *    "Daftar Surat Pesanan performance". Entri itu memuat candidate_count,
+ *    row_count, dan seluruh nilai filter yang diterima model.
+ *    candidate_count = 5 berarti penyaringan terjadi di tahap kandidat dan
+ *    nilai filter pada entri yang sama menunjukkan penyebabnya.
+ *    candidate_count = 21 dengan row_count = 5 berarti model yang berjalan
+ *    di server bukan versi ini.
+ * ===================================================================== */

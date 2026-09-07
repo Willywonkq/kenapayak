@@ -1689,16 +1689,48 @@ class Daftar_Surat_Pemesanan_m extends Model
         $perfHydrateMs = (microtime(true) - $hydrateStartedAt) * 1000;
 
         if (config('app.debug')) {
+            /*
+             * candidate_count menjawab pertanyaan "baris hilang di tahap
+             * kandidat atau sesudahnya". Seluruh join sesudah candidate_um
+             * bersifat LEFT JOIN, jadi bila candidate_count sudah sama dengan
+             * row_count berarti penyaringan terjadi di tahap kandidat, dan
+             * daftar filter di bawah menunjukkan nilai mana yang menyebabkan.
+             *
+             * Hitungan ini hanya berjalan ketika APP_DEBUG aktif.
+             */
+            $candidateCount = null;
+
+            try {
+                $candidateRow = DB::connection(self::CONNECTION)->selectOne(
+                    'SELECT COUNT(*) AS jumlah FROM (' . $candidateSourceSql . ') AS kandidat',
+                    $candidateBindings
+                );
+
+                $candidateCount = $candidateRow->jumlah ?? null;
+            } catch (\Throwable $e) {
+                $candidateCount = 'gagal dihitung: ' . $e->getMessage();
+            }
+
             Log::debug('Daftar Surat Pesanan performance', [
                 'candidate_ms' => round($perfCandidateMs, 2),
                 'main_query_ms' => round($perfMainQueryMs, 2),
                 'hydrate_ms' => round($perfHydrateMs, 2),
                 'total_ms' => round((microtime(true) - $perfStartedAt) * 1000, 2),
-                'candidate_count' => null,
+                'candidate_count' => $candidateCount,
                 'row_count' => count($rows),
+                'flag_tgl' => $flagTgl,
+                'tgl_awal' => $tglAwal,
+                'tgl_akhir' => $tglAkhir,
+                'perusahaan' => $perusahaan,
                 'sektor' => $sektor,
+                'sektor_values' => $sektorValues,
                 'lokasi' => $lokasi,
+                'lokasi_values' => $lokasiValues,
+                'jenis' => $jenis,
                 'status' => $status,
+                'tipe_bayar' => $tipeBayar,
+                'agen' => $agen,
+                'sales' => $sales,
                 'bgb' => $bgb,
             ]);
         }

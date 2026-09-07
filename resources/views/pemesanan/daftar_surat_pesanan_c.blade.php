@@ -3030,6 +3030,23 @@
             lokasi_text: $('#lokasi option:selected').text() || 'Semua Lokasi',
             sektor_text: $.trim($('#sektorentry').text()) || 'Semua Sektor',
             jenis_text: $('#jenis option:selected').text() || 'Semua',
+            /*
+             * Filter berikut ikut dibawa agar header laporan dapat
+             * menyebutkan penyaring yang sedang aktif. Tanpa ini, laporan
+             * dengan Status atau Tipe Bayar tertentu terlihat sama persis
+             * dengan laporan tanpa penyaring, sehingga selisih jumlah unit
+             * sulit ditelusuri.
+             */
+            unit_text: String(filterData.perusahaan || '').trim(),
+            status_value: filterData.status,
+            status_text: $('#status option:selected').text() || 'Semua',
+            tipe_bayar_value: filterData.tipe_bayar,
+            tipe_bayar_text: $('#tipe_bayar option:selected').text() || 'Semua',
+            bgb_value: filterData.bgb,
+            agen_value: filterData.agen,
+            agen_text: String($('#agen').val() || '').trim(),
+            sales_value: filterData.sales,
+            sales_text: String($('#sales').val() || '').trim(),
             per_tgl_bayar: filterData.per_tgl_bayar === 'Y',
             tanda_jadi_aktif: filterData.tanda_jadi_aktif === 'Y'
         };
@@ -3342,6 +3359,7 @@
 
         html += '<br>Lokasi: ' + escapeHtml(lokasiText);
         html += '<br>Jenis Bgn: ' + escapeHtml(jenisText);
+        html += renderActiveFilterLines(renderContext);
         html += '</div>';
         html += '</div>';
 
@@ -3505,6 +3523,45 @@
      * Kolom Blok/Nomor dipakai sebagai tempat jumlah unit pada baris subtotal
      * per tanggal maupun baris TOTAL, mengikuti tampilan desktop.
      */
+    /*
+     * Baris keterangan penyaring pada header laporan.
+     *
+     * Unit selalu ditampilkan karena menentukan seluruh isi laporan.
+     * Penyaring lain hanya muncul ketika benar-benar dipakai, supaya header
+     * tetap ringkas saat semuanya dipilih "Semua", tetapi selisih jumlah unit
+     * langsung terlihat sebabnya ketika ada penyaring yang aktif.
+     */
+    function renderActiveFilterLines(renderContext) {
+        var html = '';
+        var unit = String(renderContext.unit_text || '').trim();
+
+        if (unit !== '') {
+            html += '<br>Unit: ' + escapeHtml(unit);
+        }
+
+        if (renderContext.status_value && renderContext.status_value !== '*') {
+            html += '<br>Status: ' + escapeHtml(renderContext.status_text);
+        }
+
+        if (renderContext.tipe_bayar_value && renderContext.tipe_bayar_value !== '*') {
+            html += '<br>Tipe Bayar: ' + escapeHtml(renderContext.tipe_bayar_text);
+        }
+
+        if (renderContext.bgb_value && renderContext.bgb_value !== '*') {
+            html += '<br>BGB: ' + (renderContext.bgb_value === 'Y' ? 'BGB' : 'Non BGB');
+        }
+
+        if (renderContext.agen_value && renderContext.agen_value !== '*') {
+            html += '<br>Agen: ' + escapeHtml(renderContext.agen_text || renderContext.agen_value);
+        }
+
+        if (renderContext.sales_value && renderContext.sales_value !== '*') {
+            html += '<br>Sales: ' + escapeHtml(renderContext.sales_text || renderContext.sales_value);
+        }
+
+        return html;
+    }
+
     function findBlokColumnIndex(columns) {
         for (var i = 0; i < columns.length; i++) {
             if (String(columns[i].title).indexOf('Blok') === 0) {
