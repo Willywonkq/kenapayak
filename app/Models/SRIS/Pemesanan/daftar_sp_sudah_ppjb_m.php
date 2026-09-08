@@ -598,14 +598,24 @@ class daftar_sp_sudah_ppjb_m extends Model
          * Ekspresi stok dibuat dari kolom fisik yang benar-benar tersedia.
          * Ini menghindari to_jsonb(stok) berulang pada setiap row sr_stok.
          */
+        /*
+         * Urutan kandidat kolom mendahulukan kd_jenis, kd_tipe, dan kd_model.
+         *
+         * Query desktop menyambung TIPE memakai STOK.KD_JENIS dan STOK.KD_TIPE,
+         * serta mencari MODEL memakai STOK.KD_MODEL. Versi sebelumnya di sini
+         * mendahulukan varian kd_*_bgn, sehingga bila kolom itu ada dan berisi
+         * nilai yang berbeda, INNER JOIN ke sr_tipe gagal dan barisnya hilang
+         * dari laporan. Kolom kd_*_bgn tetap dipakai sebagai cadangan ketika
+         * kolom utamanya kosong.
+         */
         $stokJenisRaw = $this->directTextExpression(
-            'sr_stok', 'stok', ['kd_jenis_bgn', 'kd_jenis'], '', false, false
+            'sr_stok', 'stok', ['kd_jenis', 'kd_jenis_bgn'], '', false, false
         );
         $stokTipeRaw = $this->directTextExpression(
-            'sr_stok', 'stok', ['kd_tipe_bgn', 'kd_tipe'], '', false, false
+            'sr_stok', 'stok', ['kd_tipe', 'kd_tipe_bgn'], '', false, false
         );
         $stokModelRaw = $this->directTextExpression(
-            'sr_stok', 'stok', ['kd_model_bgn', 'kd_model'], '000', false, false
+            'sr_stok', 'stok', ['kd_model', 'kd_model_bgn'], '000', false, false
         );
         $stokLokasiRaw = $this->directTextExpression(
             'sr_stok', 'stok', ['kd_lokasi', 'kd_lv2'], '', false, false
@@ -683,7 +693,7 @@ class daftar_sp_sudah_ppjb_m extends Model
          * berulang di LATERAL untuk setiap row hasil PPJB.
          */
         $modelKode = $this->directTextExpression(
-            'sr_model', 'master_model', ['kd_model_bgn', 'kd_model'], '', false, false
+            'sr_model', 'master_model', ['kd_model', 'kd_model_bgn'], '', false, false
         );
 
         $sektorKode = $this->directTextExpression(
