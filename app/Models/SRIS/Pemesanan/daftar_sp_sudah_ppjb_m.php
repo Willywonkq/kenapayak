@@ -696,6 +696,22 @@ class daftar_sp_sudah_ppjb_m extends Model
             'sr_model', 'master_model', ['kd_model', 'kd_model_bgn'], '', false, false
         );
 
+        /*
+         * Sisi sr_tipe dan sr_jenis_bangunan dibaca dengan cara yang sama
+         * seperti sisi sr_stok, yaitu mencoba nama kolom bervariasi. Tanpa ini
+         * kode tipe yang di master tersimpan pada kolom kd_tipe_bgn tidak akan
+         * pernah cocok dengan kd_tipe_bgn milik stok.
+         */
+        $tipeJenisKode = $this->directTextExpression(
+            'sr_tipe', 'tipe', ['kd_jenis', 'kd_jenis_bgn'], '', true, true
+        );
+        $tipeTipeKode = $this->directTextExpression(
+            'sr_tipe', 'tipe', ['kd_tipe', 'kd_tipe_bgn'], '', true, true
+        );
+        $jenisBangunanKode = $this->directTextExpression(
+            'sr_jenis_bangunan', 'jenis_bangunan', ['kd_jenis', 'kd_jenis_bgn'], '', true, true
+        );
+
         $sektorKode = $this->directTextExpression(
             'sr_sektor',
             'master_sektor',
@@ -840,15 +856,34 @@ class daftar_sp_sudah_ppjb_m extends Model
 
                 FROM filtered_ppjb AS fp
 
-                INNER JOIN {$schema}.sr_tipe AS tipe
-                    ON UPPER(BTRIM(CAST(tipe.kd_jenis AS text))) =
-                       fp.stok_kd_jenis
-                   AND UPPER(BTRIM(CAST(tipe.kd_tipe AS text))) =
-                       fp.stok_kd_tipe
+                /*
+                 * LEFT JOIN, bukan INNER JOIN.
+                 *
+                 * Query desktop memang memakai INNER JOIN ke TIPE, tetapi tabel
+                 * TIPE di SQL Server memuat seluruh kode tipe sehingga tidak ada
+                 * baris yang gugur karenanya. Pada PostgreSQL hasil migrasi,
+                 * sr_tipe tidak selengkap itu: dari 777 baris yang lolos seluruh
+                 * filter dasar, hanya 571 yang menemukan pasangan kode tipenya.
+                 * Dengan INNER JOIN, 206 baris sisanya hilang dari laporan
+                 * padahal di desktop tetap tampil.
+                 *
+                 * Kolom yang berasal dari join ini tidak ada yang ditampilkan
+                 * pada laporan. Deskripsi tipe dan jenis bangunan tidak dipakai
+                 * sebagai kolom, sedangkan luas tanah dan luas bangunan diambil
+                 * dari sr_stok lebih dulu lewat COALESCE. Jadi mengubahnya
+                 * menjadi LEFT JOIN memulihkan jumlah baris tanpa mengubah isi
+                 * kolom mana pun.
+                 *
+                 * Penyaring Jenis Bgn tetap berperilaku seperti desktop: ketika
+                 * user memilih jenis tertentu, baris tanpa pasangan jenis
+                 * bangunan otomatis tidak lolos karena flag_laporan-nya kosong.
+                 */
+                LEFT JOIN {$schema}.sr_tipe AS tipe
+                    ON {$tipeJenisKode} = fp.stok_kd_jenis
+                   AND {$tipeTipeKode} = fp.stok_kd_tipe
 
-                INNER JOIN {$schema}.sr_jenis_bangunan AS jenis_bangunan
-                    ON UPPER(BTRIM(CAST(jenis_bangunan.kd_jenis AS text))) =
-                       UPPER(BTRIM(CAST(tipe.kd_jenis AS text)))
+                LEFT JOIN {$schema}.sr_jenis_bangunan AS jenis_bangunan
+                    ON {$jenisBangunanKode} = {$tipeJenisKode}
 
                 LEFT JOIN {$schema}.sr_sales AS sales
                     ON UPPER(BTRIM(CAST(sales.kd_sales AS text))) =

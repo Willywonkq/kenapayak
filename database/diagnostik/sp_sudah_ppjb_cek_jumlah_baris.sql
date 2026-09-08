@@ -598,3 +598,139 @@ SELECT
 FROM public.sr_pembeli_ppjb AS pp
 GROUP BY 1
 ORDER BY jumlah DESC;
+
+
+/* =====================================================================
+ * HASIL QUERY 4 — 08-09-2026
+ *
+ *   kd_tipe_bgn    cocok_kd_jenis = 0     cocok_kd_tipe = 571
+ *   blok           0                      14
+ *   kd_jenis_bgn   777                    0
+ *
+ * Pembacaan:
+ *   kd_jenis_bgn cocok untuk SELURUH 777 baris, jadi sisi jenis sudah benar.
+ *   kd_tipe_bgn adalah satu-satunya kolom yang memuat kode tipe, dan hanya
+ *   571 dari 777 nilainya ditemukan di sr_tipe. Kecocokan 14 pada kolom blok
+ *   hanya kebetulan.
+ *
+ * Jadi bukan salah kolom. 206 kode tipe milik stok memang TIDAK ADA di
+ * sr_tipe pada PostgreSQL, sementara tabel TIPE di SQL Server memuatnya
+ * sehingga desktop tetap menampilkan barisnya.
+ *
+ * Model sudah disesuaikan: join ke sr_tipe dan sr_jenis_bangunan diubah
+ * menjadi LEFT JOIN. QUERY 8 dan 9 di bawah dipakai untuk memastikan
+ * apakah sr_tipe memang kurang lengkap atau kodenya tersimpan di kolom lain.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 8 — Kolom mana di sr_tipe yang memuat kode tipe milik stok
+ * Kebalikan dari QUERY 4: kali ini setiap kolom sr_tipe yang diuji.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-07' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+dasar AS (
+    SELECT DISTINCT ON (stok.stok_id)
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_tipe', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_tipe_bgn', ''),
+            ''))) AS kd_tipe_key
+    FROM public.sr_ppjb AS ppjb
+    CROSS JOIN param
+    INNER JOIN public.sr_stok AS stok
+            ON stok.stok_id = ppjb.stok_id
+    WHERE ppjb.tgl_ppjb >= param.tgl_awal
+      AND ppjb.tgl_ppjb <  param.tgl_akhir + INTERVAL '1 day'
+      AND NULLIF(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'parent_id', '')), '') IS NULL
+      AND UPPER(BTRIM(COALESCE(to_jsonb(stok) ->> 'flag_aktif', ''))) = 'A'
+      AND UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) = param.perusahaan
+      AND to_jsonb(stok) ->> 'blok'  IS NOT NULL
+      AND to_jsonb(stok) ->> 'nomor' IS NOT NULL
+      AND (
+            UPPER(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'flag_aktif', ''))) = 'A'
+            OR ppjb.tgl_batal > param.tgl_akhir
+          )
+),
+nilai_tipe AS (
+    SELECT
+        kv.key                               AS nama_kolom,
+        UPPER(BTRIM(COALESCE(kv.value, ''))) AS nilai
+    FROM public.sr_tipe AS t,
+         LATERAL jsonb_each_text(to_jsonb(t)) AS kv
+    WHERE COALESCE(kv.value, '') <> ''
+)
+SELECT
+    nt.nama_kolom,
+    COUNT(DISTINCT d.stok_id) AS stok_yang_kode_tipenya_ketemu
+FROM dasar AS d
+INNER JOIN nilai_tipe AS nt
+        ON nt.nilai = d.kd_tipe_key
+GROUP BY nt.nama_kolom
+ORDER BY stok_yang_kode_tipenya_ketemu DESC;
+
+
+/* =====================================================================
+ * QUERY 9 — Kode tipe milik stok yang tidak ada di sr_tipe
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-07' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+dasar AS (
+    SELECT
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_jenis', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_jenis_bgn', ''),
+            ''))) AS kd_jenis_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_tipe', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_tipe_bgn', ''),
+            ''))) AS kd_tipe_key
+    FROM public.sr_ppjb AS ppjb
+    CROSS JOIN param
+    INNER JOIN public.sr_stok AS stok
+            ON stok.stok_id = ppjb.stok_id
+    WHERE ppjb.tgl_ppjb >= param.tgl_awal
+      AND ppjb.tgl_ppjb <  param.tgl_akhir + INTERVAL '1 day'
+      AND NULLIF(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'parent_id', '')), '') IS NULL
+      AND UPPER(BTRIM(COALESCE(to_jsonb(stok) ->> 'flag_aktif', ''))) = 'A'
+      AND UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) = param.perusahaan
+      AND to_jsonb(stok) ->> 'blok'  IS NOT NULL
+      AND to_jsonb(stok) ->> 'nomor' IS NOT NULL
+      AND (
+            UPPER(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'flag_aktif', ''))) = 'A'
+            OR ppjb.tgl_batal > param.tgl_akhir
+          )
+),
+tipe_norm AS (
+    SELECT DISTINCT
+        UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_jenis', ''))) AS kd_jenis_key,
+        UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_tipe', '')))  AS kd_tipe_key
+    FROM public.sr_tipe AS t
+)
+SELECT
+    d.kd_jenis_key,
+    CASE WHEN d.kd_tipe_key = '' THEN '(kosong)' ELSE d.kd_tipe_key END AS kd_tipe_stok,
+    COUNT(*) AS jumlah_ppjb
+FROM dasar AS d
+WHERE NOT EXISTS (
+        SELECT 1 FROM tipe_norm AS tn
+        WHERE tn.kd_jenis_key = d.kd_jenis_key
+          AND tn.kd_tipe_key  = d.kd_tipe_key
+      )
+GROUP BY 1, 2
+ORDER BY jumlah_ppjb DESC
+LIMIT 40;
