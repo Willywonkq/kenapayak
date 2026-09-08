@@ -970,3 +970,113 @@ SELECT
     ) AS persen
 FROM hitung
 ORDER BY no_ppjb;
+
+
+/* =====================================================================
+ * HASIL QUERY 10, 11, DAN 12 — 08-09-2026
+ *
+ * QUERY 11 : sr_kode_transaksi  92 baris / 92 kode unik
+ *            sr_jadwal_angsuran 908.952 baris / 908.952 jadwal_id unik
+ *            sr_angsuran        966.164 baris / 966.164 angsuran_id unik
+ *            Tidak ada baris kembar sama sekali, jadi penghapusan
+ *            SELECT DISTINCT pada model terbukti aman.
+ *
+ * QUERY 12 : ketiga belas PPJB yang hilang terbagi dua kelompok.
+ *
+ *   a. Delapan PPJB ada di sr_ppjb tetapi pembayarannya jauh di bawah 100%:
+ *        F.0010  10,00%      F.0023  33,31%
+ *        F.0012  20,00%      F.0028  10,00%
+ *        F.0014  70,00%      G.0002  15,95%
+ *        F.0018  70,00%      G.0004  10,00%
+ *      Kolom jml_bayar_tanpa_saringan sama persis dengan jml_bayar, jadi
+ *      penyaring kode transaksi maupun flag_aktif tidak membuang apa pun.
+ *      Angkanya pun bulat rapi terhadap harga jual (10%, 20%, 70%), yang
+ *      berarti sr_angsuran hanya memuat pembayaran tahap awal.
+ *
+ *   b. Lima PPJB tidak ditemukan sama sekali di sr_ppjb:
+ *        G.0011, G.0012, G.0014, G.0015, G.0017
+ *      Kelimanya bertanggal 14-07-2026 sampai 22-07-2026.
+ *
+ * Desktop menyaring pembayaran mencapai 100%, sehingga kedelapan PPJB
+ * kelompok (a) pasti sudah lunas menurut SQL Server. Di PostgreSQL baru
+ * terbayar 10% sampai 70%. Artinya bukan query yang salah: data pembayaran
+ * dan data PPJB di PostgreSQL memang tertinggal dari SQL Server.
+ *
+ * QUERY 13 dan 14 memastikan kesimpulan itu.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 13 — Sampai tanggal berapa data di PostgreSQL terisi
+ * Bandingkan dengan tanggal terakhir yang muncul pada laporan desktop.
+ * ===================================================================== */
+SELECT
+    'sr_ppjb (tgl_ppjb)'            AS tabel,
+    MAX(tgl_ppjb)::text             AS tanggal_terbaru,
+    COUNT(*) FILTER (WHERE tgl_ppjb >= DATE '2026-06-01') AS sejak_juni_2026,
+    COUNT(*) FILTER (WHERE tgl_ppjb >= DATE '2026-07-01') AS sejak_juli_2026
+FROM public.sr_ppjb
+
+UNION ALL
+
+SELECT
+    'sr_angsuran (tgl_kuitansi)',
+    MAX(tgl_kuitansi)::text,
+    COUNT(*) FILTER (WHERE tgl_kuitansi >= DATE '2026-06-01'),
+    COUNT(*) FILTER (WHERE tgl_kuitansi >= DATE '2026-07-01')
+FROM public.sr_angsuran;
+
+
+/* =====================================================================
+ * QUERY 14 — Apakah pembayarannya menempel pada PPJB lain untuk unit yang sama
+ *
+ * Bila jumlah bayar seluruh PPJB pada satu unit ternyata mencapai 100%,
+ * berarti pembayarannya tercatat pada PPJB revisi dan modelnya masih bisa
+ * diperbaiki. Bila tetap sama, memang datanya yang belum lengkap.
+ * ===================================================================== */
+WITH dicari(no_ppjb) AS (
+    VALUES
+        ('F.0010/DTSA/RMH/2026'), ('F.0012/DTSA/RMH/2026'),
+        ('F.0014/DTSA/RMH/2026'), ('F.0018/DTSA/RKN/2026'),
+        ('F.0023/DTSA/RKN/2026'), ('F.0028/DTSA/RKN/2026'),
+        ('G.0002/DTSA/RMH/2026'), ('G.0004/DTSA/RMH/2026')
+),
+induk AS (
+    SELECT
+        d.no_ppjb,
+        ppjb.ppjb_id,
+        ppjb.stok_id,
+        COALESCE(ppjb.harga_jual, 0) AS harga_jual
+    FROM dicari AS d
+    INNER JOIN public.sr_ppjb AS ppjb
+            ON UPPER(BTRIM(CAST(ppjb.no_ppjb AS text))) = UPPER(d.no_ppjb)
+)
+SELECT
+    i.no_ppjb,
+    i.harga_jual,
+    COALESCE((
+        SELECT SUM(a.jumlah_bayar)
+        FROM public.sr_angsuran AS a
+        WHERE CAST(a.ppjb_id AS text) = CAST(i.ppjb_id AS text)
+    ), 0) AS bayar_ppjb_ini,
+    (
+        SELECT COUNT(*)
+        FROM public.sr_ppjb AS p2
+        WHERE p2.stok_id = i.stok_id
+    ) AS jumlah_ppjb_pada_unit_ini,
+    COALESCE((
+        SELECT SUM(a.jumlah_bayar)
+        FROM public.sr_ppjb AS p2
+        INNER JOIN public.sr_angsuran AS a
+                ON CAST(a.ppjb_id AS text) = CAST(p2.ppjb_id AS text)
+        WHERE p2.stok_id = i.stok_id
+    ), 0) AS bayar_seluruh_ppjb_unit,
+    COALESCE((
+        SELECT SUM(bum.jumlah_bayar)
+        FROM public.sr_uang_muka AS um
+        INNER JOIN public.sr_bayar_uang_muka AS bum
+                ON CAST(bum.uang_muka_id AS text) = CAST(um.uang_muka_id AS text)
+        WHERE um.stok_id = i.stok_id
+    ), 0) AS bayar_uang_muka_unit
+FROM induk AS i
+ORDER BY i.no_ppjb;
