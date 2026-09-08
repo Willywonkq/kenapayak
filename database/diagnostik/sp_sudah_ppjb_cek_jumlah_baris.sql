@@ -734,3 +734,239 @@ WHERE NOT EXISTS (
 GROUP BY 1, 2
 ORDER BY jumlah_ppjb DESC
 LIMIT 40;
+
+
+/* =====================================================================
+ * HASIL QUERY 8 DAN 9 — 08-09-2026
+ *
+ * QUERY 8 : hanya kolom kd_tipe yang cocok, 571.
+ *           Jadi sr_tipe memang kurang lengkap, bukan salah kolom.
+ *
+ * QUERY 9 : kode tipe milik stok yang tidak ada di sr_tipe
+ *             RMH R2139  80      RMH R2076  10
+ *             RMH R2138  57      RMH R2137   9
+ *             RMH R2075  30      RMH R2077   6
+ *             RKN RK784  13      RKN RK785   1
+ *           Total 206, cocok dengan selisih t6 dikurangi t7.
+ *
+ * Setelah join sr_tipe diubah menjadi LEFT JOIN, web naik dari 565 ke 719
+ * baris. Desktop 736, jadi tersisa 17 baris.
+ *
+ * Kandidat yang lolos filter dasar ada 777. Desktop membuang 41 di antaranya
+ * lewat batas persentase, sedangkan web membuang 58. Selisih 17 itu berarti
+ * ada 17 PPJB yang persentase pembayarannya dihitung berbeda.
+ *
+ * QUERY 10 dan 11 dipakai untuk menemukan ke-17 baris tersebut.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 10 — PPJB yang gagal menembus batas persentase, diurutkan dari
+ * yang paling mendekati. Baris teratas adalah kandidat ke-17 baris itu.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-07' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan,
+           100::numeric      AS persen
+),
+dasar AS (
+    SELECT DISTINCT
+        ppjb.ppjb_id,
+        BTRIM(CAST(ppjb.no_ppjb AS text))            AS no_ppjb,
+        ppjb.tgl_ppjb,
+        COALESCE(ppjb.harga_jual, 0)                 AS harga_jual
+    FROM public.sr_ppjb AS ppjb
+    CROSS JOIN param
+    INNER JOIN public.sr_stok AS stok
+            ON stok.stok_id = ppjb.stok_id
+    WHERE ppjb.tgl_ppjb >= param.tgl_awal
+      AND ppjb.tgl_ppjb <  param.tgl_akhir + INTERVAL '1 day'
+      AND NULLIF(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'parent_id', '')), '') IS NULL
+      AND UPPER(BTRIM(COALESCE(to_jsonb(stok) ->> 'flag_aktif', ''))) = 'A'
+      AND UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) = param.perusahaan
+      AND to_jsonb(stok) ->> 'blok'  IS NOT NULL
+      AND to_jsonb(stok) ->> 'nomor' IS NOT NULL
+      AND (
+            UPPER(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'flag_aktif', ''))) = 'A'
+            OR ppjb.tgl_batal > param.tgl_akhir
+          )
+),
+hitung AS (
+    SELECT
+        d.no_ppjb,
+        d.tgl_ppjb,
+        d.harga_jual,
+        COALESCE((
+            SELECT SUM(ja.jumlah)
+            FROM public.sr_jadwal_angsuran AS ja
+            INNER JOIN public.sr_kode_transaksi AS kt
+                    ON UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', '')))
+                     = UPPER(BTRIM(COALESCE(to_jsonb(ja) ->> 'kd_transaksi', '')))
+            WHERE CAST(ja.ppjb_id AS text) = CAST(d.ppjb_id AS text)
+              AND (
+                    (UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'flag_hitung', ''))) = 'Y'
+                     AND UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'flag_pajak', ''))) = 'Y')
+                    OR UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', ''))) = 'DCB'
+                  )
+              AND UPPER(BTRIM(COALESCE(to_jsonb(ja) ->> 'kd_transaksi', '')))
+                  NOT IN ('ANG', 'UMK')
+        ), 0) AS tambahan_jadwal,
+        COALESCE((
+            SELECT SUM(a.jumlah_bayar)
+            FROM public.sr_angsuran AS a
+            INNER JOIN public.sr_kode_transaksi AS kt
+                    ON UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', '')))
+                     = UPPER(BTRIM(COALESCE(to_jsonb(a) ->> 'kd_transaksi', '')))
+            WHERE CAST(a.ppjb_id AS text) = CAST(d.ppjb_id AS text)
+              AND (
+                    (UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'flag_hitung', ''))) = 'Y'
+                     AND UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'flag_pajak', ''))) = 'Y')
+                    OR UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', ''))) = 'DCB'
+                  )
+              AND UPPER(BTRIM(COALESCE(to_jsonb(a) ->> 'flag_aktif', ''))) = 'A'
+        ), 0) AS jml_bayar
+    FROM dasar AS d
+)
+SELECT
+    no_ppjb,
+    tgl_ppjb,
+    harga_jual,
+    tambahan_jadwal,
+    harga_jual + tambahan_jadwal AS harga_setelah_ppjb,
+    jml_bayar,
+    ROUND(
+        CASE WHEN harga_jual + tambahan_jadwal > 0
+             THEN jml_bayar / (harga_jual + tambahan_jadwal) * 100
+             ELSE 0 END, 4
+    ) AS persen
+FROM hitung
+WHERE NOT (
+        harga_jual + tambahan_jadwal > 0
+        AND jml_bayar / (harga_jual + tambahan_jadwal) * 100 >= (SELECT persen FROM param)
+      )
+ORDER BY persen DESC
+LIMIT 40;
+
+
+/* =====================================================================
+ * QUERY 11 — Apakah ada baris kembar yang membuat penjumlahan berlipat
+ *
+ * Baris kembar pada sr_kode_transaksi paling berbahaya karena tabel itu
+ * disambung ke sr_angsuran maupun sr_jadwal_angsuran, sehingga satu baris
+ * pembayaran bisa terhitung lebih dari sekali.
+ * ===================================================================== */
+SELECT
+    'sr_kode_transaksi' AS tabel,
+    COUNT(*)                                     AS jumlah_baris,
+    COUNT(DISTINCT UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', ''))))
+                                                 AS jumlah_kode_unik
+FROM public.sr_kode_transaksi AS kt
+
+UNION ALL
+
+SELECT
+    'sr_jadwal_angsuran',
+    COUNT(*),
+    COUNT(DISTINCT COALESCE(to_jsonb(ja) ->> 'jadwal_id', ''))
+FROM public.sr_jadwal_angsuran AS ja
+
+UNION ALL
+
+SELECT
+    'sr_angsuran',
+    COUNT(*),
+    COUNT(DISTINCT COALESCE(to_jsonb(a) ->> 'angsuran_id', ''))
+FROM public.sr_angsuran AS a;
+
+
+/* =====================================================================
+ * QUERY 12 — Periksa langsung PPJB yang terlihat hilang
+ *
+ * Daftar di bawah disalin dari perbandingan laporan desktop dengan web
+ * pada 08-09-2026. Web berhenti di F.0027 sedangkan desktop masih
+ * berlanjut, dan di tengah pun ada beberapa yang terlewat.
+ * ===================================================================== */
+WITH param AS (
+    SELECT 100::numeric AS persen
+),
+dicari(no_ppjb) AS (
+    VALUES
+        ('F.0010/DTSA/RMH/2026'), ('F.0012/DTSA/RMH/2026'),
+        ('F.0014/DTSA/RMH/2026'), ('F.0018/DTSA/RKN/2026'),
+        ('F.0023/DTSA/RKN/2026'), ('F.0028/DTSA/RKN/2026'),
+        ('G.0002/DTSA/RMH/2026'), ('G.0004/DTSA/RMH/2026'),
+        ('G.0011/DTSA/RKN/2026'), ('G.0012/DTSA/RMH/2026'),
+        ('G.0014/DTSA/RMH/2026'), ('G.0015/DTSA/RMH/2026'),
+        ('G.0017/DTSA/RMH/2026')
+),
+ketemu AS (
+    SELECT
+        d.no_ppjb,
+        ppjb.ppjb_id,
+        ppjb.tgl_ppjb,
+        COALESCE(ppjb.harga_jual, 0) AS harga_jual
+    FROM dicari AS d
+    LEFT JOIN public.sr_ppjb AS ppjb
+           ON UPPER(BTRIM(CAST(ppjb.no_ppjb AS text))) = UPPER(d.no_ppjb)
+),
+hitung AS (
+    SELECT
+        k.no_ppjb,
+        k.tgl_ppjb,
+        k.harga_jual,
+        COALESCE((
+            SELECT SUM(ja.jumlah)
+            FROM public.sr_jadwal_angsuran AS ja
+            INNER JOIN public.sr_kode_transaksi AS kt
+                    ON UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', '')))
+                     = UPPER(BTRIM(COALESCE(to_jsonb(ja) ->> 'kd_transaksi', '')))
+            WHERE CAST(ja.ppjb_id AS text) = CAST(k.ppjb_id AS text)
+              AND (
+                    (UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'flag_hitung', ''))) = 'Y'
+                     AND UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'flag_pajak', ''))) = 'Y')
+                    OR UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', ''))) = 'DCB'
+                  )
+              AND UPPER(BTRIM(COALESCE(to_jsonb(ja) ->> 'kd_transaksi', '')))
+                  NOT IN ('ANG', 'UMK')
+        ), 0) AS tambahan_jadwal,
+        COALESCE((
+            SELECT SUM(a.jumlah_bayar)
+            FROM public.sr_angsuran AS a
+            INNER JOIN public.sr_kode_transaksi AS kt
+                    ON UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', '')))
+                     = UPPER(BTRIM(COALESCE(to_jsonb(a) ->> 'kd_transaksi', '')))
+            WHERE CAST(a.ppjb_id AS text) = CAST(k.ppjb_id AS text)
+              AND (
+                    (UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'flag_hitung', ''))) = 'Y'
+                     AND UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'flag_pajak', ''))) = 'Y')
+                    OR UPPER(BTRIM(COALESCE(to_jsonb(kt) ->> 'kd_transaksi', ''))) = 'DCB'
+                  )
+              AND UPPER(BTRIM(COALESCE(to_jsonb(a) ->> 'flag_aktif', ''))) = 'A'
+        ), 0) AS jml_bayar,
+        COALESCE((
+            SELECT SUM(a.jumlah_bayar)
+            FROM public.sr_angsuran AS a
+            WHERE CAST(a.ppjb_id AS text) = CAST(k.ppjb_id AS text)
+        ), 0) AS jml_bayar_tanpa_saringan
+    FROM ketemu AS k
+)
+SELECT
+    no_ppjb,
+    tgl_ppjb,
+    harga_jual,
+    tambahan_jadwal,
+    harga_jual + tambahan_jadwal AS harga_setelah_ppjb,
+    jml_bayar,
+    jml_bayar_tanpa_saringan,
+    ROUND(
+        CASE WHEN harga_jual + tambahan_jadwal > 0
+             THEN jml_bayar / (harga_jual + tambahan_jadwal) * 100
+             ELSE 0 END, 4
+    ) AS persen
+FROM hitung
+ORDER BY no_ppjb;
