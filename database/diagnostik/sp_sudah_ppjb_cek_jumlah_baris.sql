@@ -365,3 +365,236 @@ FROM dasar AS d;
  * ketemu_id_asli, berarti sr_pembeli_ppjb menyimpan PPJB dalam format
  * angka saja. Model sudah mencari dengan kedua bentuk itu.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * HASIL PENGUKURAN 08-09-2026
+ *
+ * QUERY 1 : 7226, 5453, 5453, 5453, 822, 822, 822, 777, 571, 571, 571, 571
+ * QUERY 2 : 571 -> 565, total 1.437.904.434.788 / 1.438.313.933.420,50
+ * QUERY 3 : 1109 PPJB, 1109 ketemu id asli, 0 versi angka
+ *
+ * Pembacaan:
+ *   t6 = 777 baris lolos seluruh filter dasar.
+ *   t7 = 571, jadi 206 baris gugur saat menyambung sr_tipe.
+ *   t7b = t7, jadi urutan kandidat kd_jenis/kd_tipe bukan penyebabnya.
+ *   t8 = t9 = t7, jadi jenis bangunan dan flag_laporan bukan penyebabnya.
+ *
+ * Desktop menghasilkan 736 baris. Bila join sr_tipe di web berperilaku
+ * sama dengan desktop, t7 seharusnya sekitar 740 dan bukan 571. Jadi
+ * kunci penyambungan sr_stok ke sr_tipe itulah yang belum tepat.
+ *
+ * QUERY 3 juga menunjukkan seluruh PPJB menemukan baris di
+ * sr_pembeli_ppjb memakai ppjb_id apa adanya, sehingga kolom Nama Pembeli
+ * yang berisi '-' bukan karena format id.
+ *
+ * QUERY 4 sampai 7 di bawah dipakai untuk menutup kedua pertanyaan itu.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 4 — Kolom sr_stok mana yang sebenarnya cocok dengan sr_tipe
+ *
+ * Setiap kolom sr_stok diuji satu per satu terhadap daftar KD_JENIS dan
+ * KD_TIPE pada sr_tipe. Kolom dengan angka cocok tertinggi adalah kolom
+ * yang seharusnya dipakai model.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-07' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+dasar AS (
+    SELECT DISTINCT ON (stok.stok_id) stok.*
+    FROM public.sr_ppjb AS ppjb
+    CROSS JOIN param
+    INNER JOIN public.sr_stok AS stok
+            ON stok.stok_id = ppjb.stok_id
+    WHERE ppjb.tgl_ppjb >= param.tgl_awal
+      AND ppjb.tgl_ppjb <  param.tgl_akhir + INTERVAL '1 day'
+      AND NULLIF(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'parent_id', '')), '') IS NULL
+      AND UPPER(BTRIM(COALESCE(to_jsonb(stok) ->> 'flag_aktif', ''))) = 'A'
+      AND UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) = param.perusahaan
+      AND to_jsonb(stok) ->> 'blok'  IS NOT NULL
+      AND to_jsonb(stok) ->> 'nomor' IS NOT NULL
+      AND (
+            UPPER(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'flag_aktif', ''))) = 'A'
+            OR ppjb.tgl_batal > param.tgl_akhir
+          )
+),
+tipe_jenis AS (
+    SELECT DISTINCT UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_jenis', ''))) AS nilai
+    FROM public.sr_tipe AS t
+),
+tipe_tipe AS (
+    SELECT DISTINCT UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_tipe', ''))) AS nilai
+    FROM public.sr_tipe AS t
+),
+nilai_stok AS (
+    SELECT
+        d.stok_id,
+        kv.key                                   AS nama_kolom,
+        UPPER(BTRIM(COALESCE(kv.value, '')))     AS nilai
+    FROM dasar AS d,
+         LATERAL jsonb_each_text(to_jsonb(d)) AS kv
+    WHERE COALESCE(kv.value, '') <> ''
+)
+SELECT
+    nama_kolom,
+    COUNT(DISTINCT stok_id) FILTER (
+        WHERE nilai IN (SELECT nilai FROM tipe_jenis)
+    ) AS cocok_dengan_kd_jenis,
+    COUNT(DISTINCT stok_id) FILTER (
+        WHERE nilai IN (SELECT nilai FROM tipe_tipe)
+    ) AS cocok_dengan_kd_tipe
+FROM nilai_stok
+GROUP BY nama_kolom
+HAVING COUNT(DISTINCT stok_id) FILTER (WHERE nilai IN (SELECT nilai FROM tipe_jenis)) > 0
+    OR COUNT(DISTINCT stok_id) FILTER (WHERE nilai IN (SELECT nilai FROM tipe_tipe)) > 0
+ORDER BY cocok_dengan_kd_tipe DESC, cocok_dengan_kd_jenis DESC;
+
+
+/* =====================================================================
+ * QUERY 5 — Contoh pasangan yang gagal menyambung sr_tipe
+ * Memakai kunci yang dipakai model sekarang.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-07' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+dasar AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_jenis', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_jenis_bgn', ''),
+            ''))) AS kd_jenis_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_tipe', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_tipe_bgn', ''),
+            ''))) AS kd_tipe_key
+    FROM public.sr_ppjb AS ppjb
+    CROSS JOIN param
+    INNER JOIN public.sr_stok AS stok
+            ON stok.stok_id = ppjb.stok_id
+    WHERE ppjb.tgl_ppjb >= param.tgl_awal
+      AND ppjb.tgl_ppjb <  param.tgl_akhir + INTERVAL '1 day'
+      AND NULLIF(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'parent_id', '')), '') IS NULL
+      AND UPPER(BTRIM(COALESCE(to_jsonb(stok) ->> 'flag_aktif', ''))) = 'A'
+      AND UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) = param.perusahaan
+      AND to_jsonb(stok) ->> 'blok'  IS NOT NULL
+      AND to_jsonb(stok) ->> 'nomor' IS NOT NULL
+      AND (
+            UPPER(BTRIM(COALESCE(to_jsonb(ppjb) ->> 'flag_aktif', ''))) = 'A'
+            OR ppjb.tgl_batal > param.tgl_akhir
+          )
+),
+tipe_norm AS (
+    SELECT DISTINCT
+        UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_jenis', ''))) AS kd_jenis_key,
+        UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_tipe', '')))  AS kd_tipe_key
+    FROM public.sr_tipe AS t
+)
+SELECT
+    d.kd_jenis_key,
+    d.kd_tipe_key,
+    COUNT(*)                                                      AS jumlah_ppjb,
+    EXISTS (SELECT 1 FROM tipe_norm tn WHERE tn.kd_jenis_key = d.kd_jenis_key)
+                                                                  AS jenis_ada_di_sr_tipe,
+    EXISTS (SELECT 1 FROM tipe_norm tn WHERE tn.kd_tipe_key  = d.kd_tipe_key)
+                                                                  AS tipe_ada_di_sr_tipe
+FROM dasar AS d
+WHERE NOT EXISTS (
+        SELECT 1 FROM tipe_norm AS tn
+        WHERE tn.kd_jenis_key = d.kd_jenis_key
+          AND tn.kd_tipe_key  = d.kd_tipe_key
+      )
+GROUP BY d.kd_jenis_key, d.kd_tipe_key
+ORDER BY jumlah_ppjb DESC
+LIMIT 40;
+
+
+/* =====================================================================
+ * QUERY 6 — Isi sr_tipe sebagai pembanding
+ * ===================================================================== */
+SELECT
+    UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_jenis', ''))) AS kd_jenis,
+    COUNT(*)                                               AS jumlah_baris,
+    COUNT(DISTINCT UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_tipe', '')))) AS jumlah_kd_tipe,
+    MIN(UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_tipe', '')))) AS contoh_kd_tipe_terkecil,
+    MAX(UPPER(BTRIM(COALESCE(to_jsonb(t) ->> 'kd_tipe', '')))) AS contoh_kd_tipe_terbesar
+FROM public.sr_tipe AS t
+GROUP BY 1
+ORDER BY jumlah_baris DESC;
+
+
+/* =====================================================================
+ * QUERY 7 — Kenapa kolom Nama Pembeli berisi '-'
+ *
+ * QUERY 3 sudah membuktikan barisnya ketemu, jadi yang diperiksa di sini
+ * adalah penyaring flag_aktif dan penyambungan ke sr_nasabah.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-07' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+dasar AS (
+    SELECT DISTINCT CAST(ppjb.ppjb_id AS text) AS ppjb_id_text
+    FROM public.sr_ppjb AS ppjb
+    CROSS JOIN param
+    INNER JOIN public.sr_stok AS stok
+            ON stok.stok_id = ppjb.stok_id
+    WHERE ppjb.tgl_ppjb >= param.tgl_awal
+      AND ppjb.tgl_ppjb <  param.tgl_akhir + INTERVAL '1 day'
+      AND UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) = param.perusahaan
+),
+pembeli AS (
+    SELECT
+        d.ppjb_id_text,
+        UPPER(BTRIM(COALESCE(to_jsonb(pp) ->> 'flag_aktif', '')))  AS flag_aktif_pembeli,
+        NULLIF(UPPER(BTRIM(COALESCE(to_jsonb(pp) ->> 'nasabah_id', ''))), '') AS nasabah_id_key,
+        NULLIF(BTRIM(COALESCE(
+            to_jsonb(pp) ->> 'nama',
+            to_jsonb(pp) ->> 'nama_nasabah',
+            to_jsonb(pp) ->> 'nama_pembeli',
+            '')), '')                                              AS nama_inline
+    FROM dasar AS d
+    INNER JOIN public.sr_pembeli_ppjb AS pp
+            ON CAST(pp.ppjb_id AS text) = d.ppjb_id_text
+)
+SELECT
+    COUNT(*)                                                       AS baris_pembeli,
+    COUNT(*) FILTER (
+        WHERE COALESCE(NULLIF(flag_aktif_pembeli, ''), 'Y') IN ('A', 'Y')
+    )                                                              AS lolos_filter_flag_aktif,
+    COUNT(*) FILTER (WHERE nama_inline IS NOT NULL)                AS punya_nama_inline,
+    COUNT(*) FILTER (WHERE nasabah_id_key IS NOT NULL)             AS punya_nasabah_id,
+    COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM public.sr_nasabah AS n
+        WHERE NULLIF(UPPER(BTRIM(COALESCE(to_jsonb(n) ->> 'nasabah_id', ''))), '')
+              = pembeli.nasabah_id_key
+    ))                                                             AS nasabah_ketemu
+FROM pembeli;
+
+
+/* Sebaran nilai flag_aktif pada sr_pembeli_ppjb. */
+SELECT
+    UPPER(BTRIM(COALESCE(to_jsonb(pp) ->> 'flag_aktif', '(kolom tidak ada / NULL)'))) AS flag_aktif,
+    COUNT(*) AS jumlah
+FROM public.sr_pembeli_ppjb AS pp
+GROUP BY 1
+ORDER BY jumlah DESC;
