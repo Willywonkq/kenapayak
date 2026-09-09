@@ -73,6 +73,44 @@ class daftar_sp_sudah_ppjb_m extends Model
     }
 
     /**
+     * Perbandingan kolom kunci sebuah tabel dengan kolom hasil CTE yang sudah
+     * menyediakan bentuk teks maupun numeric sekaligus.
+     *
+     * Kolom tabelnya selalu dibiarkan mentah supaya index tetap terpakai.
+     * Membungkus kolom dengan CAST membuat PostgreSQL memindai seluruh tabel,
+     * dan sr_angsuran maupun sr_jadwal_angsuran berisi ratusan ribu baris.
+     */
+    private function idJoinPrepared(
+        string $table,
+        string $alias,
+        string $column,
+        string $numericColumn,
+        string $textColumn
+    ): string {
+        if ($this->isNumericColumn($table, $column)) {
+            return "{$alias}.{$column} = {$numericColumn}";
+        }
+
+        return "{$alias}.{$column} = {$textColumn}";
+    }
+
+    /**
+     * Daftar nilai untuk perbandingan ANY(), disesuaikan dengan tipe kolomnya.
+     */
+    private function pgArrayForColumn(string $table, string $column, array $values): string
+    {
+        if ($this->isNumericColumn($table, $column)) {
+            $values = array_values(array_filter($values, static function ($value): bool {
+                return preg_match('/^[0-9]+$/', trim((string) $value)) === 1;
+            }));
+
+            return '{' . implode(',', array_map(static fn ($v) => trim((string) $v), $values)) . '}';
+        }
+
+        return $this->pgTextArray($values);
+    }
+
+    /**
      * Bentuk perbandingan dua kolom kunci antar tabel dengan tipe apa pun.
      *
      * Ketika kedua sisi bertipe sama, perbandingannya dibiarkan apa adanya
@@ -977,14 +1015,19 @@ class daftar_sp_sudah_ppjb_m extends Model
             ppjb_lookup AS (
                 SELECT
                     bp.ppjb_id,
-                    CAST(bp.ppjb_id AS text) AS lookup_id
+                    CAST(bp.ppjb_id AS text) AS lookup_id,
+                    CASE
+                        WHEN BTRIM(CAST(bp.ppjb_id AS text)) ~ '^[0-9]+$'
+                        THEN CAST(BTRIM(CAST(bp.ppjb_id AS text)) AS numeric)
+                    END AS lookup_id_numeric
                 FROM base_ppjb AS bp
 
                 UNION ALL
 
                 SELECT
                     bp.ppjb_id,
-                    bp.ppjb_id_digits AS lookup_id
+                    bp.ppjb_id_digits AS lookup_id,
+                    CAST(bp.ppjb_id_digits AS numeric) AS lookup_id_numeric
                 FROM base_ppjb AS bp
                 WHERE bp.ppjb_id_digits IS NOT NULL
                   AND bp.ppjb_id_digits <> CAST(bp.ppjb_id AS text)
@@ -1005,7 +1048,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                     jadwal_angsuran.jumlah
                 FROM ppjb_lookup AS pl
                 INNER JOIN {$schema}.sr_jadwal_angsuran AS jadwal_angsuran
-                    ON CAST(jadwal_angsuran.ppjb_id AS text) = pl.lookup_id
+                    ON {$this->idJoinPrepared('sr_jadwal_angsuran', 'jadwal_angsuran', 'ppjb_id', 'pl.lookup_id_numeric', 'pl.lookup_id')}
             ),
 
             jadwal_by_ppjb AS (
@@ -1057,11 +1100,20 @@ class daftar_sp_sudah_ppjb_m extends Model
                     ) AS nama_pp
                 FROM ppjb_lookup AS pl
                 INNER JOIN {$schema}.sr_pembeli_ppjb AS pp
-                    ON CAST(pp.ppjb_id AS text) = pl.lookup_id
+                    ON {$this->idJoinPrepared('sr_pembeli_ppjb', 'pp', 'ppjb_id', 'pl.lookup_id_numeric', 'pl.lookup_id')}
                 WHERE COALESCE(NULLIF(UPPER(BTRIM(to_jsonb(pp) ->> 'flag_aktif')), ''), 'Y') IN ('A', 'Y')
             ),
 
             pembeli_ppjb AS (
+                /*
+                 * Nilai '-' tidak lagi dijadikan cadangan di dalam COALESCE.
+                 * Dengan begitu pembeli yang namanya tidak ditemukan menghasilkan
+                 * NULL dan dilewati STRING_AGG, sehingga kolomnya tidak pernah
+                 * berisi "-, NAMA" ketika satu PPJB punya beberapa pembeli dan
+                 * hanya sebagian yang namanya ketemu. Ketika tidak ada satu pun
+                 * nama, hasilnya NULL dan tetap ditampilkan sebagai '-' oleh
+                 * COALESCE pada SELECT utama.
+                 */
                 SELECT
                     pm.ppjb_id,
                     STRING_AGG(
@@ -1070,8 +1122,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                                 NULLIF(BTRIM(CAST(nasabah.nama AS text)), ''),
                                 NULLIF(BTRIM(to_jsonb(nasabah) ->> 'nama_nasabah'), ''),
                                 NULLIF(BTRIM(to_jsonb(nasabah) ->> 'nama_pembeli'), ''),
-                                NULLIF(BTRIM(pm.nama_pp), ''),
-                                '-'
+                                NULLIF(BTRIM(pm.nama_pp), '')
                             )
                         ),
                         ', '
@@ -1080,8 +1131,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                                 NULLIF(BTRIM(CAST(nasabah.nama AS text)), ''),
                                 NULLIF(BTRIM(to_jsonb(nasabah) ->> 'nama_nasabah'), ''),
                                 NULLIF(BTRIM(to_jsonb(nasabah) ->> 'nama_pembeli'), ''),
-                                NULLIF(BTRIM(pm.nama_pp), ''),
-                                '-'
+                                NULLIF(BTRIM(pm.nama_pp), '')
                             )
                         )
                     ) AS nama_pembeli
@@ -1255,9 +1305,26 @@ class daftar_sp_sudah_ppjb_m extends Model
         $idKeys = [];
         $lookupIds = [];
 
+        /*
+         * Pasangan yang nilainya bukan angka dibuang bersama kuncinya ketika
+         * sr_angsuran.ppjb_id bertipe angka, agar kedua array tetap sejajar.
+         */
+        $angsuranNumerik = $this->isNumericColumn('sr_angsuran', 'ppjb_id');
+        $lookupTipe = $angsuranNumerik ? 'numeric' : 'text';
+
         foreach ($lookupPairs as $pair) {
+            if ($angsuranNumerik && preg_match('/^[0-9]+$/', trim((string) $pair[1])) !== 1) {
+                continue;
+            }
+
             $idKeys[] = $pair[0];
             $lookupIds[] = $pair[1];
+        }
+
+        if (count($idKeys) < 1) {
+            $this->applyPembayaranToRows($rows, [], $minimalPersen);
+
+            return;
         }
 
         /*
@@ -1266,7 +1333,9 @@ class daftar_sp_sudah_ppjb_m extends Model
          */
         $bindings = [
             $this->pgTextArray($idKeys),
-            $this->pgTextArray($lookupIds),
+            $angsuranNumerik
+                ? '{' . implode(',', array_map(static fn ($v) => trim((string) $v), $lookupIds)) . '}'
+                : $this->pgTextArray($lookupIds),
         ];
 
         $schema = self::SCHEMA;
@@ -1284,7 +1353,7 @@ class daftar_sp_sudah_ppjb_m extends Model
         $sql = <<<SQL
             WITH lookup(id_key, ppjb_lookup) AS (
                 SELECT *
-                FROM unnest(?::text[], ?::text[])
+                FROM unnest(?::text[], ?::{$lookupTipe}[])
                     AS requested(id_key, ppjb_lookup)
             ),
 
@@ -1314,7 +1383,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                     COALESCE(NULLIF(UPPER(BTRIM(CAST(angsuran.flag_aktif AS text))), ''), 'A') AS flag_aktif_norm
                 FROM lookup
                 INNER JOIN {$schema}.sr_angsuran AS angsuran
-                    ON CAST(angsuran.ppjb_id AS text) = lookup.ppjb_lookup
+                    ON angsuran.ppjb_id = lookup.ppjb_lookup
             ),
 
             hasil AS (

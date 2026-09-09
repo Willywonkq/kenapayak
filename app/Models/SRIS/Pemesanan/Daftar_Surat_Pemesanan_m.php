@@ -114,7 +114,12 @@ class Daftar_Surat_Pemesanan_m extends Model
             return "{$alias}.{$column} = {$numericColumn}";
         }
 
-        return "BTRIM(CAST({$alias}.{$column} AS text)) = {$textColumn}";
+        /*
+         * Kolomnya dibiarkan mentah. PostgreSQL menerima perbandingan
+         * character varying dengan text, dan dengan begitu index pada kolom
+         * tersebut tetap dapat dipakai.
+         */
+        return "{$alias}.{$column} = {$textColumn}";
     }
 
     /**
@@ -132,6 +137,38 @@ class Daftar_Surat_Pemesanan_m extends Model
         }
 
         return "NULLIF({$textColumn}, '') IS NOT NULL";
+    }
+
+    /**
+     * Bentuk perbandingan kolom kunci dengan daftar nilai dari PHP.
+     *
+     * Kolomnya sengaja dibiarkan mentah dan justru daftar nilainya yang
+     * disesuaikan tipenya. Bila kolom yang dibungkus ekspresi, PostgreSQL
+     * tidak dapat memakai index dan tabel sebesar sr_angsuran maupun
+     * sr_pembeli_dp akan dipindai seluruhnya.
+     */
+    private function idAnyArray(string $table, string $alias, string $column, string $placeholder): string
+    {
+        $tipe = $this->isNumericColumn($table, $column) ? 'numeric' : 'text';
+
+        return "{$alias}.{$column} = ANY({$placeholder}::{$tipe}[])";
+    }
+
+    /**
+     * Daftar nilai untuk idAnyArray(). Ketika kolomnya bertipe angka, hanya
+     * nilai yang benar-benar berupa angka yang dikirim supaya cast tidak gagal.
+     */
+    private function pgArrayForColumn(string $table, string $column, array $values): string
+    {
+        if ($this->isNumericColumn($table, $column)) {
+            $values = array_values(array_filter($values, static function ($value): bool {
+                return preg_match('/^[0-9]+$/', trim((string) $value)) === 1;
+            }));
+
+            return '{' . implode(',', array_map(static fn ($v) => trim((string) $v), $values)) . '}';
+        }
+
+        return $this->pgTextArray($values);
     }
 
     /**
@@ -398,16 +435,65 @@ class Daftar_Surat_Pemesanan_m extends Model
             true
         );
 
+        $smKode = $this->directTextExpr(
+            'sr_sektor',
+            'sm',
+            ['kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2'],
+            '',
+            true,
+            true
+        );
+
+        $smPerusahaan = $this->directTextExpr(
+            'sr_sektor',
+            'sm',
+            ['kd_perusahaan'],
+            '',
+            true,
+            true
+        );
+
+        $smAktif = $this->directTextExpr(
+            'sr_sektor',
+            'sm',
+            ['flag_aktif'],
+            'A',
+            true,
+            true
+        );
+
         $sql = <<<SQL
             WITH stok_terpilih AS MATERIALIZED (
                 SELECT DISTINCT
-                    {$stokKode} AS kode,
-                    {$stokPerusahaan} AS kd_perusahaan
-                FROM public.sr_stok AS stok
-                WHERE {$stokKode} <> ''
-                  AND {$stokPerusahaan} <> ''
+                    kode,
+                    kd_perusahaan
+                FROM (
+                    SELECT
+                        {$stokKode} AS kode,
+                        {$stokPerusahaan} AS kd_perusahaan
+                    FROM public.sr_stok AS stok
+                    WHERE {$stokKode} <> ''
+
+                    UNION ALL
+
+                    /*
+                     * Cluster yang belum memiliki stok tetap harus bisa dipilih.
+                     * Sebelumnya daftar sektor hanya diambil dari kode yang
+                     * muncul di sr_stok, sehingga cluster seperti CHELIA
+                     * RESIDENCE, EMERALD COMMERCIAL, dan VANICA RESIDENCE tidak
+                     * ikut tampil. Desktop mengambil daftarnya langsung dari
+                     * master sektor, dan itu yang ditiru di sini.
+                     */
+                    SELECT
+                        {$smKode} AS kode,
+                        {$smPerusahaan} AS kd_perusahaan
+                    FROM public.sr_sektor AS sm
+                    WHERE {$smKode} <> ''
+                      AND COALESCE(NULLIF({$smAktif}, ''), 'A') <> 'T'
+                ) AS sumber_kode
+                WHERE kd_perusahaan <> ''
                   AND (
-                        {$stokPerusahaan} = :kd_perusahaan
+                        kd_perusahaan = :kd_perusahaan
                         OR :kd_perusahaan = '*'
                         OR :kd_perusahaan = ''
                   )
@@ -1876,7 +1962,7 @@ class Daftar_Surat_Pemesanan_m extends Model
         $dpRows = [];
 
         if (count($uangMukaIds)) {
-            $umArray = $this->pgTextArray(array_keys($uangMukaIds));
+            $umArray = $this->pgArrayForColumn('sr_pembeli_dp', 'uang_muka_id', array_keys($uangMukaIds));
 
             /*
              * Exact match terlebih dahulu. Pada data normal jalur ini cukup
@@ -1893,7 +1979,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                         ''
                     ) AS nama_inline
                 FROM public.sr_pembeli_dp AS pd
-                WHERE BTRIM(CAST(pd.uang_muka_id AS text)) = ANY(?::text[])
+                WHERE {$this->idAnyArray('sr_pembeli_dp', 'pd', 'uang_muka_id', '?')}
                   AND COALESCE(
                         NULLIF(UPPER(BTRIM(to_jsonb(pd) ->> 'flag_nama_dp')), ''),
                         'Y'
@@ -2052,7 +2138,7 @@ class Daftar_Surat_Pemesanan_m extends Model
         $namaByPpjb = [];
 
         if (count($ppjbNeeded)) {
-            $ppjbArray = $this->pgTextArray(array_keys($ppjbNeeded));
+            $ppjbArray = $this->pgArrayForColumn('sr_pembeli_ppjb', 'ppjb_id', array_keys($ppjbNeeded));
 
             $sql = <<<SQL
                 SELECT
@@ -2065,7 +2151,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                         ''
                     ) AS nama_inline
                 FROM public.sr_pembeli_ppjb AS pp
-                WHERE BTRIM(CAST(pp.ppjb_id AS text)) = ANY(?::text[])
+                WHERE {$this->idAnyArray('sr_pembeli_ppjb', 'pp', 'ppjb_id', '?')}
                   AND COALESCE(
                         NULLIF(UPPER(BTRIM(CAST(pp.flag_aktif AS text))), ''),
                         'Y'
@@ -2199,7 +2285,7 @@ class Daftar_Surat_Pemesanan_m extends Model
         }
 
         $result = [];
-        $exactArray = $this->pgTextArray($nasabahIds);
+        $exactArray = $this->pgArrayForColumn('sr_nasabah', 'nasabah_id', $nasabahIds);
 
         /*
          * NASABAH_ID pada database ini varchar. Exact equality dikerjakan lebih dulu
@@ -2218,7 +2304,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                     )
                 ) AS nama
             FROM public.sr_nasabah AS nasabah
-            WHERE BTRIM(CAST(nasabah.nasabah_id AS text)) = ANY(?::text[])
+            WHERE {$this->idAnyArray('sr_nasabah', 'nasabah', 'nasabah_id', '?')}
         SQL;
 
         $rows = DB::connection(self::CONNECTION)->select($exactSql, [$exactArray]);
@@ -2327,14 +2413,36 @@ class Daftar_Surat_Pemesanan_m extends Model
         $lookupIdKeys = [];
         $lookupValues = [];
 
+        /*
+         * Ketika sr_angsuran.ppjb_id bertipe angka, pasangan yang nilainya
+         * bukan angka dibuang bersama kunci pasangannya agar kedua array tetap
+         * sejajar dan cast ke numeric tidak gagal.
+         */
+        $angsuranNumerik = $this->isNumericColumn('sr_angsuran', 'ppjb_id');
+        $lookupTipe = $angsuranNumerik ? 'numeric' : 'text';
+
         foreach ($lookupPairs as $pair) {
+            if ($angsuranNumerik && preg_match('/^[0-9]+$/', trim((string) $pair[1])) !== 1) {
+                continue;
+            }
+
             $lookupIdKeys[] = $pair[0];
             $lookupValues[] = $pair[1];
         }
 
+        if (count($lookupIdKeys) < 1) {
+            foreach ($rows as $row) {
+                unset($row->PPJB_ID_INTERNAL);
+            }
+
+            return;
+        }
+
         $bindings = [
             $this->pgTextArray($lookupIdKeys),
-            $this->pgTextArray($lookupValues),
+            $angsuranNumerik
+                ? '{' . implode(',', array_map(static fn ($v) => trim((string) $v), $lookupValues)) . '}'
+                : $this->pgTextArray($lookupValues),
             $tglBayar,
             $tglBayar,
         ];
@@ -2375,7 +2483,7 @@ class Daftar_Surat_Pemesanan_m extends Model
         $sql = <<<SQL
             WITH lookup(id_key, ppjb_lookup) AS (
                 SELECT *
-                FROM unnest(?::text[], ?::text[])
+                FROM unnest(?::text[], ?::{$lookupTipe}[])
             ),
 
             sumber AS (
@@ -2406,7 +2514,7 @@ class Daftar_Surat_Pemesanan_m extends Model
 
                 FROM lookup
                 INNER JOIN {$schema}.sr_angsuran AS angsuran
-                    ON BTRIM(CAST(angsuran.ppjb_id AS text)) = lookup.ppjb_lookup
+                    ON angsuran.ppjb_id = lookup.ppjb_lookup
             ),
 
             hasil AS (
@@ -2443,7 +2551,7 @@ class Daftar_Surat_Pemesanan_m extends Model
 
                 FROM sumber
                 LEFT JOIN {$schema}.sr_kode_transaksi AS kode
-                    ON BTRIM(CAST(kode.kd_transaksi AS text)) = BTRIM(CAST(sumber.kd_transaksi AS text))
+                    ON {$this->idJoin('sr_kode_transaksi', 'kode', 'kd_transaksi', 'sr_angsuran', 'sumber', 'kd_transaksi')}
                 WHERE sumber.flag_cair_norm = 'Y'
                   AND (
                         sumber.flag_aktif_norm = 'A'
