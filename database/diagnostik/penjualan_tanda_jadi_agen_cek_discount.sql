@@ -360,3 +360,48 @@ SELECT
     COALESCE(SUM(jumlah) FILTER (WHERE jumlah > 0), 0) AS bagian_positif,
     COALESCE(SUM(jumlah) FILTER (WHERE jumlah < 0), 0) AS bagian_negatif
 FROM terbuang;
+
+
+/* =====================================================================
+ * ==== KESIMPULAN — sesudah QUERY 7 dan 8 dijalankan ====
+ *
+ * Hasil QUERY 7:
+ *     [DSL]  22 baris  22 unit  495.728.780
+ *     [D50]   3 baris   3 unit  167.960.000
+ * Hasil QUERY 8:
+ *     total_terbuang 663.688.780, 25 baris, 25 unit,
+ *     bagian_positif 663.688.780, bagian_negatif 0
+ *
+ * Jadi dari 12 kode tanpa master, hanya DSL dan D50 yang menyentuh laporan
+ * ini, dan seluruh nilainya positif.
+ *
+ * Selisih discount antara desktop dan web terurai habis:
+ *
+ *     desktop -29.590.361.876  dikurangi  web -30.291.280.656
+ *         =  700.918.780
+ *
+ *     663.688.780  (94,7%)  baris DSL dan D50 yang tidak punya master
+ *      37.230.000  ( 5,3%)  discount milik sembilan unit yang belum ada
+ *     -----------
+ *     700.918.780
+ *
+ * Kalau kedua baris master ditambahkan ke sr_biaya, discount web menjadi
+ * -29.627.591.876. Sisa selisih terhadap desktop tinggal 37.230.000, yang
+ * memang milik sembilan unit yang belum tersalin ke PostgreSQL.
+ *
+ * YANG PERLU DILAKUKAN
+ * 1. Ambil nilai BALANCE untuk DSL dan D50 dari SQL Server memakai
+ *    database/diagnostik/sqlserver_cek_master_biaya.sql
+ * 2. Tambahkan kedua baris master itu ke sr_biaya. Ini perubahan data,
+ *    harus dikerjakan oleh yang berwenang.
+ *
+ * Model web tidak perlu diubah. Begitu baris masternya ada, rumus yang
+ * sekarang langsung menghitungnya dengan benar.
+ *
+ * BALANCE-nya tidak boleh ditebak dari kodenya. Untuk DSL memang sudah
+ * terbukti bernilai -1, karena HE/032 di desktop menampilkan Discount
+ * 34.220.000 sedangkan satu-satunya baris biaya yang bernilai segitu
+ * berkode DSL, dan subquery DISCOUNT milik desktop mensyaratkan
+ * BALANCE = -1. Untuk D50 belum ada bukti sekuat itu, jadi tetap harus
+ * dibaca dari SQL Server.
+ * ===================================================================== */
