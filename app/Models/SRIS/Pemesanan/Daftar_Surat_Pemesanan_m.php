@@ -30,7 +30,7 @@ class Daftar_Surat_Pemesanan_m extends Model
 
         $rows = DB::connection(self::CONNECTION)->select(
             '
-                SELECT column_name
+                SELECT column_name, data_type
                 FROM information_schema.columns
                 WHERE table_schema = ?
                   AND table_name = ?
@@ -44,7 +44,7 @@ class Daftar_Surat_Pemesanan_m extends Model
             $name = strtolower(trim((string) ($row->column_name ?? '')));
 
             if ($name !== '') {
-                $columns[$name] = true;
+                $columns[$name] = strtolower(trim((string) ($row->data_type ?? '')));
             }
         }
 
@@ -56,6 +56,101 @@ class Daftar_Surat_Pemesanan_m extends Model
     private function hasColumn(string $table, string $column): bool
     {
         return isset($this->tableColumns($table)[strtolower($column)]);
+    }
+
+    /**
+     * Apakah kolom bertipe angka pada database yang sedang dipakai.
+     *
+     * Tipe kolom kunci berbeda antar hasil migrasi. Contohnya
+     * sr_uang_muka.uang_muka_id bertipe varchar sementara
+     * sr_biaya_dp.uang_muka_id bertipe numeric, dan PostgreSQL menolak
+     * perbandingan langsung antara keduanya.
+     */
+    private function isNumericColumn(string $table, string $column): bool
+    {
+        $type = $this->tableColumns($table)[strtolower($column)] ?? '';
+
+        return in_array($type, [
+            'numeric', 'decimal', 'integer', 'bigint', 'smallint',
+            'real', 'double precision',
+        ], true);
+    }
+
+    /**
+     * Ekspresi kunci join yang seragam untuk satu kolom.
+     *
+     * Ketika salah satu sisi bertipe angka, kedua sisi disamakan ke ranah
+     * numeric supaya nol di depan tidak membuat nilai yang sebenarnya sama
+     * menjadi tidak cocok. Selain itu keduanya disamakan sebagai teks.
+     */
+    private function idKeyExpr(string $table, string $alias, string $column, bool $asNumeric): string
+    {
+        $qualified = $alias === '' ? $column : "{$alias}.{$column}";
+
+        if (!$asNumeric) {
+            return "BTRIM(CAST({$qualified} AS text))";
+        }
+
+        if ($this->isNumericColumn($table, $column)) {
+            return $qualified;
+        }
+
+        return "(CASE WHEN BTRIM(CAST({$qualified} AS text)) ~ '^[0-9]+$'"
+            . " THEN CAST(BTRIM(CAST({$qualified} AS text)) AS numeric) END)";
+    }
+
+    /**
+     * Perbandingan kolom kunci sebuah tabel dengan kolom hasil CTE yang sudah
+     * menyediakan bentuk teks maupun numeric sekaligus.
+     */
+    private function idJoinPrepared(
+        string $table,
+        string $alias,
+        string $column,
+        string $numericColumn,
+        string $textColumn
+    ): string {
+        if ($this->isNumericColumn($table, $column)) {
+            return "{$alias}.{$column} = {$numericColumn}";
+        }
+
+        return "BTRIM(CAST({$alias}.{$column} AS text)) = {$textColumn}";
+    }
+
+    /**
+     * Syarat pendamping idJoinPrepared() agar sisi CTE yang tidak dapat
+     * dipetakan tidak ikut terbawa.
+     */
+    private function idJoinPreparedGuard(
+        string $table,
+        string $column,
+        string $numericColumn,
+        string $textColumn
+    ): string {
+        if ($this->isNumericColumn($table, $column)) {
+            return "{$numericColumn} IS NOT NULL";
+        }
+
+        return "NULLIF({$textColumn}, '') IS NOT NULL";
+    }
+
+    /**
+     * Bentuk perbandingan dua kolom kunci antar tabel dengan tipe apa pun.
+     */
+    private function idJoin(
+        string $tableA,
+        string $aliasA,
+        string $columnA,
+        string $tableB,
+        string $aliasB,
+        string $columnB
+    ): string {
+        $asNumeric = $this->isNumericColumn($tableA, $columnA)
+            || $this->isNumericColumn($tableB, $columnB);
+
+        return $this->idKeyExpr($tableA, $aliasA, $columnA, $asNumeric)
+            . ' = '
+            . $this->idKeyExpr($tableB, $aliasB, $columnB, $asNumeric);
     }
 
     /**
@@ -413,31 +508,36 @@ class Daftar_Surat_Pemesanan_m extends Model
 
         $query = DB::connection(self::CONNECTION)
             ->table(self::SCHEMA . '.sr_sales as sales')
+            /*
+             * Setiap kolom dilewatkan CAST(... AS text) lebih dulu supaya
+             * tetap jalan pada database yang menyimpan kode sebagai angka.
+             * BTRIM dan COALESCE hanya menerima teks.
+             */
             ->leftJoin(self::SCHEMA . '.sr_agen as agen', function ($join) {
                 $join->on(
-                    DB::raw('BTRIM(sales.kd_agen)'),
+                    DB::raw('BTRIM(CAST(sales.kd_agen AS text))'),
                     '=',
-                    DB::raw('BTRIM(agen.kd_agen)')
+                    DB::raw('BTRIM(CAST(agen.kd_agen AS text))')
                 );
             })
             ->selectRaw('
-                BTRIM(sales.deskripsi) AS "DESKRIPSI",
-                BTRIM(sales.kd_sales) AS "KD_SALES",
-                BTRIM(COALESCE(agen.nama_agen, \'\')) AS "NAMA_AGEN",
-                BTRIM(sales.kd_agen) AS "KD_AGEN",
-                BTRIM(COALESCE(sales.status_sales, \'\')) AS "STATUS_SALES"
+                BTRIM(CAST(sales.deskripsi AS text)) AS "DESKRIPSI",
+                BTRIM(CAST(sales.kd_sales AS text)) AS "KD_SALES",
+                BTRIM(COALESCE(CAST(agen.nama_agen AS text), \'\')) AS "NAMA_AGEN",
+                BTRIM(CAST(sales.kd_agen AS text)) AS "KD_AGEN",
+                BTRIM(COALESCE(CAST(sales.status_sales AS text), \'\')) AS "STATUS_SALES"
             ')
-            ->whereRaw("UPPER(BTRIM(COALESCE(sales.flag_aktif, ''))) = 'A'");
+            ->whereRaw("UPPER(BTRIM(COALESCE(CAST(sales.flag_aktif AS text), ''))) = 'A'");
 
         if ($kdAgen !== '*' && $kdAgen !== '') {
             $query->whereRaw(
-                "UPPER(BTRIM(COALESCE(sales.kd_agen, ''))) = ?",
+                "UPPER(BTRIM(COALESCE(CAST(sales.kd_agen AS text), ''))) = ?",
                 [$kdAgen]
             );
         }
 
         return $query
-            ->orderByRaw('BTRIM(sales.deskripsi)')
+            ->orderByRaw('BTRIM(CAST(sales.deskripsi AS text))')
             ->get();
     }
 
@@ -902,7 +1002,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                   AND NOT EXISTS (
                         SELECT 1
                         FROM {$schema}.sr_ppjb AS px
-                        WHERE px.stok_id = um.stok_id
+                        WHERE {$this->idJoin('sr_ppjb', 'px', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
                           AND NULLIF(BTRIM(COALESCE(CAST(px.parent_id AS text), '')), '') IS NULL
                           AND UPPER(BTRIM(COALESCE(CAST(px.flag_aktif AS text), ''))) = 'A'
                   )
@@ -912,7 +1012,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                   AND NOT EXISTS (
                         SELECT 1
                         FROM {$schema}.sr_ppjb AS px
-                        WHERE px.stok_id = um.stok_id
+                        WHERE {$this->idJoin('sr_ppjb', 'px', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
                           AND NULLIF(BTRIM(COALESCE(CAST(px.parent_id AS text), '')), '') IS NULL
                           AND UPPER(BTRIM(COALESCE(CAST(px.flag_aktif AS text), ''))) = 'A'
                   )";
@@ -921,7 +1021,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                   AND EXISTS (
                         SELECT 1
                         FROM {$schema}.sr_ppjb AS px
-                        WHERE px.stok_id = um.stok_id
+                        WHERE {$this->idJoin('sr_ppjb', 'px', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
                           AND NULLIF(BTRIM(COALESCE(CAST(px.parent_id AS text), '')), '') IS NULL
                           AND UPPER(BTRIM(COALESCE(CAST(px.flag_aktif AS text), ''))) = 'A'
                   )";
@@ -941,7 +1041,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                         OR EXISTS (
                             SELECT 1
                             FROM {$schema}.sr_ppjb AS pa
-                            WHERE pa.stok_id = um.stok_id
+                            WHERE {$this->idJoin('sr_ppjb', 'pa', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
                               AND NULLIF(BTRIM(COALESCE(CAST(pa.parent_id AS text), '')), '') IS NULL
                               AND UPPER(BTRIM(COALESCE(CAST(pa.flag_aktif AS text), ''))) = 'A'
                               AND UPPER(BTRIM(COALESCE(CAST(pa.kd_agen AS text), ''))) = ?
@@ -958,7 +1058,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                         OR EXISTS (
                             SELECT 1
                             FROM {$schema}.sr_ppjb AS ps
-                            WHERE ps.stok_id = um.stok_id
+                            WHERE {$this->idJoin('sr_ppjb', 'ps', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
                               AND NULLIF(BTRIM(COALESCE(CAST(ps.parent_id AS text), '')), '') IS NULL
                               AND UPPER(BTRIM(COALESCE(CAST(ps.flag_aktif AS text), ''))) = 'A'
                               AND UPPER(BTRIM(COALESCE(CAST(ps.kd_sales AS text), ''))) = ?
@@ -973,7 +1073,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                 um.*
             FROM {$schema}.sr_uang_muka AS um
             INNER JOIN {$schema}.sr_stok AS stok
-                ON stok.stok_id = um.stok_id
+                ON {$this->idJoin('sr_stok', 'stok', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
             WHERE {$dateColumn} >= ?::date
               AND {$dateColumn} < (?::date + INTERVAL '1 day')
               AND UPPER(BTRIM(CAST(stok.kd_perusahaan AS text))) = ?
@@ -1225,7 +1325,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                     COALESCE(NULLIF({$stokModelKeySql}, ''), '000') AS model_key
                 FROM {$schema}.sr_stok AS stok
                 INNER JOIN candidate_stok AS cs
-                    ON cs.stok_id = stok.stok_id
+                    ON {$this->idJoin('sr_uang_muka', 'cs', 'stok_id', 'sr_stok', 'stok', 'stok_id')}
             ),
 
             master_lokasi AS MATERIALIZED (
@@ -1334,7 +1434,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                     p.*
                 FROM candidate_um AS um
                 INNER JOIN {$schema}.sr_ppjb AS p
-                    ON p.uang_muka_id = um.uang_muka_id
+                    ON {$this->idJoin('sr_ppjb', 'p', 'uang_muka_id', 'sr_uang_muka', 'um', 'uang_muka_id')}
                 WHERE NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
                   AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
 
@@ -1346,7 +1446,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                     p.*
                 FROM candidate_um AS um
                 INNER JOIN {$schema}.sr_ppjb AS p
-                    ON p.stok_id = um.stok_id
+                    ON {$this->idJoin('sr_ppjb', 'p', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
                 WHERE NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
                   AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
             ),
@@ -1462,10 +1562,10 @@ class Daftar_Surat_Pemesanan_m extends Model
                  * unit di web jauh lebih sedikit daripada desktop.
                  */
                 LEFT JOIN {$schema}.sr_bayar_uang_muka AS bum
-                    ON bum.uang_muka_id = um.uang_muka_id
+                    ON {$this->idJoin('sr_bayar_uang_muka', 'bum', 'uang_muka_id', 'sr_uang_muka', 'um', 'uang_muka_id')}
 
                 INNER JOIN stok_enriched AS stok
-                    ON stok.stok_id = um.stok_id
+                    ON {$this->idJoin('sr_stok', 'stok', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
 
                 LEFT JOIN {$schema}.sr_cara_bayar AS cara_bayar
                     ON UPPER(BTRIM(CAST(cara_bayar.kd_cara_bayar AS text))) = UPPER(BTRIM(CAST(bum.kd_cara_bayar AS text)))
@@ -1495,7 +1595,11 @@ class Daftar_Surat_Pemesanan_m extends Model
                             'g'
                         ),
                         ''
-                    ) AS uang_muka_id_digits
+                    ) AS uang_muka_id_digits,
+                    CASE
+                        WHEN BTRIM(CAST(uang_muka_id AS text)) ~ '^[0-9]+$'
+                        THEN CAST(BTRIM(CAST(uang_muka_id AS text)) AS numeric)
+                    END AS uang_muka_id_numeric
                 FROM base
             ),
 
@@ -1527,7 +1631,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                     COALESCE(SUM(CASE WHEN biaya.balance = -1 THEN bdp.jumlah ELSE 0 END), 0) AS discount
                 FROM base_uang_muka AS bu
                 INNER JOIN {$schema}.sr_biaya_dp AS bdp
-                    ON bdp.uang_muka_id = bu.uang_muka_id
+                    ON {$this->idJoinPrepared('sr_biaya_dp', 'bdp', 'uang_muka_id', 'bu.uang_muka_id_numeric', 'bu.uang_muka_id_text')}
                 INNER JOIN {$schema}.sr_biaya AS biaya
                     ON BTRIM(CAST(biaya.kd_biaya AS text)) = BTRIM(CAST(bdp.kd_biaya AS text))
                 GROUP BY bu.uang_muka_id
@@ -1535,23 +1639,24 @@ class Daftar_Surat_Pemesanan_m extends Model
 
             jadwal_by_ppjb AS (
                 SELECT
-                    ja.ppjb_id,
+                    bp.ppjb_id,
                     COALESCE(SUM(ja.jumlah), 0) AS extra_harga
                 FROM {$schema}.sr_jadwal_angsuran AS ja
                 INNER JOIN base_ppjb AS bp
-                    ON bp.ppjb_id = ja.ppjb_id
+                    ON {$this->idJoinPrepared('sr_jadwal_angsuran', 'ja', 'ppjb_id', 'bp.ppjb_id_numeric', 'bp.ppjb_id_text')}
                 INNER JOIN {$schema}.sr_kode_transaksi AS kt
-                    ON kt.kd_transaksi = ja.kd_transaksi
+                    ON BTRIM(CAST(kt.kd_transaksi AS text))
+                     = BTRIM(CAST(ja.kd_transaksi AS text))
                 WHERE (
                         (
                             UPPER(BTRIM(COALESCE(CAST(kt.flag_hitung AS text), ''))) = 'Y'
                             AND UPPER(BTRIM(COALESCE(CAST(kt.flag_pajak AS text), ''))) = 'Y'
                         )
-                        OR kt.kd_transaksi = 'DCB'
+                        OR BTRIM(CAST(kt.kd_transaksi AS text)) = 'DCB'
                       )
-                  AND ja.kd_transaksi NOT IN ('ANG', 'UMK')
+                  AND BTRIM(CAST(ja.kd_transaksi AS text)) NOT IN ('ANG', 'UMK')
                   AND COALESCE(NULLIF(UPPER(BTRIM(to_jsonb(ja) ->> 'flag_aktif')), ''), 'A') = 'A'
-                GROUP BY ja.ppjb_id
+                GROUP BY bp.ppjb_id
             ),
 
             /*
@@ -1566,8 +1671,8 @@ class Daftar_Surat_Pemesanan_m extends Model
                     n.total_npv
                 FROM base_ppjb AS bp
                 INNER JOIN {$schema}.sr_npv AS n
-                    ON n.ppjb_id = bp.ppjb_id_numeric
-                WHERE bp.ppjb_id_numeric IS NOT NULL
+                    ON {$this->idJoinPrepared('sr_npv', 'n', 'ppjb_id', 'bp.ppjb_id_numeric', 'bp.ppjb_id_text')}
+                WHERE {$this->idJoinPreparedGuard('sr_npv', 'ppjb_id', 'bp.ppjb_id_numeric', 'bp.ppjb_id_text')}
                   AND UPPER(BTRIM(COALESCE(CAST(n.jenis_trn AS text), ''))) = 'P'
                 ORDER BY
                     bp.ppjb_id,
@@ -1788,7 +1893,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                         ''
                     ) AS nama_inline
                 FROM public.sr_pembeli_dp AS pd
-                WHERE pd.uang_muka_id = ANY(?::varchar[])
+                WHERE BTRIM(CAST(pd.uang_muka_id AS text)) = ANY(?::text[])
                   AND COALESCE(
                         NULLIF(UPPER(BTRIM(to_jsonb(pd) ->> 'flag_nama_dp')), ''),
                         'Y'
@@ -1960,7 +2065,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                         ''
                     ) AS nama_inline
                 FROM public.sr_pembeli_ppjb AS pp
-                WHERE pp.ppjb_id = ANY(?::varchar[])
+                WHERE BTRIM(CAST(pp.ppjb_id AS text)) = ANY(?::text[])
                   AND COALESCE(
                         NULLIF(UPPER(BTRIM(CAST(pp.flag_aktif AS text))), ''),
                         'Y'
@@ -2113,7 +2218,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                     )
                 ) AS nama
             FROM public.sr_nasabah AS nasabah
-            WHERE nasabah.nasabah_id = ANY(?::varchar[])
+            WHERE BTRIM(CAST(nasabah.nasabah_id AS text)) = ANY(?::text[])
         SQL;
 
         $rows = DB::connection(self::CONNECTION)->select($exactSql, [$exactArray]);
@@ -2301,7 +2406,7 @@ class Daftar_Surat_Pemesanan_m extends Model
 
                 FROM lookup
                 INNER JOIN {$schema}.sr_angsuran AS angsuran
-                    ON angsuran.ppjb_id = lookup.ppjb_lookup
+                    ON BTRIM(CAST(angsuran.ppjb_id AS text)) = lookup.ppjb_lookup
             ),
 
             hasil AS (
@@ -2338,7 +2443,7 @@ class Daftar_Surat_Pemesanan_m extends Model
 
                 FROM sumber
                 LEFT JOIN {$schema}.sr_kode_transaksi AS kode
-                    ON kode.kd_transaksi = sumber.kd_transaksi
+                    ON BTRIM(CAST(kode.kd_transaksi AS text)) = BTRIM(CAST(sumber.kd_transaksi AS text))
                 WHERE sumber.flag_cair_norm = 'Y'
                   AND (
                         sumber.flag_aktif_norm = 'A'

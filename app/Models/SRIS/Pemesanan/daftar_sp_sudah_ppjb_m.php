@@ -28,7 +28,7 @@ class daftar_sp_sudah_ppjb_m extends Model
 
         $rows = DB::connection(self::CONNECTION)->select(
             '
-                SELECT column_name
+                SELECT column_name, data_type
                 FROM information_schema.columns
                 WHERE table_schema = ?
                   AND table_name = ?
@@ -42,7 +42,7 @@ class daftar_sp_sudah_ppjb_m extends Model
             $name = strtolower(trim((string) ($row->column_name ?? '')));
 
             if ($name !== '') {
-                $columns[$name] = true;
+                $columns[$name] = strtolower(trim((string) ($row->data_type ?? '')));
             }
         }
 
@@ -54,6 +54,55 @@ class daftar_sp_sudah_ppjb_m extends Model
     private function hasTableColumn(string $table, string $column): bool
     {
         return isset($this->tableColumns($table)[strtolower($column)]);
+    }
+
+    /**
+     * Apakah kolom bertipe angka pada database yang sedang dipakai.
+     *
+     * Tipe kolom kunci berbeda antar hasil migrasi, dan PostgreSQL menolak
+     * perbandingan langsung antara numeric dengan character varying.
+     */
+    private function isNumericColumn(string $table, string $column): bool
+    {
+        $type = $this->tableColumns($table)[strtolower($column)] ?? '';
+
+        return in_array($type, [
+            'numeric', 'decimal', 'integer', 'bigint', 'smallint',
+            'real', 'double precision',
+        ], true);
+    }
+
+    /**
+     * Bentuk perbandingan dua kolom kunci antar tabel dengan tipe apa pun.
+     *
+     * Ketika kedua sisi bertipe sama, perbandingannya dibiarkan apa adanya
+     * supaya index PostgreSQL tetap terpakai. Penyamaan tipe hanya dilakukan
+     * bila memang berbeda.
+     */
+    private function idJoin(
+        string $tableA,
+        string $aliasA,
+        string $columnA,
+        string $tableB,
+        string $aliasB,
+        string $columnB
+    ): string {
+        $numericA = $this->isNumericColumn($tableA, $columnA);
+        $numericB = $this->isNumericColumn($tableB, $columnB);
+
+        if ($numericA === $numericB) {
+            return "{$aliasA}.{$columnA} = {$aliasB}.{$columnB}";
+        }
+
+        $sisiAngka = $numericA
+            ? "{$aliasA}.{$columnA}"
+            : "{$aliasB}.{$columnB}";
+        $sisiTeks = $numericA
+            ? "{$aliasB}.{$columnB}"
+            : "{$aliasA}.{$columnA}";
+
+        return "{$sisiAngka} = (CASE WHEN BTRIM(CAST({$sisiTeks} AS text)) ~ '^[0-9]+$'"
+            . " THEN CAST(BTRIM(CAST({$sisiTeks} AS text)) AS numeric) END)";
     }
 
     /**
@@ -818,7 +867,7 @@ class daftar_sp_sudah_ppjb_m extends Model
 
                 FROM {$schema}.sr_ppjb AS ppjb
                 INNER JOIN {$schema}.sr_stok AS stok
-                    ON stok.stok_id = ppjb.stok_id
+                    ON {$this->idJoin('sr_stok', 'stok', 'stok_id', 'sr_ppjb', 'ppjb', 'stok_id')}
                 WHERE {$whereSql}
             ),
 
