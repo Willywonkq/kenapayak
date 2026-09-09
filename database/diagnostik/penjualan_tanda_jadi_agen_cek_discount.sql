@@ -250,3 +250,113 @@ ORDER BY 1, 3;
  * mendekati, terutama karena sembilan unit yang hilang seharusnya membuat
  * total web LEBIH KECIL, bukan lebih besar.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * ==== LANJUTAN — sesudah QUERY 1 sampai 6 dijalankan ====
+ *
+ * Hasil QUERY 1 sampai 4 membantah dugaan soal spasi:
+ *   - cocok_rtrim selalu sama dengan cocok_btrim, dan tidak pernah lebih
+ *     dari 1, jadi tidak ada baris yang terhitung berulang.
+ *   - discount_rtrim, discount_btrim, dan discount_btrim_unik ketiganya
+ *     bernilai sama, yaitu -30.291.280.656.
+ *   - QUERY 4 melaporkan 0 baris yang terhitung berkali-kali.
+ *
+ * Yang sebenarnya terjadi terlihat pada QUERY 1 dan 5. Ada 12 kode biaya
+ * yang dipakai sr_biaya_dp tetapi tidak punya baris master di sr_biaya:
+ *   D50, DCB2, DCG, DCK, DIRGR, DSF, DSH, DSL, DST, DUT, DXT, PHJ2
+ * Semuanya cocok_rtrim = 0 dan cocok_btrim = 0.
+ *
+ * QUERY 5 memperlihatkan akibatnya. Pada HE/032 ada baris [DSL] senilai
+ * 34.220.000 tanpa master, sehingga model menghitung discount unit itu
+ * sebagai 0, sedangkan desktop menampilkan 34.220.000. Karena query
+ * desktop menyambung BIAYA dengan INNER JOIN, berarti di SQL Server kode
+ * DSL memang ada di tabel BIAYA dengan BALANCE = -1.
+ *
+ * Perhatikan juga tandanya: nilai discount bisa POSITIF. DSL 34.220.000
+ * dan DPBL 23.150.000 dua-duanya positif. Jadi baris yang hilang justru
+ * membuat total web lebih minus daripada desktop, bukan sebaliknya.
+ *
+ * Dua query berikut mengukur seberapa besar pengaruhnya.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 7 — Nilai yang terbuang karena kode biayanya tidak punya master
+ *
+ * Dikelompokkan per kode, hanya untuk unit yang masuk laporan.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-08' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+unit AS (
+    SELECT DISTINCT um.uang_muka_id
+    FROM public.sr_uang_muka AS um
+    CROSS JOIN param
+    INNER JOIN public.sr_stok AS stok ON stok.stok_id = um.stok_id
+    WHERE um.tgl_uang_muka >= param.tgl_awal
+      AND um.tgl_uang_muka <  param.tgl_akhir + INTERVAL '1 day'
+      AND UPPER(BTRIM(COALESCE(CAST(stok.kd_perusahaan AS text), ''))) = param.perusahaan
+      AND UPPER(BTRIM(COALESCE(CAST(um.flag_aktif AS text), ''))) = 'A'
+      AND NULLIF(BTRIM(COALESCE(CAST(um.parent_id AS text), '')), '') IS NULL
+)
+SELECT
+    '[' || COALESCE(CAST(bdp.kd_biaya AS text), '(null)') || ']' AS kd_biaya,
+    COUNT(*)                        AS jumlah_baris,
+    COUNT(DISTINCT bdp.uang_muka_id) AS jumlah_unit,
+    SUM(COALESCE(bdp.jumlah, 0))    AS total_nilai
+FROM unit AS u
+INNER JOIN public.sr_biaya_dp AS bdp ON bdp.uang_muka_id = u.uang_muka_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.sr_biaya AS b
+     WHERE RTRIM(CAST(b.kd_biaya AS text)) = RTRIM(CAST(bdp.kd_biaya AS text))
+)
+GROUP BY bdp.kd_biaya
+ORDER BY total_nilai DESC;
+
+
+/* =====================================================================
+ * QUERY 8 — Ringkasan satu baris
+ *
+ * total_terbuang adalah nilai yang desktop hitung sebagai discount tetapi
+ * web lewatkan. Bandingkan dengan selisih dua laporan, yaitu
+ *     -29.590.361.876 dikurangi -30.291.280.656 = 700.918.780
+ *
+ * Kalau total_terbuang mendekati angka itu, seluruh selisih discount sudah
+ * terjelaskan oleh baris master sr_biaya yang belum tersalin. Sisanya
+ * tinggal sumbangan sembilan unit yang memang belum ada di PostgreSQL.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-08' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+unit AS (
+    SELECT DISTINCT um.uang_muka_id
+    FROM public.sr_uang_muka AS um
+    CROSS JOIN param
+    INNER JOIN public.sr_stok AS stok ON stok.stok_id = um.stok_id
+    WHERE um.tgl_uang_muka >= param.tgl_awal
+      AND um.tgl_uang_muka <  param.tgl_akhir + INTERVAL '1 day'
+      AND UPPER(BTRIM(COALESCE(CAST(stok.kd_perusahaan AS text), ''))) = param.perusahaan
+      AND UPPER(BTRIM(COALESCE(CAST(um.flag_aktif AS text), ''))) = 'A'
+      AND NULLIF(BTRIM(COALESCE(CAST(um.parent_id AS text), '')), '') IS NULL
+),
+terbuang AS (
+    SELECT bdp.uang_muka_id, bdp.jumlah
+    FROM unit AS u
+    INNER JOIN public.sr_biaya_dp AS bdp ON bdp.uang_muka_id = u.uang_muka_id
+    WHERE NOT EXISTS (
+        SELECT 1 FROM public.sr_biaya AS b
+         WHERE RTRIM(CAST(b.kd_biaya AS text)) = RTRIM(CAST(bdp.kd_biaya AS text))
+    )
+)
+SELECT
+    COALESCE(SUM(jumlah), 0)                       AS total_terbuang,
+    COUNT(*)                                       AS jumlah_baris,
+    COUNT(DISTINCT uang_muka_id)                   AS jumlah_unit_terdampak,
+    COALESCE(SUM(jumlah) FILTER (WHERE jumlah > 0), 0) AS bagian_positif,
+    COALESCE(SUM(jumlah) FILTER (WHERE jumlah < 0), 0) AS bagian_negatif
+FROM terbuang;
