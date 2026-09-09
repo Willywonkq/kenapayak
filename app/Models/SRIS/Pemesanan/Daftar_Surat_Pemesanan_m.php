@@ -180,14 +180,33 @@ class Daftar_Surat_Pemesanan_m extends Model
         string $columnA,
         string $tableB,
         string $aliasB,
-        string $columnB
+        string $columnB,
+        string $ranah = 'teks'
     ): string {
-        $asNumeric = $this->isNumericColumn($tableA, $columnA)
-            || $this->isNumericColumn($tableB, $columnB);
+        $numerikA = $this->isNumericColumn($tableA, $columnA);
+        $numerikB = $this->isNumericColumn($tableB, $columnB);
 
-        return $this->idKeyExpr($tableA, $aliasA, $columnA, $asNumeric)
-            . ' = '
-            . $this->idKeyExpr($tableB, $aliasB, $columnB, $asNumeric);
+        if ($numerikA === $numerikB) {
+            return "{$aliasA}.{$columnA} = {$aliasB}.{$columnB}";
+        }
+
+        /*
+         * Ranah 'angka' hanya boleh dipakai untuk kunci yang isinya pasti
+         * bilangan bulat. Untuk kunci beraksara seperti stok_id, mengubahnya
+         * menjadi angka akan menghasilkan NULL dan barisnya hilang diam-diam.
+         */
+        if ($ranah === 'angka') {
+            $sisiAngka = $numerikA ? "{$aliasA}.{$columnA}" : "{$aliasB}.{$columnB}";
+            $sisiTeks = $numerikA ? "{$aliasB}.{$columnB}" : "{$aliasA}.{$columnA}";
+
+            return "{$sisiAngka} = (CASE WHEN BTRIM(CAST({$sisiTeks} AS text)) ~ '^[0-9]+$'"
+                . " THEN CAST(BTRIM(CAST({$sisiTeks} AS text)) AS numeric) END)";
+        }
+
+        $sisiDicast = $numerikA ? "{$aliasA}.{$columnA}" : "{$aliasB}.{$columnB}";
+        $sisiMentah = $numerikA ? "{$aliasB}.{$columnB}" : "{$aliasA}.{$columnA}";
+
+        return "CAST({$sisiDicast} AS text) = BTRIM(CAST({$sisiMentah} AS text))";
     }
 
     /**
@@ -1520,7 +1539,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                     p.*
                 FROM candidate_um AS um
                 INNER JOIN {$schema}.sr_ppjb AS p
-                    ON {$this->idJoin('sr_ppjb', 'p', 'uang_muka_id', 'sr_uang_muka', 'um', 'uang_muka_id')}
+                    ON {$this->idJoin('sr_ppjb', 'p', 'uang_muka_id', 'sr_uang_muka', 'um', 'uang_muka_id', 'angka')}
                 WHERE NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
                   AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
 
@@ -1648,7 +1667,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                  * unit di web jauh lebih sedikit daripada desktop.
                  */
                 LEFT JOIN {$schema}.sr_bayar_uang_muka AS bum
-                    ON {$this->idJoin('sr_bayar_uang_muka', 'bum', 'uang_muka_id', 'sr_uang_muka', 'um', 'uang_muka_id')}
+                    ON {$this->idJoin('sr_bayar_uang_muka', 'bum', 'uang_muka_id', 'sr_uang_muka', 'um', 'uang_muka_id', 'angka')}
 
                 INNER JOIN stok_enriched AS stok
                     ON {$this->idJoin('sr_stok', 'stok', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}

@@ -2465,6 +2465,14 @@
         });
     }
 
+    /*
+     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
+     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
+     */
+    if (window.history && 'scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+    }
+
     function setDefaultDate() {
         var now = new Date();
         var year = now.getFullYear();
@@ -3498,6 +3506,20 @@
         html += '</div>';
 
         $('#main-display').html(html);
+
+        /*
+         * Kembalikan posisi gulir ke awal setiap laporan digambar ulang.
+         *
+         * Firefox mengembalikan posisi gulir elemen setelah halaman di-refresh.
+         * Tanpa ini, laporan baru langsung tampil dari bagian bawah mengikuti
+         * posisi terakhir sebelum refresh, seolah-olah hasilnya tidak berubah.
+         */
+        var wadahTabel = document.getElementById('reportTableContainer');
+
+        if (wadahTabel) {
+            wadahTabel.scrollTop = 0;
+            wadahTabel.scrollLeft = 0;
+        }
 
         if (!data || data.length === 0) {
             // Trigger Modal Alert saat data kosong

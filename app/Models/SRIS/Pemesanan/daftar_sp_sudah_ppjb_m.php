@@ -123,24 +123,33 @@ class daftar_sp_sudah_ppjb_m extends Model
         string $columnA,
         string $tableB,
         string $aliasB,
-        string $columnB
+        string $columnB,
+        string $ranah = 'teks'
     ): string {
-        $numericA = $this->isNumericColumn($tableA, $columnA);
-        $numericB = $this->isNumericColumn($tableB, $columnB);
+        $numerikA = $this->isNumericColumn($tableA, $columnA);
+        $numerikB = $this->isNumericColumn($tableB, $columnB);
 
-        if ($numericA === $numericB) {
+        if ($numerikA === $numerikB) {
             return "{$aliasA}.{$columnA} = {$aliasB}.{$columnB}";
         }
 
-        $sisiAngka = $numericA
-            ? "{$aliasA}.{$columnA}"
-            : "{$aliasB}.{$columnB}";
-        $sisiTeks = $numericA
-            ? "{$aliasB}.{$columnB}"
-            : "{$aliasA}.{$columnA}";
+        /*
+         * Ranah 'angka' hanya boleh dipakai untuk kunci yang isinya pasti
+         * bilangan bulat. Untuk kunci beraksara seperti stok_id, mengubahnya
+         * menjadi angka akan menghasilkan NULL dan barisnya hilang diam-diam.
+         */
+        if ($ranah === 'angka') {
+            $sisiAngka = $numerikA ? "{$aliasA}.{$columnA}" : "{$aliasB}.{$columnB}";
+            $sisiTeks = $numerikA ? "{$aliasB}.{$columnB}" : "{$aliasA}.{$columnA}";
 
-        return "{$sisiAngka} = (CASE WHEN BTRIM(CAST({$sisiTeks} AS text)) ~ '^[0-9]+$'"
-            . " THEN CAST(BTRIM(CAST({$sisiTeks} AS text)) AS numeric) END)";
+            return "{$sisiAngka} = (CASE WHEN BTRIM(CAST({$sisiTeks} AS text)) ~ '^[0-9]+$'"
+                . " THEN CAST(BTRIM(CAST({$sisiTeks} AS text)) AS numeric) END)";
+        }
+
+        $sisiDicast = $numerikA ? "{$aliasA}.{$columnA}" : "{$aliasB}.{$columnB}";
+        $sisiMentah = $numerikA ? "{$aliasB}.{$columnB}" : "{$aliasA}.{$columnA}";
+
+        return "CAST({$sisiDicast} AS text) = BTRIM(CAST({$sisiMentah} AS text))";
     }
 
     /**
