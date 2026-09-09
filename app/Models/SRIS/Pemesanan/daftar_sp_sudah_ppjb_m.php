@@ -110,6 +110,62 @@ class daftar_sp_sudah_ppjb_m extends Model
         return $this->pgTextArray($values);
     }
 
+
+    /**
+     * Syarat "kolom kunci ini kosong", ditulis agar PostgreSQL tetap dapat
+     * memperkirakan jumlah barisnya.
+     *
+     * Bentuk lama, NULLIF(BTRIM(COALESCE(CAST(x AS text), '')), '') IS NULL,
+     * adalah ekspresi buram bagi perencana. Statistik kolom tidak terpakai,
+     * sehingga perkiraannya jatuh ke nilai bawaan yang sangat kecil. Ketika
+     * beberapa syarat buram dikalikan, perkiraannya menjadi satu baris,
+     * perencana memilih nested loop, dan tabel di sisi dalam dipindai
+     * berulang kali sebanyak jumlah baris di sisi luar.
+     *
+     * Bentuk baru ini persis sama artinya. Kolom angka tidak mungkin berisi
+     * teks kosong sehingga cukup IS NULL, sedangkan kolom teks tetap
+     * memeriksa keduanya. Bagian IS NULL dapat diperkirakan lewat statistik
+     * null_frac, dan itu sudah cukup untuk mengembalikan rencana hash join.
+     */
+    private function kunciKosongExpr(string $table, string $alias, string $column): string
+    {
+        $qualified = "{$alias}.{$column}";
+
+        if ($this->isNumericColumn($table, $column)) {
+            return "{$qualified} IS NULL";
+        }
+
+        return "({$qualified} IS NULL OR BTRIM(CAST({$qualified} AS text)) = '')";
+    }
+
+
+    /**
+     * Syarat "kolom kode ini bernilai X", ditulis agar perkiraan barisnya
+     * tetap masuk akal bagi perencana.
+     *
+     * Bentuk UPPER(BTRIM(COALESCE(CAST(x AS text), ''))) = 'A' bersifat buram,
+     * sehingga PostgreSQL memakai perkiraan bawaan yang jauh lebih kecil
+     * daripada kenyataan lalu memilih nested loop. Bagian IN di depan memakai
+     * kolom apa adanya sehingga statistik nilai tersering dapat dipakai.
+     *
+     * Artinya persis sama: setiap nilai yang memenuhi bagian IN pasti juga
+     * memenuhi bagian sesudah OR, jadi kumpulan barisnya tidak berubah.
+     */
+    private function kodeSamaExpr(string $table, string $alias, string $column, string $nilai): string
+    {
+        $qualified = "{$alias}.{$column}";
+        $umum = "UPPER(BTRIM(COALESCE(CAST({$qualified} AS text), ''))) = '{$nilai}'";
+
+        if ($this->isNumericColumn($table, $column)) {
+            return $umum;
+        }
+
+        $hurufBesar = strtoupper($nilai);
+        $hurufKecil = strtolower($nilai);
+
+        return "({$qualified} IN ('{$hurufBesar}', '{$hurufKecil}') OR {$umum})";
+    }
+
     /**
      * Bentuk perbandingan dua kolom kunci antar tabel dengan tipe apa pun.
      *
@@ -738,15 +794,15 @@ class daftar_sp_sudah_ppjb_m extends Model
         $where[] = "UPPER(BTRIM(COALESCE(CAST(stok.kd_perusahaan AS text), ''))) = ?";
         $bindings[] = $perusahaan;
 
-        $where[] = "UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS text), ''))) = 'A'";
+        $where[] = "{$this->kodeSamaExpr('sr_stok', 'stok', 'flag_aktif', 'A')}";
 
         $where[] = "(
-            UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS text), ''))) = 'A'
+            {$this->kodeSamaExpr('sr_ppjb', 'ppjb', 'flag_aktif', 'A')}
             OR ppjb.tgl_batal > ?::date
         )";
         $bindings[] = $tglAkhir;
 
-        $where[] = "NULLIF(BTRIM(COALESCE(CAST(ppjb.parent_id AS text), '')), '') IS NULL";
+        $where[] = "{$this->kunciKosongExpr('sr_ppjb', 'ppjb', 'parent_id')}";
         $where[] = "NULLIF(BTRIM(COALESCE(CAST(stok.blok AS text), '')), '') IS NOT NULL";
         $where[] = "NULLIF(BTRIM(COALESCE(CAST(stok.nomor AS text), '')), '') IS NOT NULL";
 
@@ -918,7 +974,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                 WHERE {$whereSql}
             ),
 
-            candidate_ppjb AS (
+            candidate_ppjb AS MATERIALIZED (
                 SELECT DISTINCT ON (fp.ppjb_id)
                     fp.ppjb_id,
                     fp.ppjb_id_text,
@@ -1021,7 +1077,7 @@ class daftar_sp_sudah_ppjb_m extends Model
              * kali untuk PPJB yang sama, sehingga penjumlahan di bawah tidak
              * perlu lagi memakai DISTINCT.
              */
-            ppjb_lookup AS (
+            ppjb_lookup AS MATERIALIZED (
                 SELECT
                     bp.ppjb_id,
                     CAST(bp.ppjb_id AS text) AS lookup_id,
@@ -1042,7 +1098,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                   AND bp.ppjb_id_digits <> CAST(bp.ppjb_id AS text)
             ),
 
-            jadwal_source AS (
+            jadwal_source AS MATERIALIZED (
                 /*
                  * DISTINCT dihapus.
                  *
@@ -1060,7 +1116,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                     ON {$this->idJoinPrepared('sr_jadwal_angsuran', 'jadwal_angsuran', 'ppjb_id', 'pl.lookup_id_numeric', 'pl.lookup_id')}
             ),
 
-            jadwal_by_ppjb AS (
+            jadwal_by_ppjb AS MATERIALIZED (
                 SELECT
                     js.ppjb_id,
                     COALESCE(SUM(js.jumlah), 0) AS extra_harga
@@ -1079,7 +1135,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                 GROUP BY js.ppjb_id
             ),
 
-            pembeli_ppjb_match AS (
+            pembeli_ppjb_match AS MATERIALIZED (
                 /*
                  * Pencarian pembeli ikut memakai ppjb_lookup, sama seperti
                  * angsuran dan jadwal. Sebelumnya hanya dicocokkan dengan
@@ -1113,7 +1169,7 @@ class daftar_sp_sudah_ppjb_m extends Model
                 WHERE COALESCE(NULLIF(UPPER(BTRIM(to_jsonb(pp) ->> 'flag_aktif')), ''), 'Y') IN ('A', 'Y')
             ),
 
-            pembeli_ppjb AS (
+            pembeli_ppjb AS MATERIALIZED (
                 /*
                  * Nilai '-' tidak lagi dijadikan cadangan di dalam COALESCE.
                  * Dengan begitu pembeli yang namanya tidak ditemukan menghasilkan

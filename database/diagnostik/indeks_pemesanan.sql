@@ -1,65 +1,22 @@
 /*
- * INDEX untuk laporan Pemesanan pada PostgreSQL
+ * PEMERIKSAAN INDEX untuk laporan Pemesanan pada PostgreSQL
  *
- * Database hasil migrasi biasanya belum memiliki index selain primary key,
- * sehingga setiap laporan memindai seluruh isi tabel. Pada sr_angsuran dan
- * sr_jadwal_angsuran yang berisi ratusan ribu baris, itulah penyebab utama
- * laporan terasa lama.
+ * ==========================================================================
+ * BERKAS INI HANYA MEMBACA. Tidak ada perintah yang mengubah database.
  *
- * Seluruh perintah memakai IF NOT EXISTS sehingga aman dijalankan berulang.
- * Setiap CREATE INDEX mengunci tabelnya sebentar terhadap penulisan, jadi
- * sebaiknya dijalankan di luar jam sibuk. Bila ingin tanpa mengunci, ganti
- * CREATE INDEX menjadi CREATE INDEX CONCURRENTLY dan jalankan satu per satu
- * di luar transaksi.
- *
- * Jalankan QUERY PEMERIKSAAN di bagian bawah lebih dulu untuk melihat index
- * apa saja yang sudah ada.
+ * Bagian USULAN INDEX di bawah sengaja ditulis sebagai komentar sehingga
+ * tidak akan berjalan walaupun seluruh berkas dieksekusi. Pembuatan index
+ * adalah perubahan struktur database dan hanya boleh dilakukan oleh yang
+ * berwenang, misalnya DBA atau pemilik aplikasi. Serahkan usulan di bawah
+ * kepada mereka, jangan dijalankan sendiri.
+ * ==========================================================================
  */
 
 
-/* ---------- Kunci utama yang dipakai menyambung antar tabel ---------- */
-
-CREATE INDEX IF NOT EXISTS ix_sr_uang_muka_stok        ON public.sr_uang_muka (stok_id);
-CREATE INDEX IF NOT EXISTS ix_sr_uang_muka_tgl_um      ON public.sr_uang_muka (tgl_uang_muka);
-CREATE INDEX IF NOT EXISTS ix_sr_uang_muka_tgl_entry   ON public.sr_uang_muka (tgl_entry);
-
-CREATE INDEX IF NOT EXISTS ix_sr_bayar_um_um           ON public.sr_bayar_uang_muka (uang_muka_id);
-
-CREATE INDEX IF NOT EXISTS ix_sr_ppjb_um               ON public.sr_ppjb (uang_muka_id);
-CREATE INDEX IF NOT EXISTS ix_sr_ppjb_stok             ON public.sr_ppjb (stok_id);
-CREATE INDEX IF NOT EXISTS ix_sr_ppjb_tgl              ON public.sr_ppjb (tgl_ppjb);
-
-CREATE INDEX IF NOT EXISTS ix_sr_biaya_dp_um           ON public.sr_biaya_dp (uang_muka_id);
-
-CREATE INDEX IF NOT EXISTS ix_sr_jadwal_angsuran_ppjb  ON public.sr_jadwal_angsuran (ppjb_id);
-CREATE INDEX IF NOT EXISTS ix_sr_angsuran_ppjb         ON public.sr_angsuran (ppjb_id);
-
-CREATE INDEX IF NOT EXISTS ix_sr_npv_ppjb              ON public.sr_npv (ppjb_id);
-
-CREATE INDEX IF NOT EXISTS ix_sr_pembeli_dp_um         ON public.sr_pembeli_dp (uang_muka_id);
-CREATE INDEX IF NOT EXISTS ix_sr_pembeli_ppjb_ppjb     ON public.sr_pembeli_ppjb (ppjb_id);
-CREATE INDEX IF NOT EXISTS ix_sr_nasabah_id            ON public.sr_nasabah (nasabah_id);
-
-CREATE INDEX IF NOT EXISTS ix_sr_stok_id               ON public.sr_stok (stok_id);
-
-
-/* ---------- Perbarui statistik agar perencana memilih index ---------- */
-
-ANALYZE public.sr_uang_muka;
-ANALYZE public.sr_bayar_uang_muka;
-ANALYZE public.sr_ppjb;
-ANALYZE public.sr_biaya_dp;
-ANALYZE public.sr_jadwal_angsuran;
-ANALYZE public.sr_angsuran;
-ANALYZE public.sr_npv;
-ANALYZE public.sr_pembeli_dp;
-ANALYZE public.sr_pembeli_ppjb;
-ANALYZE public.sr_nasabah;
-ANALYZE public.sr_stok;
-
-
 /* =====================================================================
- * QUERY PEMERIKSAAN — index apa saja yang sudah ada
+ * QUERY 1 — Index apa saja yang sudah ada
+ * Bandingkan dengan daftar usulan di bagian bawah untuk melihat mana yang
+ * belum tersedia.
  * ===================================================================== */
 SELECT
     tablename  AS tabel,
@@ -76,7 +33,8 @@ ORDER BY tablename, indexname;
 
 
 /* =====================================================================
- * QUERY PEMERIKSAAN — ukuran tabel, untuk memperkirakan beban pemindaian
+ * QUERY 2 — Ukuran tabel dan perkiraan jumlah baris
+ * Tabel besar tanpa index itulah yang membuat laporan lama.
  * ===================================================================== */
 SELECT
     relname                                        AS tabel,
@@ -87,3 +45,82 @@ WHERE schemaname = 'public'
   AND relname LIKE 'sr_%'
 ORDER BY n_live_tup DESC
 LIMIT 25;
+
+
+/* =====================================================================
+ * QUERY 3 — Ringkasan: kolom kunci mana yang belum ada index-nya
+ * Kolom yang muncul di sini adalah yang paling berpengaruh pada kecepatan.
+ * ===================================================================== */
+WITH diperlukan(tabel, kolom) AS (
+    VALUES
+        ('sr_uang_muka',       'stok_id'),
+        ('sr_uang_muka',       'tgl_uang_muka'),
+        ('sr_uang_muka',       'tgl_entry'),
+        ('sr_bayar_uang_muka', 'uang_muka_id'),
+        ('sr_ppjb',            'uang_muka_id'),
+        ('sr_ppjb',            'stok_id'),
+        ('sr_ppjb',            'tgl_ppjb'),
+        ('sr_biaya_dp',        'uang_muka_id'),
+        ('sr_jadwal_angsuran', 'ppjb_id'),
+        ('sr_angsuran',        'ppjb_id'),
+        ('sr_npv',             'ppjb_id'),
+        ('sr_pembeli_dp',      'uang_muka_id'),
+        ('sr_pembeli_ppjb',    'ppjb_id'),
+        ('sr_nasabah',         'nasabah_id'),
+        ('sr_stok',            'stok_id')
+)
+SELECT
+    d.tabel,
+    d.kolom,
+    CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM pg_indexes AS i
+            WHERE i.schemaname = 'public'
+              AND i.tablename = d.tabel
+              AND i.indexdef LIKE '%(' || d.kolom || '%'
+        )
+        THEN 'sudah ada'
+        ELSE 'BELUM ADA'
+    END AS status_index,
+    COALESCE(
+        (SELECT to_char(t.n_live_tup, 'FM999G999G999')
+         FROM pg_stat_user_tables AS t
+         WHERE t.schemaname = 'public' AND t.relname = d.tabel),
+        '?'
+    ) AS perkiraan_jumlah_baris
+FROM diperlukan AS d
+ORDER BY status_index DESC, d.tabel, d.kolom;
+
+
+/* =====================================================================
+ * USULAN INDEX — JANGAN DIJALANKAN SENDIRI
+ *
+ * Seluruh baris di bawah berupa komentar. Salin dan serahkan kepada yang
+ * berwenang bila QUERY 3 menunjukkan masih ada yang BELUM ADA.
+ *
+ * Setiap pembuatan index mengunci tabelnya sebentar terhadap penulisan.
+ * Varian CONCURRENTLY tidak mengunci, tetapi harus dijalankan satu per satu
+ * di luar transaksi.
+ *
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_uang_muka_stok       ON public.sr_uang_muka (stok_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_uang_muka_tgl_um     ON public.sr_uang_muka (tgl_uang_muka);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_uang_muka_tgl_entry  ON public.sr_uang_muka (tgl_entry);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_bayar_um_um          ON public.sr_bayar_uang_muka (uang_muka_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_ppjb_um              ON public.sr_ppjb (uang_muka_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_ppjb_stok            ON public.sr_ppjb (stok_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_ppjb_tgl             ON public.sr_ppjb (tgl_ppjb);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_biaya_dp_um          ON public.sr_biaya_dp (uang_muka_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_jadwal_angsuran_ppjb ON public.sr_jadwal_angsuran (ppjb_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_angsuran_ppjb        ON public.sr_angsuran (ppjb_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_npv_ppjb             ON public.sr_npv (ppjb_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_pembeli_dp_um        ON public.sr_pembeli_dp (uang_muka_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_pembeli_ppjb_ppjb    ON public.sr_pembeli_ppjb (ppjb_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_nasabah_id           ON public.sr_nasabah (nasabah_id);
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_sr_stok_id              ON public.sr_stok (stok_id);
+ *
+ * ANALYZE public.sr_angsuran;
+ * ANALYZE public.sr_jadwal_angsuran;
+ * ANALYZE public.sr_uang_muka;
+ * ANALYZE public.sr_ppjb;
+ * ===================================================================== */

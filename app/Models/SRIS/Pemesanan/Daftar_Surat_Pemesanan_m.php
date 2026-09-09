@@ -155,6 +155,28 @@ class Daftar_Surat_Pemesanan_m extends Model
     }
 
     /**
+     * Sambungan ke daftar nilai dari PHP dalam bentuk JOIN, bukan
+     * WHERE ... = ANY(...).
+     *
+     * Tanpa index, "= ANY(daftar)" memaksa PostgreSQL membandingkan setiap
+     * baris tabel dengan seluruh isi daftar, sehingga biayanya jumlah baris
+     * dikali jumlah nilai. Bentuk JOIN ke unnest() membuat perencana memakai
+     * hash join, yang biayanya hanya jumlah baris ditambah jumlah nilai.
+     */
+    private function idJoinArray(
+        string $table,
+        string $alias,
+        string $column,
+        string $placeholder,
+        string $joinAlias = 'kunci'
+    ): string {
+        $tipe = $this->isNumericColumn($table, $column) ? 'numeric' : 'text';
+
+        return "INNER JOIN unnest({$placeholder}::{$tipe}[]) AS {$joinAlias}(nilai)"
+            . "\n                    ON {$alias}.{$column} = {$joinAlias}.nilai";
+    }
+
+    /**
      * Daftar nilai untuk idAnyArray(). Ketika kolomnya bertipe angka, hanya
      * nilai yang benar-benar berupa angka yang dikirim supaya cast tidak gagal.
      */
@@ -169,6 +191,62 @@ class Daftar_Surat_Pemesanan_m extends Model
         }
 
         return $this->pgTextArray($values);
+    }
+
+
+    /**
+     * Syarat "kolom kunci ini kosong", ditulis agar PostgreSQL tetap dapat
+     * memperkirakan jumlah barisnya.
+     *
+     * Bentuk lama, NULLIF(BTRIM(COALESCE(CAST(x AS text), '')), '') IS NULL,
+     * adalah ekspresi buram bagi perencana. Statistik kolom tidak terpakai,
+     * sehingga perkiraannya jatuh ke nilai bawaan yang sangat kecil. Ketika
+     * beberapa syarat buram dikalikan, perkiraannya menjadi satu baris,
+     * perencana memilih nested loop, dan tabel di sisi dalam dipindai
+     * berulang kali sebanyak jumlah baris di sisi luar.
+     *
+     * Bentuk baru ini persis sama artinya. Kolom angka tidak mungkin berisi
+     * teks kosong sehingga cukup IS NULL, sedangkan kolom teks tetap
+     * memeriksa keduanya. Bagian IS NULL dapat diperkirakan lewat statistik
+     * null_frac, dan itu sudah cukup untuk mengembalikan rencana hash join.
+     */
+    private function kunciKosongExpr(string $table, string $alias, string $column): string
+    {
+        $qualified = "{$alias}.{$column}";
+
+        if ($this->isNumericColumn($table, $column)) {
+            return "{$qualified} IS NULL";
+        }
+
+        return "({$qualified} IS NULL OR BTRIM(CAST({$qualified} AS text)) = '')";
+    }
+
+
+    /**
+     * Syarat "kolom kode ini bernilai X", ditulis agar perkiraan barisnya
+     * tetap masuk akal bagi perencana.
+     *
+     * Bentuk UPPER(BTRIM(COALESCE(CAST(x AS text), ''))) = 'A' bersifat buram,
+     * sehingga PostgreSQL memakai perkiraan bawaan yang jauh lebih kecil
+     * daripada kenyataan lalu memilih nested loop. Bagian IN di depan memakai
+     * kolom apa adanya sehingga statistik nilai tersering dapat dipakai.
+     *
+     * Artinya persis sama: setiap nilai yang memenuhi bagian IN pasti juga
+     * memenuhi bagian sesudah OR, jadi kumpulan barisnya tidak berubah.
+     */
+    private function kodeSamaExpr(string $table, string $alias, string $column, string $nilai): string
+    {
+        $qualified = "{$alias}.{$column}";
+        $umum = "UPPER(BTRIM(COALESCE(CAST({$qualified} AS text), ''))) = '{$nilai}'";
+
+        if ($this->isNumericColumn($table, $column)) {
+            return $umum;
+        }
+
+        $hurufBesar = strtoupper($nilai);
+        $hurufKecil = strtolower($nilai);
+
+        return "({$qualified} IN ('{$hurufBesar}', '{$hurufKecil}') OR {$umum})";
     }
 
     /**
@@ -632,7 +710,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                 BTRIM(CAST(sales.kd_agen AS text)) AS "KD_AGEN",
                 BTRIM(COALESCE(CAST(sales.status_sales AS text), \'\')) AS "STATUS_SALES"
             ')
-            ->whereRaw("UPPER(BTRIM(COALESCE(CAST(sales.flag_aktif AS text), ''))) = 'A'");
+            ->whereRaw("{$this->kodeSamaExpr('sr_sales', 'sales', 'flag_aktif', 'A')}");
 
         if ($kdAgen !== '*' && $kdAgen !== '') {
             $query->whereRaw(
@@ -1096,11 +1174,11 @@ class Daftar_Surat_Pemesanan_m extends Model
 
         if ($status === 'B') {
             $statusSql = "
-                  AND UPPER(BTRIM(COALESCE(CAST(um.flag_aktif AS text), ''))) = 'T'
+                  AND {$this->kodeSamaExpr('sr_uang_muka', 'um', 'flag_aktif', 'T')}
                   AND UPPER(BTRIM(COALESCE(CAST(um.flag_batal AS text), 'T'))) = 'Y'";
         } else {
             $statusSql = "
-                  AND UPPER(BTRIM(COALESCE(CAST(um.flag_aktif AS text), ''))) = 'A'";
+                  AND {$this->kodeSamaExpr('sr_uang_muka', 'um', 'flag_aktif', 'A')}";
 
             if ($status === 'T') {
                 $statusSql .= "
@@ -1108,18 +1186,18 @@ class Daftar_Surat_Pemesanan_m extends Model
                         SELECT 1
                         FROM {$schema}.sr_ppjb AS px
                         WHERE {$this->idJoin('sr_ppjb', 'px', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
-                          AND NULLIF(BTRIM(COALESCE(CAST(px.parent_id AS text), '')), '') IS NULL
-                          AND UPPER(BTRIM(COALESCE(CAST(px.flag_aktif AS text), ''))) = 'A'
+                          AND {$this->kunciKosongExpr('sr_ppjb', 'px', 'parent_id')}
+                          AND {$this->kodeSamaExpr('sr_ppjb', 'px', 'flag_aktif', 'A')}
                   )
-                  AND UPPER(BTRIM(COALESCE(CAST(um.status AS text), ''))) = 'T'";
+                  AND {$this->kodeSamaExpr('sr_uang_muka', 'um', 'status', 'T')}";
             } elseif ($status === '2') {
                 $statusSql .= "
                   AND NOT EXISTS (
                         SELECT 1
                         FROM {$schema}.sr_ppjb AS px
                         WHERE {$this->idJoin('sr_ppjb', 'px', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
-                          AND NULLIF(BTRIM(COALESCE(CAST(px.parent_id AS text), '')), '') IS NULL
-                          AND UPPER(BTRIM(COALESCE(CAST(px.flag_aktif AS text), ''))) = 'A'
+                          AND {$this->kunciKosongExpr('sr_ppjb', 'px', 'parent_id')}
+                          AND {$this->kodeSamaExpr('sr_ppjb', 'px', 'flag_aktif', 'A')}
                   )";
             } elseif ($status === '1') {
                 $statusSql .= "
@@ -1127,8 +1205,8 @@ class Daftar_Surat_Pemesanan_m extends Model
                         SELECT 1
                         FROM {$schema}.sr_ppjb AS px
                         WHERE {$this->idJoin('sr_ppjb', 'px', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
-                          AND NULLIF(BTRIM(COALESCE(CAST(px.parent_id AS text), '')), '') IS NULL
-                          AND UPPER(BTRIM(COALESCE(CAST(px.flag_aktif AS text), ''))) = 'A'
+                          AND {$this->kunciKosongExpr('sr_ppjb', 'px', 'parent_id')}
+                          AND {$this->kodeSamaExpr('sr_ppjb', 'px', 'flag_aktif', 'A')}
                   )";
             } elseif ($status !== '*') {
                 $statusSql .= "
@@ -1147,8 +1225,8 @@ class Daftar_Surat_Pemesanan_m extends Model
                             SELECT 1
                             FROM {$schema}.sr_ppjb AS pa
                             WHERE {$this->idJoin('sr_ppjb', 'pa', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
-                              AND NULLIF(BTRIM(COALESCE(CAST(pa.parent_id AS text), '')), '') IS NULL
-                              AND UPPER(BTRIM(COALESCE(CAST(pa.flag_aktif AS text), ''))) = 'A'
+                              AND {$this->kunciKosongExpr('sr_ppjb', 'pa', 'parent_id')}
+                              AND {$this->kodeSamaExpr('sr_ppjb', 'pa', 'flag_aktif', 'A')}
                               AND UPPER(BTRIM(COALESCE(CAST(pa.kd_agen AS text), ''))) = ?
                         )
                   )";
@@ -1164,8 +1242,8 @@ class Daftar_Surat_Pemesanan_m extends Model
                             SELECT 1
                             FROM {$schema}.sr_ppjb AS ps
                             WHERE {$this->idJoin('sr_ppjb', 'ps', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
-                              AND NULLIF(BTRIM(COALESCE(CAST(ps.parent_id AS text), '')), '') IS NULL
-                              AND UPPER(BTRIM(COALESCE(CAST(ps.flag_aktif AS text), ''))) = 'A'
+                              AND {$this->kunciKosongExpr('sr_ppjb', 'ps', 'parent_id')}
+                              AND {$this->kodeSamaExpr('sr_ppjb', 'ps', 'flag_aktif', 'A')}
                               AND UPPER(BTRIM(COALESCE(CAST(ps.kd_sales AS text), ''))) = ?
                         )
                   )";
@@ -1182,7 +1260,7 @@ class Daftar_Surat_Pemesanan_m extends Model
             WHERE {$dateColumn} >= ?::date
               AND {$dateColumn} < (?::date + INTERVAL '1 day')
               AND UPPER(BTRIM(CAST(stok.kd_perusahaan AS text))) = ?
-              AND NULLIF(BTRIM(COALESCE(CAST(um.parent_id AS text), '')), '') IS NULL
+              AND {$this->kunciKosongExpr('sr_uang_muka', 'um', 'parent_id')}
               {$dynamicFilterSql}
               {$statusSql}
               {$agentSalesSql}
@@ -1467,7 +1545,17 @@ class Daftar_Surat_Pemesanan_m extends Model
                 WHERE {$modelMasterKeySql} <> ''
             ),
 
-            stok_enriched AS (
+            /*
+             * MATERIALIZED pada CTE di bawah bukan sekadar gaya penulisan.
+             *
+             * CTE yang hanya dirujuk sekali akan disisipkan oleh PostgreSQL ke
+             * dalam query induknya. Ketika perencana menempatkannya di sisi
+             * dalam sebuah nested loop, isinya dihitung ulang untuk setiap
+             * baris di sisi luar. Pada rencana sebelumnya ppjb_selected dan
+             * stok_enriched masing-masing dihitung ulang ribuan kali.
+             * MATERIALIZED memastikan keduanya dihitung tepat satu kali.
+             */
+            stok_enriched AS MATERIALIZED (
                 SELECT
                     stok.*,
                     tipe.deskripsi AS tipe_bgn_enriched,
@@ -1527,7 +1615,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                 ) AS model ON TRUE
             ),
 
-            ppjb_candidates AS (
+            ppjb_candidates AS MATERIALIZED (
                 /*
                  * Prioritas 1: PPJB yang memang berasal dari uang_muka_id yang sama.
                  * Prioritas 2: fallback PPJB aktif terbaru berdasarkan stok_id.
@@ -1540,8 +1628,8 @@ class Daftar_Surat_Pemesanan_m extends Model
                 FROM candidate_um AS um
                 INNER JOIN {$schema}.sr_ppjb AS p
                     ON {$this->idJoin('sr_ppjb', 'p', 'uang_muka_id', 'sr_uang_muka', 'um', 'uang_muka_id', 'angka')}
-                WHERE NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
-                  AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
+                WHERE {$this->kunciKosongExpr('sr_ppjb', 'p', 'parent_id')}
+                  AND {$this->kodeSamaExpr('sr_ppjb', 'p', 'flag_aktif', 'A')}
 
                 UNION ALL
 
@@ -1552,11 +1640,11 @@ class Daftar_Surat_Pemesanan_m extends Model
                 FROM candidate_um AS um
                 INNER JOIN {$schema}.sr_ppjb AS p
                     ON {$this->idJoin('sr_ppjb', 'p', 'stok_id', 'sr_uang_muka', 'um', 'stok_id')}
-                WHERE NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
-                  AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
+                WHERE {$this->kunciKosongExpr('sr_ppjb', 'p', 'parent_id')}
+                  AND {$this->kodeSamaExpr('sr_ppjb', 'p', 'flag_aktif', 'A')}
             ),
 
-            ppjb_selected AS (
+            ppjb_selected AS MATERIALIZED (
                 SELECT DISTINCT ON (um_key)
                     *
                 FROM ppjb_candidates
@@ -1729,7 +1817,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                 WHERE ppjb_id IS NOT NULL
             ),
 
-            biaya_by_um AS (
+            biaya_by_um AS MATERIALIZED (
                 SELECT
                     bu.uang_muka_id,
                     COALESCE(SUM(CASE WHEN BTRIM(CAST(bdp.kd_biaya AS text)) = 'PPN' AND biaya.balance = 1 THEN bdp.jumlah ELSE 0 END), 0) AS ppn,
@@ -1742,7 +1830,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                 GROUP BY bu.uang_muka_id
             ),
 
-            jadwal_by_ppjb AS (
+            jadwal_by_ppjb AS MATERIALIZED (
                 SELECT
                     bp.ppjb_id,
                     COALESCE(SUM(ja.jumlah), 0) AS extra_harga
@@ -1754,8 +1842,8 @@ class Daftar_Surat_Pemesanan_m extends Model
                      = BTRIM(CAST(ja.kd_transaksi AS text))
                 WHERE (
                         (
-                            UPPER(BTRIM(COALESCE(CAST(kt.flag_hitung AS text), ''))) = 'Y'
-                            AND UPPER(BTRIM(COALESCE(CAST(kt.flag_pajak AS text), ''))) = 'Y'
+                            {$this->kodeSamaExpr('sr_kode_transaksi', 'kt', 'flag_hitung', 'Y')}
+                            AND {$this->kodeSamaExpr('sr_kode_transaksi', 'kt', 'flag_pajak', 'Y')}
                         )
                         OR BTRIM(CAST(kt.kd_transaksi AS text)) = 'DCB'
                       )
@@ -1770,7 +1858,7 @@ class Daftar_Surat_Pemesanan_m extends Model
              * supaya query utama tidak timeout akibat scan sr_angsuran.
              */
 
-            npv_latest AS (
+            npv_latest AS MATERIALIZED (
                 SELECT DISTINCT ON (bp.ppjb_id)
                     bp.ppjb_id,
                     n.total_npv
@@ -1778,7 +1866,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                 INNER JOIN {$schema}.sr_npv AS n
                     ON {$this->idJoinPrepared('sr_npv', 'n', 'ppjb_id', 'bp.ppjb_id_numeric', 'bp.ppjb_id_text')}
                 WHERE {$this->idJoinPreparedGuard('sr_npv', 'ppjb_id', 'bp.ppjb_id_numeric', 'bp.ppjb_id_text')}
-                  AND UPPER(BTRIM(COALESCE(CAST(n.jenis_trn AS text), ''))) = 'P'
+                  AND {$this->kodeSamaExpr('sr_npv', 'n', 'jenis_trn', 'P')}
                 ORDER BY
                     bp.ppjb_id,
                     n.npv_id DESC
@@ -1998,8 +2086,8 @@ class Daftar_Surat_Pemesanan_m extends Model
                         ''
                     ) AS nama_inline
                 FROM public.sr_pembeli_dp AS pd
-                WHERE {$this->idAnyArray('sr_pembeli_dp', 'pd', 'uang_muka_id', '?')}
-                  AND COALESCE(
+                {$this->idJoinArray('sr_pembeli_dp', 'pd', 'uang_muka_id', '?')}
+                WHERE COALESCE(
                         NULLIF(UPPER(BTRIM(to_jsonb(pd) ->> 'flag_nama_dp')), ''),
                         'Y'
                       ) = 'Y'
@@ -2170,8 +2258,8 @@ class Daftar_Surat_Pemesanan_m extends Model
                         ''
                     ) AS nama_inline
                 FROM public.sr_pembeli_ppjb AS pp
-                WHERE {$this->idAnyArray('sr_pembeli_ppjb', 'pp', 'ppjb_id', '?')}
-                  AND COALESCE(
+                {$this->idJoinArray('sr_pembeli_ppjb', 'pp', 'ppjb_id', '?')}
+                WHERE COALESCE(
                         NULLIF(UPPER(BTRIM(CAST(pp.flag_aktif AS text))), ''),
                         'Y'
                       ) = 'Y'
@@ -2323,7 +2411,7 @@ class Daftar_Surat_Pemesanan_m extends Model
                     )
                 ) AS nama
             FROM public.sr_nasabah AS nasabah
-            WHERE {$this->idAnyArray('sr_nasabah', 'nasabah', 'nasabah_id', '?')}
+            {$this->idJoinArray('sr_nasabah', 'nasabah', 'nasabah_id', '?')}
         SQL;
 
         $rows = DB::connection(self::CONNECTION)->select($exactSql, [$exactArray]);
@@ -2541,14 +2629,14 @@ class Daftar_Surat_Pemesanan_m extends Model
                     sumber.id_key,
 
                     COUNT(*) FILTER (
-                        WHERE UPPER(BTRIM(COALESCE(CAST(kode.flag_hitung AS text), ''))) = 'Y'
+                        WHERE {$this->kodeSamaExpr('sr_kode_transaksi', 'kode', 'flag_hitung', 'Y')}
                           AND COALESCE(sumber.tanggal_bayar, DATE '1900-01-01') < (?::date + INTERVAL '1 day')
                     ) AS jumlah_flag_hitung_per_tgl,
 
                     COALESCE(
                         SUM(
                             CASE
-                                WHEN UPPER(BTRIM(COALESCE(CAST(kode.flag_hitung AS text), ''))) = 'Y'
+                                WHEN {$this->kodeSamaExpr('sr_kode_transaksi', 'kode', 'flag_hitung', 'Y')}
                                  AND COALESCE(sumber.tanggal_bayar, DATE '1900-01-01') < (?::date + INTERVAL '1 day')
                                 THEN sumber.nominal_bayar
                                 ELSE 0
