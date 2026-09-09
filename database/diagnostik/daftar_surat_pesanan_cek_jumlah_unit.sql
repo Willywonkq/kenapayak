@@ -198,3 +198,143 @@ ORDER BY 1;
  *   -> sebagian besar stok bukan milik unit tersebut. Pastikan nilai
  *      perusahaan pada CTE param sama dengan baris Unit di header laporan.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * ==== LANJUTAN — dipakai bila QUERY 1 turun tajam dari t3 ke t4 ====
+ *
+ * Berkas ini tetap hanya membaca. Tidak ada perintah yang mengubah data
+ * maupun struktur database.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 4 — Semua kode perusahaan yang ada, berikut rentang tanggalnya
+ *
+ * Menjawab: apakah surat pesanan tahun 2024 ke atas benar-benar tidak ada,
+ * atau ada tetapi kode perusahaannya bukan 'DTSA'.
+ *
+ * Kolom kode_perusahaan dihitung dengan rumus yang sama persis dengan model
+ * web: COALESCE(kd_perusahaan, kd_unit, kd_pt).
+ * ===================================================================== */
+WITH um_norm AS (
+    SELECT
+        um.uang_muka_id,
+        um.stok_id,
+        um.tgl_uang_muka,
+        to_jsonb(um) ->> 'tgl_entry' AS tgl_entry_teks
+    FROM public.sr_uang_muka AS um
+    WHERE NULLIF(BTRIM(COALESCE(to_jsonb(um) ->> 'parent_id', '')), '') IS NULL
+      AND UPPER(BTRIM(COALESCE(to_jsonb(um) ->> 'flag_aktif', ''))) = 'A'
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) AS perusahaan_key
+    FROM public.sr_stok AS stok
+)
+SELECT
+    CASE WHEN stok.perusahaan_key = '' THEN '(kosong)' ELSE stok.perusahaan_key END
+                                                              AS kode_perusahaan,
+    COUNT(DISTINCT um.uang_muka_id)                           AS jumlah_unit,
+    MIN(um.tgl_uang_muka)::date                               AS tgl_paling_awal,
+    MAX(um.tgl_uang_muka)::date                               AS tgl_paling_akhir,
+    COUNT(DISTINCT um.uang_muka_id)
+        FILTER (WHERE um.tgl_uang_muka >= DATE '2024-03-01')  AS unit_mulai_maret_2024,
+    COUNT(DISTINCT um.uang_muka_id)
+        FILTER (WHERE um.tgl_uang_muka >= DATE '2026-01-01')  AS unit_tahun_2026
+FROM um_norm AS um
+INNER JOIN stok_norm AS stok ON stok.stok_id = um.stok_id
+GROUP BY 1
+ORDER BY jumlah_unit DESC;
+
+
+/* =====================================================================
+ * QUERY 5 — Contoh surat pesanan setelah Februari 2024
+ *
+ * Menampilkan 40 baris beserta nilai mentah kolom kode di sr_stok, supaya
+ * kelihatan kolom mana yang kosong dan kode apa yang sebenarnya terisi.
+ * ===================================================================== */
+SELECT
+    to_jsonb(um) ->> 'no_uang_muka'    AS no_surat_pesanan,
+    um.tgl_uang_muka::date             AS tgl_surat_pesanan,
+    um.stok_id,
+    to_jsonb(stok) ->> 'blok'          AS blok,
+    to_jsonb(stok) ->> 'nomor'         AS nomor,
+    to_jsonb(stok) ->> 'kd_perusahaan' AS kd_perusahaan_mentah,
+    to_jsonb(stok) ->> 'kd_unit'       AS kd_unit_mentah,
+    to_jsonb(stok) ->> 'kd_pt'         AS kd_pt_mentah,
+    to_jsonb(stok) ->> 'kd_sektor'     AS kd_sektor_mentah,
+    to_jsonb(stok) ->> 'kd_proyek'     AS kd_proyek_mentah,
+    to_jsonb(stok) ->> 'kd_lokasi'     AS kd_lokasi_mentah
+FROM public.sr_uang_muka AS um
+INNER JOIN public.sr_stok AS stok ON stok.stok_id = um.stok_id
+WHERE NULLIF(BTRIM(COALESCE(to_jsonb(um) ->> 'parent_id', '')), '') IS NULL
+  AND UPPER(BTRIM(COALESCE(to_jsonb(um) ->> 'flag_aktif', ''))) = 'A'
+  AND um.tgl_uang_muka >= DATE '2024-03-01'
+ORDER BY um.tgl_uang_muka DESC
+LIMIT 40;
+
+
+/* =====================================================================
+ * QUERY 6 — Kalau penyaringan unit memakai master sektor, bukan sr_stok
+ *
+ * Desktop mungkin menentukan unit lewat sr_sektor.kd_perusahaan, bukan lewat
+ * sr_stok. Query ini menghitung jumlah unit bila penyaringannya dari sana.
+ * Bandingkan jumlah_unit_lewat_sektor dengan angka desktop.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-09' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) AS perusahaan_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_sektor', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_proyek', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_cluster', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_lokasi', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_lv2', ''),
+            ''))) AS sektor_key
+    FROM public.sr_stok AS stok
+),
+sektor_norm AS (
+    SELECT DISTINCT
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(s) ->> 'kd_sektor', ''),
+            NULLIF(to_jsonb(s) ->> 'kd_proyek', ''),
+            NULLIF(to_jsonb(s) ->> 'kd_cluster', ''),
+            NULLIF(to_jsonb(s) ->> 'kd_lokasi', ''),
+            NULLIF(to_jsonb(s) ->> 'kd_lv2', ''),
+            ''))) AS kode,
+        UPPER(BTRIM(COALESCE(to_jsonb(s) ->> 'kd_perusahaan', ''))) AS kd_perusahaan
+    FROM public.sr_sektor AS s
+)
+SELECT
+    COUNT(DISTINCT um.uang_muka_id)
+        FILTER (WHERE stok.perusahaan_key = param.perusahaan)    AS jumlah_unit_lewat_stok,
+    COUNT(DISTINCT um.uang_muka_id)
+        FILTER (WHERE sektor.kd_perusahaan = param.perusahaan)   AS jumlah_unit_lewat_sektor,
+    COUNT(DISTINCT um.uang_muka_id) FILTER (
+        WHERE stok.perusahaan_key = param.perusahaan
+           OR sektor.kd_perusahaan = param.perusahaan
+    )                                                            AS jumlah_unit_salah_satu
+FROM public.sr_uang_muka AS um
+CROSS JOIN param
+INNER JOIN stok_norm AS stok ON stok.stok_id = um.stok_id
+LEFT JOIN sektor_norm AS sektor ON sektor.kode = stok.sektor_key
+WHERE NULLIF(BTRIM(COALESCE(to_jsonb(um) ->> 'parent_id', '')), '') IS NULL
+  AND UPPER(BTRIM(COALESCE(to_jsonb(um) ->> 'flag_aktif', ''))) = 'A'
+  AND um.tgl_uang_muka >= param.tgl_awal
+  AND um.tgl_uang_muka <  param.tgl_akhir + INTERVAL '1 day';
