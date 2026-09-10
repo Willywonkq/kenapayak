@@ -227,3 +227,132 @@ SELECT
  *   kd_tipe pada sr_stok. Selama itu belum dilakukan, unitnya tetap tampil
  *   tetapi kolom Tipe pada laporan kosong.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * ==== LANJUTAN — sisa sembilan unit ====
+ *
+ * Posisi sejauh ini:
+ *   desktop 805 unit, web 796 sesudah join sr_tipe diperbaiki, kurang 9.
+ *   HG/008 sudah terbukti tidak ada sama sekali di PostgreSQL.
+ *
+ * Petunjuk baru datang dari laporan lain. Pada Daftar Serah Terima dan
+ * Daftar Unit ST sudah terbukti sr_serah_terima di PostgreSQL berhenti pada
+ * 4 Juli 2026 sedangkan SQL Server berlanjut sampai 30 Juli 2026.
+ *
+ * Sekarang perhatikan HG/008 pada tangkapan layar desktop laporan ini:
+ * tanggal tanda jadinya 26 Juli 2026, juga sesudah 4 Juli 2026.
+ *
+ * Dugaannya, salinan PostgreSQL diambil sekitar awal Juli 2026, sehingga
+ * seluruh catatan yang masuk sesudah itu belum ada, di banyak tabel
+ * sekaligus. Kalau benar, sembilan unit yang kurang di sini adalah surat
+ * pesanan bertanggal sesudah batas tersebut, dan sumbernya sama dengan
+ * sembilan baris di Daftar Serah Terima maupun delapan baris di Daftar
+ * Unit ST.
+ *
+ * Dua query berikut mengujinya. Tetap hanya membaca.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 5 — Sebaran per bulan pada tahun terakhir
+ *
+ * Melihat sampai tanggal berapa surat pesanan DTSA tercatat. Kalau
+ * berhenti pada awal Juli 2026, dugaan di atas terbukti.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-08' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(to_jsonb(stok) ->> 'kd_perusahaan', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_unit', ''),
+            NULLIF(to_jsonb(stok) ->> 'kd_pt', ''),
+            ''))) AS perusahaan_key
+    FROM public.sr_stok AS stok
+)
+SELECT
+    TO_CHAR(um.tgl_uang_muka, 'YYYY-MM')        AS bulan,
+    COUNT(DISTINCT um.uang_muka_id)             AS jumlah_unit,
+    MIN(um.tgl_uang_muka)::date                 AS paling_awal,
+    MAX(um.tgl_uang_muka)::date                 AS paling_akhir
+FROM public.sr_uang_muka AS um
+CROSS JOIN param
+INNER JOIN stok_norm AS stok ON stok.stok_id = um.stok_id
+WHERE stok.perusahaan_key = param.perusahaan
+  AND UPPER(BTRIM(COALESCE(CAST(um.flag_aktif AS text), ''))) = 'A'
+  AND NULLIF(BTRIM(COALESCE(CAST(um.parent_id AS text), '')), '') IS NULL
+  AND um.tgl_uang_muka >= DATE '2026-01-01'
+GROUP BY 1
+ORDER BY 1;
+
+
+/* =====================================================================
+ * QUERY 6 — Batas waktu salinan pada beberapa tabel sekaligus
+ *
+ * Menampilkan catatan terbaru pada tiap tabel yang dipakai laporan-laporan
+ * ini. Kalau seluruhnya berhenti di sekitar tanggal yang sama, berarti
+ * memang salinan PostgreSQL-nya yang tertinggal, bukan satu tabel saja.
+ *
+ * Dibaca lewat to_jsonb sehingga tabel yang tidak punya kolom tgl_entry
+ * tidak menyebabkan galat.
+ * ===================================================================== */
+SELECT 'sr_uang_muka'      AS tabel,
+       MAX(CASE WHEN COALESCE(to_jsonb(t) ->> 'tgl_entry', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                THEN CAST(to_jsonb(t) ->> 'tgl_entry' AS timestamp) END)::date AS entry_terakhir,
+       COUNT(*) AS jumlah_baris
+FROM public.sr_uang_muka AS t
+UNION ALL
+SELECT 'sr_ppjb',
+       MAX(CASE WHEN COALESCE(to_jsonb(t) ->> 'tgl_entry', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                THEN CAST(to_jsonb(t) ->> 'tgl_entry' AS timestamp) END)::date,
+       COUNT(*)
+FROM public.sr_ppjb AS t
+UNION ALL
+SELECT 'sr_serah_terima',
+       MAX(CASE WHEN COALESCE(to_jsonb(t) ->> 'tgl_entry', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                THEN CAST(to_jsonb(t) ->> 'tgl_entry' AS timestamp) END)::date,
+       COUNT(*)
+FROM public.sr_serah_terima AS t
+UNION ALL
+SELECT 'sr_stok',
+       MAX(CASE WHEN COALESCE(to_jsonb(t) ->> 'tgl_entry', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                THEN CAST(to_jsonb(t) ->> 'tgl_entry' AS timestamp) END)::date,
+       COUNT(*)
+FROM public.sr_stok AS t
+UNION ALL
+SELECT 'sr_bayar_uang_muka',
+       MAX(CASE WHEN COALESCE(to_jsonb(t) ->> 'tgl_entry', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                THEN CAST(to_jsonb(t) ->> 'tgl_entry' AS timestamp) END)::date,
+       COUNT(*)
+FROM public.sr_bayar_uang_muka AS t
+UNION ALL
+SELECT 'sr_biaya_dp',
+       MAX(CASE WHEN COALESCE(to_jsonb(t) ->> 'tgl_entry', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                THEN CAST(to_jsonb(t) ->> 'tgl_entry' AS timestamp) END)::date,
+       COUNT(*)
+FROM public.sr_biaya_dp AS t
+ORDER BY 1;
+
+
+/* =====================================================================
+ * CARA MEMBACA LANJUTAN
+ *
+ * - QUERY 5 berhenti pada awal Juli 2026
+ *   -> sembilan unit yang kurang adalah surat pesanan sesudah tanggal itu,
+ *      sama sumbernya dengan yang kurang pada dua laporan serah terima.
+ *      Tidak ada yang perlu diperbaiki di model.
+ *
+ * - QUERY 5 masih berlanjut sampai Agustus atau September 2026
+ *   -> berarti bukan soal batas waktu salinan, dan sembilan unit itu hilang
+ *      karena sebab lain. Kirimkan hasilnya ke saya.
+ *
+ * - QUERY 6 menunjukkan entry_terakhir yang seragam di semua tabel
+ *   -> menegaskan seluruh salinan PostgreSQL berhenti pada tanggal yang
+ *      sama, jadi cukup satu kali penyalinan ulang untuk menutup selisih di
+ *      ketiga laporan sekaligus.
+ * ===================================================================== */
