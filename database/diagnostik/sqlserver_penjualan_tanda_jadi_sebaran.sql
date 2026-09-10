@@ -97,3 +97,66 @@ ORDER BY UANG_MUKA.TGL_UANG_MUKA, 1;
  * Kalau jumlahnya tepat sembilan, laporan ini selesai dan tidak ada yang
  * perlu diperbaiki di kode. Yang tersisa tinggal menyalin ulang datanya.
  */
+
+
+/* =====================================================================
+ * QUERY 3 — Tiga unit April dan Juni yang justru ada di PostgreSQL
+ *
+ * Hasil QUERY 1 menunjukkan arah selisih yang tidak seragam:
+ *
+ *     bulan      PostgreSQL   SQL Server
+ *     2026-04    15           13          PostgreSQL lebih 2
+ *     2026-06    40           39          PostgreSQL lebih 1
+ *     2026-07     1           13          SQL Server lebih 12
+ *
+ * Jadi bukan hanya PostgreSQL yang ketinggalan. Ada tiga unit April dan
+ * Juni yang masih terhitung di PostgreSQL tetapi sudah tidak masuk hasil
+ * desktop. Dua belas dikurangi tiga sama dengan sembilan, tepat sesuai
+ * selisih 805 lawan 796.
+ *
+ * Penjelasan yang paling masuk akal, ketiga unit itu dibatalkan atau
+ * direvisi sesudah salinan PostgreSQL diambil pada 7 Juli 2026. Salinan itu
+ * masih menyimpan keadaan lamanya, yaitu FLAG_AKTIF masih A dan PARENT_ID
+ * masih kosong.
+ *
+ * Query ini mendaftar surat pesanan April sampai Juni 2026 yang TIDAK masuk
+ * hasil desktop, berikut alasannya. Kalau yang muncul tiga baris, dan
+ * salah satunya bertanggal antara 28 dan 30 April, perhitungannya tutup.
+ * ===================================================================== */
+SELECT
+    RTRIM(STOK.BLOK) + '/' + RTRIM(STOK.NOMOR)     AS blok_nomor,
+    UANG_MUKA.NO_UANG_MUKA,
+    CAST(UANG_MUKA.TGL_UANG_MUKA AS DATE)          AS tgl_tanda_jadi,
+    ISNULL(UANG_MUKA.FLAG_AKTIF, '(kosong)')       AS flag_aktif,
+    CASE WHEN UANG_MUKA.PARENT_ID IS NULL
+         THEN '(kosong)' ELSE 'terisi' END         AS parent_id,
+    CASE WHEN EXISTS (
+             SELECT 1
+             FROM TIPE WITH (NOLOCK), JENIS_BANGUNAN WITH (NOLOCK)
+             WHERE TIPE.KD_JENIS = STOK.KD_JENIS
+               AND TIPE.KD_TIPE = STOK.KD_TIPE
+               AND TIPE.KD_JENIS = JENIS_BANGUNAN.KD_JENIS
+         ) THEN 'ada' ELSE 'tidak ada' END         AS pasangan_tipe,
+    CASE
+        WHEN UANG_MUKA.FLAG_AKTIF <> 'A'          THEN 'flag aktif bukan A'
+        WHEN UANG_MUKA.PARENT_ID IS NOT NULL      THEN 'sudah direvisi, parent id terisi'
+        ELSE 'pasangan tipe tidak ada'
+    END                                            AS alasan
+FROM UANG_MUKA WITH (NOLOCK),
+     STOK WITH (NOLOCK)
+WHERE ( STOK.STOK_ID = UANG_MUKA.STOK_ID ) AND
+      ( STOK.KD_PERUSAHAAN = 'DTSA' ) AND
+      ( UANG_MUKA.TGL_UANG_MUKA >= '2026-04-01' ) AND
+      ( UANG_MUKA.TGL_UANG_MUKA <= '2026-06-30' ) AND
+      (
+        UANG_MUKA.FLAG_AKTIF <> 'A'
+        OR UANG_MUKA.PARENT_ID IS NOT NULL
+        OR NOT EXISTS (
+             SELECT 1
+             FROM TIPE WITH (NOLOCK), JENIS_BANGUNAN WITH (NOLOCK)
+             WHERE TIPE.KD_JENIS = STOK.KD_JENIS
+               AND TIPE.KD_TIPE = STOK.KD_TIPE
+               AND TIPE.KD_JENIS = JENIS_BANGUNAN.KD_JENIS
+           )
+      )
+ORDER BY UANG_MUKA.TGL_UANG_MUKA, 1;

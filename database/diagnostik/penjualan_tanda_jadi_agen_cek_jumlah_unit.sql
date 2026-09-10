@@ -399,3 +399,46 @@ ORDER BY 1;
  * pada berkas itu mendaftar surat pesanan mulai 3 Juli 2026, dan jumlahnya
  * seharusnya tepat sembilan, termasuk HG/008 tanggal 26 Juli 2026.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * ==== PERHITUNGAN TUTUP — perbandingan dengan SQL Server ====
+ *
+ * Sebaran per bulan tahun 2026 pada kedua sisi:
+ *
+ *     bulan      PostgreSQL   SQL Server   selisih   akhir PG      akhir SQL
+ *     2026-01    38           38           0         2026-01-31    2026-01-31
+ *     2026-02    17           17           0         2026-02-28    2026-02-28
+ *     2026-03    11           11           0         2026-03-30    2026-03-30
+ *     2026-04    15           13          -2         2026-04-30    2026-04-27
+ *     2026-05    13           13           0         2026-05-31    2026-05-31
+ *     2026-06    40           39          -1         2026-06-30    2026-06-30
+ *     2026-07     1           13         +12         2026-07-02    2026-07-27
+ *     TOTAL     135          144          +9
+ *
+ * Arah selisihnya ternyata tidak seragam, dan dugaan sebelumnya yang
+ * menyebut sembilan unit itu semata surat pesanan sesudah 2 Juli 2026
+ * ternyata belum lengkap. Uraiannya:
+ *
+ *     12 unit ada di SQL Server tetapi belum ada di PostgreSQL
+ *      3 unit masih terhitung di PostgreSQL tetapi tidak masuk hasil desktop
+ *     --
+ *      9 selisih bersih, tepat sesuai 805 lawan 796
+ *
+ * Dua belas unit yang pertama sudah terdaftar lengkap oleh QUERY 2 pada
+ * berkas sqlserver_penjualan_tanda_jadi_sebaran.sql, bertanggal 4 sampai 27
+ * Juli 2026, dan HG/008 tanggal 26 Juli 2026 memang ada di dalamnya sesuai
+ * perkiraan.
+ *
+ * Tiga unit yang kedua kemungkinan besar dibatalkan atau direvisi sesudah
+ * salinan diambil pada 7 Juli 2026, sehingga salinan itu masih menyimpan
+ * keadaan lamanya. Perhatikan tanggal terakhir April: PostgreSQL sampai
+ * 30 April sedangkan SQL Server hanya sampai 27 April, jadi setidaknya satu
+ * di antaranya bertanggal antara 28 dan 30 April. QUERY 3 pada berkas SQL
+ * Server mendaftar ketiganya berikut alasannya.
+ *
+ * Kesimpulannya tetap sama: tidak ada yang perlu diperbaiki di model.
+ * Seluruh selisih berasal dari salinan PostgreSQL yang tertinggal sejak
+ * 7 Juli 2026, baik berupa catatan baru yang belum masuk maupun perubahan
+ * yang belum ikut tersalin.
+ * ===================================================================== */
