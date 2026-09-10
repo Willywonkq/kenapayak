@@ -782,3 +782,171 @@ SELECT
     MAX(waktu) AS waktu_terbesar
 FROM baris
 CROSS JOIN param;
+
+
+/* =====================================================================
+ * QUERY 12 — Menutup sisa selisih tiga baris
+ *
+ * Hasil QUERY 11: 775, 852, 852, 1194, 3, 27.
+ *   tanpa_waktu 775 sama persis dengan angka web sebelum perbaikan, jadi
+ *   perhitungannya benar. pakai_ppjb_waktu 852, sedangkan desktop 849.
+ *
+ * Tanggal akhir pada kedua layar ternyata berbeda satu hari:
+ *   desktop  Tgl Rencana ST  01-07-2023 s.d 09-09-2026
+ *   web      Tanggal Rencana Serah Terima  01-07-2023 s.d 10-09-2026
+ *
+ * Query ini menghitung jumlah baris untuk beberapa tanggal akhir sekaligus.
+ * Bila baris 2026-09-09 menghasilkan 849, selisihnya memang hanya karena
+ * tanggal filternya berbeda, dan kedua laporan sudah sama.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           'DTSA'::text      AS perusahaan,
+           'A'::text         AS blok_awal,
+           'ZZ'::text        AS blok_akhir
+),
+tgl_akhir_uji(tgl_akhir) AS (
+    VALUES (DATE '2026-09-08'), (DATE '2026-09-09'), (DATE '2026-09-10')
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(CAST(stok.blok AS text), '')))  AS blok,
+        UPPER(BTRIM(COALESCE(CAST(stok.nomor AS text), ''))) AS nomor,
+        UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS text), ''))) AS flag_aktif,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_perusahaan'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_unit'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_pt'), ''),
+            ''))) AS perusahaan_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_jenis'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_jenis_bgn'), ''),
+            ''))) AS jenis_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_tipe'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_tipe_bgn'), ''),
+            ''))) AS tipe_key
+    FROM public.sr_stok AS stok
+),
+jenis_norm AS (
+    SELECT
+        UPPER(BTRIM(CAST(jb.kd_jenis AS text))) AS kd_jenis,
+        BTRIM(COALESCE(to_jsonb(jb) ->> 'flag_laporan', '')) AS flag_laporan
+    FROM public.sr_jenis_bangunan AS jb
+),
+baris AS (
+    SELECT
+        stok.blok || '/' || stok.nomor AS blok_nomor,
+        BTRIM(CAST(p.no_ppjb AS text)) AS no_ppjb,
+        COALESCE(
+            CASE WHEN COALESCE(to_jsonb(p) ->> 'tgl_rencana_sb', '')
+                      ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                 THEN CAST(to_jsonb(p) ->> 'tgl_rencana_sb' AS timestamp) END,
+            p.tgl_ppjb + (
+                COALESCE(
+                    CASE WHEN COALESCE(to_jsonb(p) ->> 'waktu', '') ~ '^[+-]?[0-9]+([.][0-9]+)?$'
+                         THEN CAST(CAST(to_jsonb(p) ->> 'waktu' AS numeric) AS integer) END,
+                    0
+                ) * INTERVAL '1 month'
+            )
+        ) AS rencana
+    FROM public.sr_ppjb AS p
+    CROSS JOIN param
+    INNER JOIN stok_norm AS stok ON stok.stok_id = p.stok_id
+    INNER JOIN public.sr_pembeli_ppjb AS pb
+            ON pb.ppjb_id = p.ppjb_id
+           AND UPPER(BTRIM(COALESCE(CAST(pb.flag_aktif AS text), ''))) = 'Y'
+    LEFT JOIN public.sr_tipe AS t
+           ON UPPER(BTRIM(CAST(t.kd_jenis AS text))) = stok.jenis_key
+          AND UPPER(BTRIM(CAST(t.kd_tipe AS text)))  = stok.tipe_key
+    LEFT JOIN jenis_norm AS jn
+           ON jn.kd_jenis = UPPER(BTRIM(CAST(t.kd_jenis AS text)))
+    WHERE stok.perusahaan_key = param.perusahaan
+      AND stok.flag_aktif = 'A'
+      AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
+      AND NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
+      AND stok.blok <> '' AND stok.nomor <> ''
+      AND (
+            (stok.blok || '/' || stok.nomor BETWEEN param.blok_awal AND param.blok_akhir)
+            OR (stok.blok BETWEEN param.blok_awal AND param.blok_akhir)
+      )
+      AND COALESCE(jn.flag_laporan, '') <> '2'
+)
+SELECT
+    u.tgl_akhir,
+    COUNT(*) FILTER (
+        WHERE b.rencana >= param.tgl_awal
+          AND b.rencana < u.tgl_akhir + INTERVAL '1 day'
+    ) AS jumlah_baris
+FROM baris AS b
+CROSS JOIN param
+CROSS JOIN tgl_akhir_uji AS u
+GROUP BY u.tgl_akhir
+ORDER BY u.tgl_akhir;
+
+
+/* =====================================================================
+ * QUERY 13 — Baris yang jatuh tepat pada 10 September 2026
+ *
+ * Inilah baris yang muncul di web tetapi tidak di desktop, semata-mata
+ * karena tanggal akhir yang dipakai berbeda satu hari.
+ * ===================================================================== */
+WITH param AS (
+    SELECT 'DTSA'::text AS perusahaan,
+           'A'::text    AS blok_awal,
+           'ZZ'::text   AS blok_akhir
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(CAST(stok.blok AS text), '')))  AS blok,
+        UPPER(BTRIM(COALESCE(CAST(stok.nomor AS text), ''))) AS nomor,
+        UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS text), ''))) AS flag_aktif,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_perusahaan'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_unit'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_pt'), ''),
+            ''))) AS perusahaan_key
+    FROM public.sr_stok AS stok
+)
+SELECT
+    stok.blok || '/' || stok.nomor  AS blok_nomor,
+    BTRIM(CAST(p.no_ppjb AS text))  AS no_ppjb,
+    p.tgl_ppjb::date                AS tgl_ppjb,
+    to_jsonb(p) ->> 'waktu'         AS waktu,
+    COALESCE(
+        CASE WHEN COALESCE(to_jsonb(p) ->> 'tgl_rencana_sb', '')
+                  ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+             THEN CAST(to_jsonb(p) ->> 'tgl_rencana_sb' AS timestamp) END,
+        p.tgl_ppjb + (
+            COALESCE(
+                CASE WHEN COALESCE(to_jsonb(p) ->> 'waktu', '') ~ '^[+-]?[0-9]+([.][0-9]+)?$'
+                     THEN CAST(CAST(to_jsonb(p) ->> 'waktu' AS numeric) AS integer) END,
+                0
+            ) * INTERVAL '1 month'
+        )
+    ) AS rencana_serah_terima
+FROM public.sr_ppjb AS p
+CROSS JOIN param
+INNER JOIN stok_norm AS stok ON stok.stok_id = p.stok_id
+INNER JOIN public.sr_pembeli_ppjb AS pb
+        ON pb.ppjb_id = p.ppjb_id
+       AND UPPER(BTRIM(COALESCE(CAST(pb.flag_aktif AS text), ''))) = 'Y'
+WHERE stok.perusahaan_key = param.perusahaan
+  AND stok.flag_aktif = 'A'
+  AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
+  AND NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
+  AND COALESCE(
+        CASE WHEN COALESCE(to_jsonb(p) ->> 'tgl_rencana_sb', '')
+                  ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+             THEN CAST(to_jsonb(p) ->> 'tgl_rencana_sb' AS timestamp) END,
+        p.tgl_ppjb + (
+            COALESCE(
+                CASE WHEN COALESCE(to_jsonb(p) ->> 'waktu', '') ~ '^[+-]?[0-9]+([.][0-9]+)?$'
+                     THEN CAST(CAST(to_jsonb(p) ->> 'waktu' AS numeric) AS integer) END,
+                0
+            ) * INTERVAL '1 month'
+        )
+      )::date = DATE '2026-09-10'
+ORDER BY 1;
