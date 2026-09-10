@@ -292,6 +292,11 @@ WHERE stok.perusahaan_key = param.perusahaan
  * database/diagnostik/sqlserver_daftar_st_sebaran.sql, lalu bandingkan
  * baris per baris. Tahun yang jumlahnya berbeda itulah letak sembilan
  * baris yang belum ada di PostgreSQL.
+ *
+ * jumlah_ppjb dipakai sebagai pembanding, bukan serah_terima_id, karena
+ * kolom itu tidak dipakai query desktop sehingga sisi SQL Server bisa
+ * memakai kolom yang sama persis. Kalau jumlah_baris lebih besar daripada
+ * jumlah_ppjb, berarti ada PPJB dengan lebih dari satu pembeli aktif.
  * ===================================================================== */
 WITH param AS (
     SELECT DATE '2023-07-01' AS tgl_awal,
@@ -318,7 +323,7 @@ stok_norm AS (
 SELECT
     EXTRACT(YEAR FROM st.tgl_serah_terima)::integer AS tahun_realisasi,
     COUNT(*)                                        AS jumlah_baris,
-    COUNT(DISTINCT st.serah_terima_id)              AS jumlah_serah_terima,
+    COUNT(DISTINCT p.ppjb_id)                       AS jumlah_ppjb,
     MIN(st.tgl_serah_terima)::date                  AS paling_awal,
     MAX(st.tgl_serah_terima)::date                  AS paling_akhir
 FROM public.sr_serah_terima AS st
