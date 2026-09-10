@@ -356,3 +356,46 @@ ORDER BY 1;
  *      sama, jadi cukup satu kali penyalinan ulang untuk menutup selisih di
  *      ketiga laporan sekaligus.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * ==== KESIMPULAN — batas waktu salinan sudah terbukti ====
+ *
+ * Hasil QUERY 5, surat pesanan DTSA per bulan sepanjang 2026:
+ *
+ *     2026-01   38      2026-05   13
+ *     2026-02   17      2026-06   40
+ *     2026-03   11      2026-07    1   <-- berhenti pada 2 Juli 2026
+ *     2026-04   15
+ *
+ * Juni masih 40 unit lalu Juli tiba-tiba hanya 1, dan tanggal terakhirnya
+ * 2 Juli 2026. Itu bukan penurunan yang wajar, melainkan pemotongan.
+ *
+ * Hasil QUERY 6, catatan terbaru pada tiap tabel:
+ *
+ *     sr_stok              2026-07-02    61.994 baris
+ *     sr_uang_muka         2026-07-06    56.006
+ *     sr_bayar_uang_muka   2026-07-06    56.411
+ *     sr_biaya_dp          2026-07-07   119.278
+ *     sr_ppjb              2026-07-07    62.328
+ *     sr_serah_terima      2026-07-07    41.009
+ *
+ * Keenam tabel berhenti dalam rentang lima hari, yaitu 2 sampai 7 Juli 2026.
+ * Jadi salinan PostgreSQL memang diambil sekitar 7 Juli 2026, dan seluruh
+ * catatan sesudah itu belum ada, di semua tabel sekaligus.
+ *
+ * Inilah satu sebab yang menjelaskan seluruh selisih yang tersisa:
+ *
+ *     Penjualan per Tgl Tanda Jadi   796 lawan 805   kurang 9
+ *     Daftar Serah Terima           1018 lawan 1027  kurang 9
+ *     Daftar Unit ST                 588 lawan  596  kurang 8
+ *
+ * Tidak ada yang perlu diperbaiki di model ketiganya. Yang diperlukan hanya
+ * menyalin ulang data dari SQL Server, dan ketiga laporan akan cocok
+ * sekaligus.
+ *
+ * Untuk memastikan dari sisi SQL Server, jalankan
+ * database/diagnostik/sqlserver_penjualan_tanda_jadi_sebaran.sql. QUERY 2
+ * pada berkas itu mendaftar surat pesanan mulai 3 Juli 2026, dan jumlahnya
+ * seharusnya tepat sembilan, termasuk HG/008 tanggal 26 Juli 2026.
+ * ===================================================================== */
