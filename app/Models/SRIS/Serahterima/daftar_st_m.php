@@ -1076,30 +1076,33 @@ class daftar_st_m extends Model
             'blok_akhir' => $blokAkhir,
         ];
 
+        /*
+         * Penyaring tanggal pada query desktop hanya membandingkan kolomnya
+         * dengan rentang, tanpa jalur cadangan apa pun:
+         *
+         *     ( ( SERAH_TERIMA.TGL_SURAT >= :awal AND <= :akhir ) OR :all = 'Y' )
+         *
+         * Baris yang tanggalnya kosong ikut terbuang, karena perbandingan
+         * dengan NULL tidak pernah bernilai benar.
+         *
+         * Model sebelumnya menambahkan jalur cadangan memakai tanggal
+         * rencana ketika tanggalnya kosong. Jalur itu tidak ada di desktop
+         * dan membuat laporan web kelebihan baris, terutama pada penyaring
+         * Tgl Realisasi karena serah terima yang belum terealisasi ikut
+         * tertarik masuk. Jalur cadangan itu dihapus.
+         */
         if ($tglAll !== 'Y') {
-            $where[] = '((serah_terima.tgl_surat IS NOT NULL'
-                . ' AND serah_terima.tgl_surat >= CAST(:tgl_awal_surat AS DATE)'
-                . " AND serah_terima.tgl_surat < CAST(:tgl_akhir_surat AS DATE) + INTERVAL '1 day')"
-                . ' OR (serah_terima.tgl_surat IS NULL'
-                . ' AND ' . $tglRencana . ' >= CAST(:tgl_awal_rencana AS DATE)'
-                . ' AND ' . $tglRencana . " < CAST(:tgl_akhir_rencana AS DATE) + INTERVAL '1 day'))";
+            $where[] = 'serah_terima.tgl_surat >= CAST(:tgl_awal_surat AS DATE)'
+                . " AND serah_terima.tgl_surat < CAST(:tgl_akhir_surat AS DATE) + INTERVAL '1 day'";
             $bindings['tgl_awal_surat'] = $tglAwal;
             $bindings['tgl_akhir_surat'] = $tglAkhir;
-            $bindings['tgl_awal_rencana'] = $tglAwal;
-            $bindings['tgl_akhir_rencana'] = $tglAkhir;
         }
 
         if ($tglStAll !== 'Y') {
-            $where[] = '((serah_terima.tgl_serah_terima IS NOT NULL'
-                . ' AND serah_terima.tgl_serah_terima >= CAST(:tgl_st_awal_realisasi AS DATE)'
-                . " AND serah_terima.tgl_serah_terima < CAST(:tgl_st_akhir_realisasi AS DATE) + INTERVAL '1 day')"
-                . ' OR (serah_terima.tgl_serah_terima IS NULL'
-                . ' AND ' . $tglRencana . ' >= CAST(:tgl_st_awal_rencana AS DATE)'
-                . ' AND ' . $tglRencana . " < CAST(:tgl_st_akhir_rencana AS DATE) + INTERVAL '1 day'))";
+            $where[] = 'serah_terima.tgl_serah_terima >= CAST(:tgl_st_awal_realisasi AS DATE)'
+                . " AND serah_terima.tgl_serah_terima < CAST(:tgl_st_akhir_realisasi AS DATE) + INTERVAL '1 day'";
             $bindings['tgl_st_awal_realisasi'] = $tglStAwal;
             $bindings['tgl_st_akhir_realisasi'] = $tglStAkhir;
-            $bindings['tgl_st_awal_rencana'] = $tglStAwal;
-            $bindings['tgl_st_akhir_rencana'] = $tglStAkhir;
         }
 
         if ($sektor !== '*') {
@@ -1151,7 +1154,13 @@ class daftar_st_m extends Model
         if ($aktif === 'A') {
             $where[] = $statusAktif . " = 'A'";
         } elseif ($aktif === 'B') {
-            $where[] = $statusAktif . " = 'B'";
+            /*
+             * Pada sr_serah_terima nilai flag_aktif hanya A dan T, tidak ada
+             * B. Nilai yang dikirim desktop untuk pilihan Batal karena itu
+             * adalah T, sedangkan B dipakai sebagian data lama. Keduanya
+             * diterima supaya pilihan Batal tidak menghasilkan daftar kosong.
+             */
+            $where[] = $statusAktif . " IN ('B', 'T')";
         } elseif ($aktif !== '*') {
             $where[] = $statusAktif . ' = :aktif_lain';
             $bindings['aktif_lain'] = $aktif;
