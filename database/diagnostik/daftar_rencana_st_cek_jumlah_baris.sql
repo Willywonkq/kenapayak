@@ -299,3 +299,179 @@ ORDER BY 1;
  *   kosong padahal desktop menghitung enam bulan, berarti kolom waktu pada
  *   sr_tipe memang belum terisi.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * ==== LANJUTAN — mencari kolom waktu yang sebenarnya ====
+ *
+ * Hasil QUERY 1: 1757, 1266, 1213, 1213, 1211, 775, 569, 775.
+ * t6_web_sebelum 569 sama dengan angka web yang lama, dan t7_web_sesudah 775
+ * sama dengan angka web sesudah perbaikan. Selisih keduanya 206, sama dengan
+ * jumlah PPJB pada QUERY 3. Bagian join tipe sudah beres.
+ *
+ * Sisa selisih terhadap desktop tinggal 849 dikurangi 775, yaitu 74 baris,
+ * dan penyaring rentang tanggal membuang 436 baris (1211 menjadi 775).
+ *
+ * Hasil QUERY 2 menunjukkan sebabnya: tipe_waktu_terisi bernilai 0 dari 2854
+ * baris sr_tipe. Kolom waktu sama sekali kosong, sehingga tanggal Rencana
+ * Serah Terima dihitung sebagai tanggal PPJB ditambah nol bulan.
+ *
+ * Hasil QUERY 4 memberi petunjuk pentingnya: kd_jenis dan kd_tipe pada
+ * sr_stok kosong, sedangkan nilainya ada di kd_jenis_bgn dan kd_tipe_bgn.
+ * Pola penamaan yang sama sangat mungkin berlaku juga di sr_tipe, sehingga
+ * nilai waktu boleh jadi tersimpan di kolom bernama lain.
+ *
+ * Tiga query berikut mencarinya. Semuanya tetap hanya membaca.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 5 — Seluruh kolom sr_tipe berikut tingkat keterisiannya
+ *
+ * Dibaca lewat jsonb sehingga tidak perlu tahu nama kolomnya lebih dulu.
+ * Cari kolom yang terisinya banyak dan contoh isinya berupa angka bulan
+ * seperti 6, 12, atau 24.
+ * ===================================================================== */
+SELECT
+    e.k                                                            AS kolom,
+    COUNT(*) FILTER (WHERE e.v IS NOT NULL AND BTRIM(e.v) <> '')   AS terisi,
+    COUNT(*)                                                       AS total_baris,
+    (ARRAY_AGG(DISTINCT BTRIM(e.v))
+        FILTER (WHERE e.v IS NOT NULL AND BTRIM(e.v) <> ''))[1:8]  AS contoh_isi
+FROM public.sr_tipe AS t
+CROSS JOIN LATERAL jsonb_each_text(to_jsonb(t)) AS e(k, v)
+GROUP BY e.k
+ORDER BY terisi DESC, kolom;
+
+
+/* =====================================================================
+ * QUERY 6 — Isi lengkap satu baris sr_tipe yang jawabannya sudah diketahui
+ *
+ * Desktop menampilkan GL/002 dengan PPJB J.0008/DTSA/RMH/2025 tanggal
+ * 17-10-2025 dan Rencana Serah Terima 17-04-2026, yaitu tambah enam bulan,
+ * sedangkan tgl_rencana_sb-nya kosong. Berarti di SQL Server tipe RMH/R1566
+ * mempunyai waktu bernilai 6.
+ *
+ * Query ini menampilkan seluruh isi baris tipe itu. Kolom yang bernilai 6
+ * itulah kolom waktu yang sebenarnya.
+ * ===================================================================== */
+SELECT
+    e.k AS kolom,
+    e.v AS isi
+FROM public.sr_tipe AS t
+CROSS JOIN LATERAL jsonb_each_text(to_jsonb(t)) AS e(k, v)
+WHERE UPPER(BTRIM(CAST(t.kd_jenis AS text))) = 'RMH'
+  AND UPPER(BTRIM(CAST(t.kd_tipe AS text)))  = 'R1566'
+ORDER BY e.k;
+
+
+/* =====================================================================
+ * QUERY 7 — Kolom mana yang membuat jumlah barisnya menjadi 849
+ *
+ * Untuk setiap kolom sr_tipe yang isinya berupa angka wajar bagi jumlah
+ * bulan, query ini menghitung ulang berapa baris yang masuk rentang tanggal
+ * bila kolom itu dipakai sebagai waktu.
+ *
+ * Kolom yang menghasilkan angka mendekati 849 itulah yang harus dipakai
+ * model. Baris kolom_waktu bertuliskan (tanpa waktu) adalah keadaan
+ * sekarang, dan angkanya harus 775.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-10' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan,
+           'A'::text         AS blok_awal,
+           'ZZ'::text        AS blok_akhir
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(CAST(stok.blok AS text), '')))  AS blok,
+        UPPER(BTRIM(COALESCE(CAST(stok.nomor AS text), ''))) AS nomor,
+        UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS text), ''))) AS flag_aktif,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_perusahaan'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_unit'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_pt'), ''),
+            ''))) AS perusahaan_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_jenis'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_jenis_bgn'), ''),
+            ''))) AS jenis_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_tipe'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_tipe_bgn'), ''),
+            ''))) AS tipe_key
+    FROM public.sr_stok AS stok
+),
+jenis_norm AS (
+    SELECT
+        UPPER(BTRIM(CAST(jb.kd_jenis AS text))) AS kd_jenis,
+        BTRIM(COALESCE(to_jsonb(jb) ->> 'flag_laporan', '')) AS flag_laporan
+    FROM public.sr_jenis_bangunan AS jb
+),
+baris AS (
+    SELECT
+        p.tgl_ppjb,
+        CASE WHEN COALESCE(to_jsonb(p) ->> 'tgl_rencana_sb', '')
+                  ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+             THEN CAST(to_jsonb(p) ->> 'tgl_rencana_sb' AS timestamp) END AS tgl_rencana_sb,
+        to_jsonb(t) AS tipe_json
+    FROM public.sr_ppjb AS p
+    CROSS JOIN param
+    INNER JOIN stok_norm AS stok ON stok.stok_id = p.stok_id
+    INNER JOIN public.sr_pembeli_ppjb AS pb
+            ON pb.ppjb_id = p.ppjb_id
+           AND UPPER(BTRIM(COALESCE(CAST(pb.flag_aktif AS text), ''))) = 'Y'
+    LEFT JOIN public.sr_tipe AS t
+           ON UPPER(BTRIM(CAST(t.kd_jenis AS text))) = stok.jenis_key
+          AND UPPER(BTRIM(CAST(t.kd_tipe AS text)))  = stok.tipe_key
+    LEFT JOIN jenis_norm AS jn
+           ON jn.kd_jenis = UPPER(BTRIM(CAST(t.kd_jenis AS text)))
+    WHERE stok.perusahaan_key = param.perusahaan
+      AND stok.flag_aktif = 'A'
+      AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
+      AND NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
+      AND stok.blok <> '' AND stok.nomor <> ''
+      AND (
+            (stok.blok || '/' || stok.nomor BETWEEN param.blok_awal AND param.blok_akhir)
+            OR (stok.blok BETWEEN param.blok_awal AND param.blok_akhir)
+      )
+      AND COALESCE(jn.flag_laporan, '') <> '2'
+),
+kandidat AS (
+    SELECT e.k AS kolom
+    FROM public.sr_tipe AS t
+    CROSS JOIN LATERAL jsonb_each_text(to_jsonb(t)) AS e(k, v)
+    WHERE e.v ~ '^[0-9]{1,3}$'
+      AND CAST(e.v AS integer) BETWEEN 1 AND 120
+    GROUP BY e.k
+
+    UNION ALL
+
+    SELECT '(tanpa waktu)'
+)
+SELECT
+    kandidat.kolom AS kolom_waktu,
+    COUNT(*) FILTER (
+        WHERE hitung.rencana >= param.tgl_awal
+          AND hitung.rencana <  param.tgl_akhir + INTERVAL '1 day'
+    ) AS baris_dalam_rentang
+FROM baris
+CROSS JOIN param
+CROSS JOIN kandidat
+CROSS JOIN LATERAL (
+    SELECT COALESCE(
+        baris.tgl_rencana_sb,
+        baris.tgl_ppjb + (
+            CASE
+                WHEN kandidat.kolom <> '(tanpa waktu)'
+                 AND COALESCE(baris.tipe_json ->> kandidat.kolom, '') ~ '^[0-9]{1,3}$'
+                THEN CAST(baris.tipe_json ->> kandidat.kolom AS integer)
+                ELSE 0
+            END * INTERVAL '1 month'
+        )
+    ) AS rencana
+) AS hitung
+GROUP BY kandidat.kolom
+ORDER BY baris_dalam_rentang DESC, kolom_waktu;
