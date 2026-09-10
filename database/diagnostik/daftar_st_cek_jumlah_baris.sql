@@ -408,3 +408,49 @@ WHERE stok.perusahaan_key = param.perusahaan
      OR st.tgl_serah_terima >= param.tgl_st_akhir + INTERVAL '1 day'
   )
 ORDER BY 1;
+
+
+/* =====================================================================
+ * ==== KESIMPULAN — perbandingan dengan SQL Server sudah selesai ====
+ *
+ * Sebaran per tahun memakai syarat desktop, kedua sisi:
+ *
+ *   tahun   PostgreSQL   SQL Server   selisih   akhir PG      akhir SQL Srv
+ *   2024    77           77           0         2024-12-24    2024-12-24
+ *   2025    738          738          0         2025-12-30    2025-12-30
+ *   2026    203          212          9         2026-07-04    2026-07-30
+ *   TOTAL   1018         1027         9
+ *
+ * Tahun 2024 dan 2025 sama persis, termasuk tanggal paling awal dan paling
+ * akhirnya. Seluruh selisih ada di tahun 2026, dan tanggal realisasi
+ * terakhir di PostgreSQL berhenti pada 4 Juli 2026 sedangkan SQL Server
+ * berlanjut sampai 30 Juli 2026.
+ *
+ * Jadi sembilan baris itu adalah serah terima yang terealisasi antara 5
+ * dan 30 Juli 2026 dan belum ikut tersalin ke PostgreSQL. Bukan kesalahan
+ * model, melainkan data yang belum diperbarui.
+ *
+ * Pada kedua sisi jumlah_baris selalu sama dengan jumlah_ppjb di setiap
+ * tahun, jadi tidak ada PPJB yang punya lebih dari satu pembeli aktif.
+ * Dugaan tentang pembeli ganda terbantah, dan itu sebabnya QUERY 2 pada
+ * berkas SQL Server tidak menghasilkan baris apa pun.
+ *
+ * QUERY 3 pada berkas SQL Server memastikan kedelapan kode tipe yang tidak
+ * ada di sr_tipe memang ADA di tabel TIPE:
+ *
+ *   RKN  RK784  TYPE 5        RMH  R2077  VANICA 9 H
+ *   RKN  RK785  TYPE 5        RMH  R2137  CHELIA 6 H
+ *   RMH  R2075  VANICA 7      RMH  R2138  CHELIA 6
+ *   RMH  R2076  VANICA 9      RMH  R2139  CHELIA 5
+ *
+ * Berarti sr_tipe di PostgreSQL memang belum tersalin lengkap, dan LEFT
+ * JOIN pada model sudah benar sebagai penggantinya. Kalau LEFT JOIN itu
+ * keliru, jumlah tahun 2024 dan 2025 tidak akan sama persis, karena baris
+ * bertipe kosong akan ikut terhitung di sisi PostgreSQL saja.
+ *
+ * Sisa pekerjaan tinggal di data, bukan di kode:
+ * 1. Menyalin serah terima Juli 2026 yang belum masuk.
+ * 2. Melengkapi sr_tipe supaya kolom Jenis pada unit blok HA sampai HG
+ *    tidak kosong. Kedelapan kode di atas berikut deskripsinya sudah
+ *    diketahui, dan seluruh selisihnya 1292 pasangan untuk sr_stok.
+ * ===================================================================== */
