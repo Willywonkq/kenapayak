@@ -1232,6 +1232,25 @@
         box-shadow: inset 4px 0 0 #2563eb !important;
     }
 
+    /*
+     * Baris judul sektor. Diletakkan sesudah aturan selang-seling dan hover
+     * supaya warnanya tidak tertimpa, dan memakai !important mengikuti
+     * aturan lain pada halaman ini.
+     */
+    .serah-st-page .report-table tbody tr.sektor-row td {
+        height: auto !important;
+        padding: 9px 12px !important;
+        color: #142842 !important;
+        background: #eef4ff !important;
+        border-top: 1px solid #c7d7f5 !important;
+        border-bottom: 1px solid #c7d7f5 !important;
+        text-align: left !important;
+        font-size: 10.5px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.02em !important;
+        box-shadow: none !important;
+    }
+
     .serah-st-page .report-table .empty-row {
         height: 130px !important;
         color: #64748b !important;
@@ -2206,6 +2225,62 @@
         syncFilterVisualState();
     }
 
+    /*
+     * Mengelompokkan baris menurut sektor, lalu mengurutkan kelompoknya
+     * menurut nama sektor. Urutan itu sama dengan urutan pada lookup
+     * Sektor/Cluster, yang juga diurutkan menurut deskripsi, sehingga
+     * VIOLA RESIDENCE berada paling bawah seperti pada desktop.
+     *
+     * Urutan baris di dalam satu kelompok tidak diubah, jadi tetap mengikuti
+     * urutan dari model, yaitu flag laporan lalu blok dan nomor.
+     *
+     * Sama persis dengan yang dipakai Daftar Rencana Serah Terima.
+     */
+    function groupRowsBySektor(rows) {
+        var groups = [];
+        var indexByName = {};
+
+        $.each(rows, function (i, item) {
+            item = item || {};
+
+            var nama = String(
+                getItemValue(item, 'NAMA_SEKTOR', 'nama_sektor') || ''
+            ).trim();
+
+            if (nama === '' || nama === '-') {
+                nama = '(Tanpa Sektor)';
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(indexByName, nama)) {
+                indexByName[nama] = groups.length;
+                groups.push({ nama: nama, rows: [] });
+            }
+
+            groups[indexByName[nama]].rows.push(item);
+        });
+
+        groups.sort(function (a, b) {
+            /*
+             * Kelompok tanpa nama sektor ditaruh paling belakang supaya tidak
+             * naik ke atas dan menggeser nomor urut seluruh laporan.
+             */
+            var aKosong = a.nama === '(Tanpa Sektor)' ? 1 : 0;
+            var bKosong = b.nama === '(Tanpa Sektor)' ? 1 : 0;
+
+            if (aKosong !== bKosong) {
+                return aKosong - bKosong;
+            }
+
+            if (a.nama === b.nama) {
+                return 0;
+            }
+
+            return a.nama < b.nama ? -1 : 1;
+        });
+
+        return groups;
+    }
+
     function renderReport(data) {
         var rows = normalizeSummaryRows(data);
         var periodeSurat = formatDateIndo($('#tgl_awal').val()) + ' s.d ' + formatDateIndo($('#tgl_akhir').val());
@@ -2298,7 +2373,15 @@
             html += '<td colspan="' + (versiAccounting ? 7 : 10) + '" class="empty-row">Data tidak ditemukan.</td>';
             html += '</tr>';
         } else {
-            $.each(rows, function (index, item) {
+            var nomorUrut = 0;
+            var jumlahKolom = versiAccounting ? 7 : 10;
+
+            $.each(groupRowsBySektor(rows), function (grupIndex, grup) {
+                html += '<tr class="sektor-row"><td colspan="' + jumlahKolom + '">';
+                html += 'Sektor/Cluster : ' + escapeHtml(grup.nama);
+                html += '</td></tr>';
+
+                $.each(grup.rows, function (index, item) {
                 item = item || {};
 
                 var alamat = valueOrDash(getItemValue(item, 'ALAMAT', 'alamat'));
@@ -2317,6 +2400,8 @@
                 var statusClass = 'pending';
                 var statusText = 'Belum Realisasi';
 
+                nomorUrut += 1;
+
                 if (isCancelled(item)) {
                     statusClass = 'cancelled';
                     statusText = 'Batal';
@@ -2326,7 +2411,7 @@
                 }
 
                 html += '<tr>';
-                html += '<td>' + (index + 1) + '</td>';
+                html += '<td>' + nomorUrut + '</td>';
                 html += '<td>' + escapeHtml(valueOrDash(blokNomor)) + '</td>';
                 html += '<td class="name-cell">' + escapeHtml(valueOrDash(nama)) + '</td>';
                 html += '<td class="multiline-cell">' + escapeHtml(valueOrDash(noPpjb)) + '<br>' + formatDateIndo(tglPpjb) + '</td>';
@@ -2350,6 +2435,7 @@
 
                 html += '</td>';
                 html += '</tr>';
+                });
             });
         }
 
