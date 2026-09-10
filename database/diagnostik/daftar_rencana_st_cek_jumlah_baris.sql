@@ -650,3 +650,135 @@ FROM baris;
  * kolom waktu ditambahkan ke sr_tipe dan diisi, laporannya langsung benar
  * dengan sendirinya.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * ==== KESIMPULAN — kolomnya ada, tetapi di tabel yang berbeda ====
+ *
+ * QUERY 8 menemukannya:
+ *     sr_ppjb   bulan           numeric
+ *     sr_ppjb   jangka_waktu    numeric
+ *     sr_ppjb   waktu           numeric   <-- ini yang dicari
+ *     sr_ppjb   waktu_add       numeric
+ *     sr_ppjb   waktu_ppn_dtp   numeric
+ *
+ * QUERY 9 memastikan sr_tipe hanya punya 20 kolom dan tidak ada waktu di
+ * antaranya.
+ *
+ * Pada query desktop nama kolomnya ditulis tanpa nama tabel:
+ *     ISNULL(TGL_RENCANA_SB, DATEADD(month, ISNULL(waktu, 0), TGL_PPJB))
+ * sehingga sempat dikira milik TIPE. SQL Server menolak nama kolom yang ada
+ * di lebih dari satu tabel pada FROM, dan query itu berjalan normal, jadi
+ * hanya satu tabel yang memilikinya. Karena sr_tipe tidak punya dan sr_ppjb
+ * punya, yang dimaksud adalah PPJB.WAKTU, satu tabel dengan TGL_RENCANA_SB
+ * dan waktu_add pada rumus yang sama.
+ *
+ * Model sudah diperbaiki untuk membaca sr_ppjb.waktu. Jadi ini bukan data
+ * yang belum tersalin, melainkan model yang membaca tabel yang salah.
+ *
+ * QUERY 10 menunjukkan luas dampaknya sebelum perbaikan:
+ *     775 baris tampil, hanya 1 yang tanggal rencananya benar,
+ *     dan 774 jatuh menjadi tanggal PPJB.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 11 — Pastikan jumlah barisnya menjadi 849
+ *
+ * Menghitung ulang jumlah baris laporan dengan tiga cara sekaligus, supaya
+ * hasil perbaikan bisa dipastikan sebelum membuka web.
+ *
+ *   tanpa_waktu        = keadaan sebelum perbaikan, harus 775
+ *   pakai_ppjb_waktu   = sesudah perbaikan, harus mendekati 849
+ *   pakai_waktu_add    = bila waktu_add ikut diutamakan, sebagai pembanding
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-10' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan,
+           'A'::text         AS blok_awal,
+           'ZZ'::text        AS blok_akhir
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(CAST(stok.blok AS text), '')))  AS blok,
+        UPPER(BTRIM(COALESCE(CAST(stok.nomor AS text), ''))) AS nomor,
+        UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS text), ''))) AS flag_aktif,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_perusahaan'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_unit'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_pt'), ''),
+            ''))) AS perusahaan_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_jenis'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_jenis_bgn'), ''),
+            ''))) AS jenis_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_tipe'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_tipe_bgn'), ''),
+            ''))) AS tipe_key
+    FROM public.sr_stok AS stok
+),
+jenis_norm AS (
+    SELECT
+        UPPER(BTRIM(CAST(jb.kd_jenis AS text))) AS kd_jenis,
+        BTRIM(COALESCE(to_jsonb(jb) ->> 'flag_laporan', '')) AS flag_laporan
+    FROM public.sr_jenis_bangunan AS jb
+),
+baris AS (
+    SELECT
+        p.tgl_ppjb,
+        CASE WHEN COALESCE(to_jsonb(p) ->> 'tgl_rencana_sb', '')
+                  ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+             THEN CAST(to_jsonb(p) ->> 'tgl_rencana_sb' AS timestamp) END AS tgl_rencana_sb,
+        CASE WHEN COALESCE(to_jsonb(p) ->> 'waktu', '') ~ '^[+-]?[0-9]+([.][0-9]+)?$'
+             THEN CAST(CAST(to_jsonb(p) ->> 'waktu' AS numeric) AS integer) END AS waktu,
+        CASE WHEN COALESCE(to_jsonb(p) ->> 'waktu_add', '') ~ '^[+-]?[0-9]+([.][0-9]+)?$'
+             THEN CAST(CAST(to_jsonb(p) ->> 'waktu_add' AS numeric) AS integer) END AS waktu_add
+    FROM public.sr_ppjb AS p
+    CROSS JOIN param
+    INNER JOIN stok_norm AS stok ON stok.stok_id = p.stok_id
+    INNER JOIN public.sr_pembeli_ppjb AS pb
+            ON pb.ppjb_id = p.ppjb_id
+           AND UPPER(BTRIM(COALESCE(CAST(pb.flag_aktif AS text), ''))) = 'Y'
+    LEFT JOIN public.sr_tipe AS t
+           ON UPPER(BTRIM(CAST(t.kd_jenis AS text))) = stok.jenis_key
+          AND UPPER(BTRIM(CAST(t.kd_tipe AS text)))  = stok.tipe_key
+    LEFT JOIN jenis_norm AS jn
+           ON jn.kd_jenis = UPPER(BTRIM(CAST(t.kd_jenis AS text)))
+    WHERE stok.perusahaan_key = param.perusahaan
+      AND stok.flag_aktif = 'A'
+      AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
+      AND NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
+      AND stok.blok <> '' AND stok.nomor <> ''
+      AND (
+            (stok.blok || '/' || stok.nomor BETWEEN param.blok_awal AND param.blok_akhir)
+            OR (stok.blok BETWEEN param.blok_awal AND param.blok_akhir)
+      )
+      AND COALESCE(jn.flag_laporan, '') <> '2'
+)
+SELECT
+    COUNT(*) FILTER (
+        WHERE COALESCE(tgl_rencana_sb, tgl_ppjb) >= param.tgl_awal
+          AND COALESCE(tgl_rencana_sb, tgl_ppjb) <  param.tgl_akhir + INTERVAL '1 day'
+    ) AS tanpa_waktu,
+    COUNT(*) FILTER (
+        WHERE COALESCE(tgl_rencana_sb,
+                       tgl_ppjb + (COALESCE(waktu, 0) * INTERVAL '1 month')) >= param.tgl_awal
+          AND COALESCE(tgl_rencana_sb,
+                       tgl_ppjb + (COALESCE(waktu, 0) * INTERVAL '1 month'))
+                  <  param.tgl_akhir + INTERVAL '1 day'
+    ) AS pakai_ppjb_waktu,
+    COUNT(*) FILTER (
+        WHERE COALESCE(tgl_rencana_sb,
+                       tgl_ppjb + (COALESCE(waktu_add, waktu, 0) * INTERVAL '1 month')) >= param.tgl_awal
+          AND COALESCE(tgl_rencana_sb,
+                       tgl_ppjb + (COALESCE(waktu_add, waktu, 0) * INTERVAL '1 month'))
+                  <  param.tgl_akhir + INTERVAL '1 day'
+    ) AS pakai_waktu_add,
+    COUNT(*) FILTER (WHERE waktu IS NOT NULL) AS baris_waktu_terisi,
+    MIN(waktu) AS waktu_terkecil,
+    MAX(waktu) AS waktu_terbesar
+FROM baris
+CROSS JOIN param;

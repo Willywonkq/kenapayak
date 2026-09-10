@@ -621,9 +621,27 @@ class daftar_rencana_st_m extends Model
             $metadata,
             [['sr_ppjb', 'ppjb', 'waktu_add']]
         );
+        /*
+         * Kolom waktu berada di sr_ppjb, bukan di sr_tipe.
+         *
+         * Pada query desktop nama kolomnya ditulis tanpa nama tabel, yaitu
+         * ISNULL(TGL_RENCANA_SB, DATEADD(month, ISNULL(waktu, 0), TGL_PPJB)),
+         * sehingga sempat dikira milik TIPE. SQL Server menolak nama kolom
+         * yang ada di lebih dari satu tabel pada FROM, dan query itu berjalan
+         * normal, jadi hanya satu tabel yang memilikinya. sr_tipe terbukti
+         * tidak punya kolom waktu sama sekali, sedangkan sr_ppjb punya waktu,
+         * waktu_add, dan waktu_ppn_dtp. Jadi yang dimaksud adalah PPJB.WAKTU,
+         * satu tabel dengan TGL_RENCANA_SB dan waktu_add di rumus yang sama.
+         *
+         * Ketika masih diarahkan ke sr_tipe, kolomnya tidak ditemukan dan
+         * reportSafeInteger memakai nilai bawaan nol. Akibatnya tanggal
+         * Rencana Serah Terima jatuh menjadi sama dengan tanggal PPJB, dan
+         * karena rumus yang sama dipakai sebagai penyaring rentang tanggal,
+         * kumpulan baris yang terambil pun berbeda dengan desktop.
+         */
         $waktu = $this->reportSafeInteger(
             $metadata,
-            [['sr_tipe', 'tipe', 'waktu']],
+            [['sr_ppjb', 'ppjb', 'waktu']],
             true
         );
 
