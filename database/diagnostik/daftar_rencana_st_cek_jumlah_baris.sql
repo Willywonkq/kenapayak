@@ -475,3 +475,178 @@ CROSS JOIN LATERAL (
 ) AS hitung
 GROUP BY kandidat.kolom
 ORDER BY baris_dalam_rentang DESC, kolom_waktu;
+
+
+/* =====================================================================
+ * ==== LANJUTAN — kolom waktu memang tidak ada di sr_tipe ====
+ *
+ * QUERY 5 mendaftar seluruh 20 kolom sr_tipe:
+ *     flag_aktif, kd_jenis, kd_mata_uang, kd_perusahaan, kd_tipe,
+ *     tgl_entry, user_entry, status, deskripsi, ukuran_kav, luas_tanah,
+ *     luas_bangunan, listrik, harga_cash, harga, harga_tahap, harga_kpr,
+ *     jml_lantai, jml_kamar, harga_selisih_luas
+ * Tidak ada kolom waktu, dan tidak ada kolom berakhiran _bgn.
+ *
+ * QUERY 6 menampilkan seluruh isi baris tipe RMH/R1566, yaitu tipe milik
+ * GL/002. Desktop menghitung tanggal PPJB ditambah enam bulan untuk unit itu,
+ * tetapi tidak ada satu pun kolom yang bernilai 6.
+ *
+ * QUERY 7 mencoba setiap kolom yang isinya angka wajar sebagai pengganti
+ * waktu. Semuanya menghasilkan 775, sama dengan keadaan tanpa waktu, jadi
+ * tidak ada kolom yang bisa menggantikannya.
+ *
+ * Kesimpulannya kolom WAKTU pada tabel TIPE di SQL Server belum ikut
+ * tersalin ke sr_tipe. Tidak ada yang bisa diperbaiki di model, karena
+ * nilainya memang tidak tersedia di PostgreSQL.
+ *
+ * Tiga query berikut memastikan nilainya tidak tersimpan di tempat lain,
+ * dan mengukur seberapa luas dampaknya. Semuanya tetap hanya membaca.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 8 — Cari kolom bernuansa lama waktu di seluruh skema
+ *
+ * Barangkali nilainya tersimpan di tabel lain dengan nama berbeda.
+ * ===================================================================== */
+SELECT
+    table_name  AS tabel,
+    column_name AS kolom,
+    data_type   AS tipe_data
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND (
+        column_name ILIKE '%waktu%'
+     OR column_name ILIKE '%lama%'
+     OR column_name ILIKE '%bulan%'
+     OR column_name ILIKE '%durasi%'
+     OR column_name ILIKE '%tempo%'
+     OR column_name ILIKE '%jangka%'
+     OR column_name ILIKE '%month%'
+  )
+ORDER BY table_name, column_name;
+
+
+/* =====================================================================
+ * QUERY 9 — Tabel yang mungkin menyimpan master tipe bangunan
+ * ===================================================================== */
+SELECT
+    table_name AS tabel,
+    COUNT(*)   AS jumlah_kolom,
+    STRING_AGG(column_name, ', ' ORDER BY ordinal_position) AS kolom
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND (
+        table_name ILIKE '%tipe%'
+     OR table_name ILIKE '%bangun%'
+     OR table_name ILIKE '%serah%'
+  )
+GROUP BY table_name
+ORDER BY table_name;
+
+
+/* =====================================================================
+ * QUERY 10 — Seberapa luas dampaknya pada kolom Rencana Serah Terima
+ *
+ * Ketika tgl_rencana_sb terisi, tanggal rencana diambil dari sana dan
+ * hasilnya sudah benar. Ketika kosong, tanggal rencana jatuh menjadi sama
+ * dengan tanggal PPJB karena waktu tidak tersedia, dan itu keliru.
+ *
+ * Query ini menghitung keduanya khusus untuk baris yang tampil di laporan.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-10' AS tgl_akhir,
+           'DTSA'::text      AS perusahaan,
+           'A'::text         AS blok_awal,
+           'ZZ'::text        AS blok_akhir
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(CAST(stok.blok AS text), '')))  AS blok,
+        UPPER(BTRIM(COALESCE(CAST(stok.nomor AS text), ''))) AS nomor,
+        UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS text), ''))) AS flag_aktif,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_perusahaan'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_unit'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_pt'), ''),
+            ''))) AS perusahaan_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_jenis'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_jenis_bgn'), ''),
+            ''))) AS jenis_key,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_tipe'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_tipe_bgn'), ''),
+            ''))) AS tipe_key
+    FROM public.sr_stok AS stok
+),
+jenis_norm AS (
+    SELECT
+        UPPER(BTRIM(CAST(jb.kd_jenis AS text))) AS kd_jenis,
+        BTRIM(COALESCE(to_jsonb(jb) ->> 'flag_laporan', '')) AS flag_laporan
+    FROM public.sr_jenis_bangunan AS jb
+),
+baris AS (
+    SELECT
+        p.tgl_ppjb,
+        CASE WHEN COALESCE(to_jsonb(p) ->> 'tgl_rencana_sb', '')
+                  ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+             THEN CAST(to_jsonb(p) ->> 'tgl_rencana_sb' AS timestamp) END AS tgl_rencana_sb,
+        CASE WHEN COALESCE(to_jsonb(p) ->> 'waktu_add', '') ~ '^[+-]?[0-9]+$'
+             THEN CAST(to_jsonb(p) ->> 'waktu_add' AS integer) END AS waktu_add
+    FROM public.sr_ppjb AS p
+    CROSS JOIN param
+    INNER JOIN stok_norm AS stok ON stok.stok_id = p.stok_id
+    INNER JOIN public.sr_pembeli_ppjb AS pb
+            ON pb.ppjb_id = p.ppjb_id
+           AND UPPER(BTRIM(COALESCE(CAST(pb.flag_aktif AS text), ''))) = 'Y'
+    LEFT JOIN public.sr_tipe AS t
+           ON UPPER(BTRIM(CAST(t.kd_jenis AS text))) = stok.jenis_key
+          AND UPPER(BTRIM(CAST(t.kd_tipe AS text)))  = stok.tipe_key
+    LEFT JOIN jenis_norm AS jn
+           ON jn.kd_jenis = UPPER(BTRIM(CAST(t.kd_jenis AS text)))
+    WHERE stok.perusahaan_key = param.perusahaan
+      AND stok.flag_aktif = 'A'
+      AND UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
+      AND NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
+      AND stok.blok <> '' AND stok.nomor <> ''
+      AND (
+            (stok.blok || '/' || stok.nomor BETWEEN param.blok_awal AND param.blok_akhir)
+            OR (stok.blok BETWEEN param.blok_awal AND param.blok_akhir)
+      )
+      AND COALESCE(jn.flag_laporan, '') <> '2'
+      AND COALESCE(p.tgl_rencana_sb, p.tgl_ppjb) >= param.tgl_awal
+      AND COALESCE(p.tgl_rencana_sb, p.tgl_ppjb) <  param.tgl_akhir + INTERVAL '1 day'
+)
+SELECT
+    COUNT(*)                                              AS baris_tampil,
+    COUNT(*) FILTER (WHERE tgl_rencana_sb IS NOT NULL)    AS tanggal_rencana_benar,
+    COUNT(*) FILTER (WHERE tgl_rencana_sb IS NULL
+                       AND waktu_add IS NOT NULL)         AS memakai_waktu_add,
+    COUNT(*) FILTER (WHERE tgl_rencana_sb IS NULL
+                       AND waktu_add IS NULL)             AS jatuh_ke_tanggal_ppjb
+FROM baris;
+
+
+/* =====================================================================
+ * CARA MEMBACA LANJUTAN
+ *
+ * - QUERY 8 dan 9 tidak menemukan kolom lama waktu di mana pun
+ *   -> nilainya memang belum tersalin. Yang perlu dilakukan adalah menyalin
+ *      kolom WAKTU dari tabel TIPE di SQL Server ke sr_tipe. Itu perubahan
+ *      struktur dan data, harus dikerjakan oleh yang berwenang.
+ *
+ * - QUERY 8 menemukan kolomnya di tabel lain
+ *   -> kirimkan hasilnya, modelnya tinggal diarahkan ke sana.
+ *
+ * - jatuh_ke_tanggal_ppjb pada QUERY 10 menunjukkan berapa baris yang kolom
+ *   Rencana Serah Terima-nya sekarang keliru, yaitu menampilkan tanggal PPJB
+ *   dan bukan tanggal rencana yang sebenarnya.
+ *
+ * Model tidak perlu diubah untuk ini. reportSafeInteger sudah memeriksa
+ * keberadaan kolom lebih dulu dan memakai nol bila tidak ada, jadi begitu
+ * kolom waktu ditambahkan ke sr_tipe dan diisi, laporannya langsung benar
+ * dengan sendirinya.
+ * ===================================================================== */
