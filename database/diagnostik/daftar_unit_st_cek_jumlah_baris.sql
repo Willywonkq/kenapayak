@@ -235,10 +235,24 @@ stok_norm AS (
     FROM public.sr_stok AS stok
 ),
 sektor_norm AS (
-    SELECT DISTINCT
-        UPPER(BTRIM(COALESCE(to_jsonb(s) ->> 'kd_sektor', ''))) AS kode,
-        BTRIM(COALESCE(to_jsonb(s) ->> 'deskripsi', ''))        AS deskripsi
-    FROM public.sr_sektor AS s
+    /*
+     * Kode sektor dibaca dengan rantai cadangan yang sama seperti sr_stok,
+     * karena pada percobaan sebelumnya nama cluster tidak ketemu dan yang
+     * tampil justru kodenya.
+     */
+    SELECT DISTINCT ON (kode) kode, deskripsi
+    FROM (
+        SELECT
+            UPPER(BTRIM(COALESCE(
+                NULLIF(BTRIM(to_jsonb(s) ->> 'kd_sektor'), ''),
+                NULLIF(BTRIM(to_jsonb(s) ->> 'kd_proyek'), ''),
+                NULLIF(BTRIM(to_jsonb(s) ->> 'kd_cluster'), ''),
+                ''))) AS kode,
+            BTRIM(COALESCE(to_jsonb(s) ->> 'deskripsi', '')) AS deskripsi
+        FROM public.sr_sektor AS s
+    ) AS sumber
+    WHERE kode <> '' AND deskripsi <> ''
+    ORDER BY kode, deskripsi
 )
 SELECT
     COALESCE(NULLIF(sek.deskripsi, ''), stok.sektor_key, '(tanpa cluster)') AS nama_cluster,
@@ -291,3 +305,156 @@ ORDER BY 1;
  *   -> berarti datanya yang berbeda, bukan modelnya. Bandingkan QUERY 3
  *      dengan jumlah per cluster di desktop untuk mencari letaknya.
  * ===================================================================== */
+
+
+/* =====================================================================
+ * ==== LANJUTAN — sesudah QUERY 1 sampai 3 dijalankan ====
+ *
+ * Hasil QUERY 1: 1757, 1757, 1757, 1757, 1299, 777, 588, 588.
+ *
+ *   t6_rentang_realisasi sama dengan t6_jumlah_ppjb, dua-duanya 588. Berarti
+ *   tidak ada satu pun PPJB yang punya lebih dari satu catatan serah terima,
+ *   dan karena itu QUERY 2 memang tidak menghasilkan baris apa pun. Dugaan
+ *   tentang serah terima ganda terbantah.
+ *
+ *   t6 juga sama persis dengan angka web, yaitu 588. Berarti model web sudah
+ *   setia pada syarat query desktop, dan selisih delapan baris terhadap
+ *   desktop bukan berasal dari modelnya.
+ *
+ *   Penyaring terbesar ada di dua tahap: PPJB.PARENT_ID membuang 458 baris,
+ *   dan syarat gabungan flag serta tanggal PPJB membuang 522 baris. Keduanya
+ *   memang ada di query desktop.
+ *
+ * Hasil QUERY 3, seluruhnya 588: GBC 65, JSA 128, PHA 2, RGA 38, VLA 319,
+ * VNC 36, dan pada setiap cluster jumlah_baris sama dengan jumlah_ppjb.
+ *
+ * Dugaan berikutnya, delapan baris itu adalah serah terima yang belum
+ * tersalin. Pada laporan Daftar Serah Terima sudah terbukti sr_serah_terima
+ * di PostgreSQL berhenti pada 4 Juli 2026 sedangkan SQL Server berlanjut
+ * sampai 30 Juli 2026, dan di sana selisihnya sembilan baris.
+ *
+ * Dua query berikut mengujinya. Tetap hanya membaca.
+ * ===================================================================== */
+
+
+/* =====================================================================
+ * QUERY 4 — Sebaran per tahun realisasi untuk laporan ini
+ *
+ * Kalau tanggal paling akhir berhenti pada 4 Juli 2026, penyebabnya sama
+ * dengan yang sudah terbukti pada Daftar Serah Terima.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-10' AS tgl_akhir,
+           DATE '2023-07-01' AS tgl_st1,
+           DATE '2026-09-10' AS tgl_st2,
+           'DTSA'::text      AS perusahaan,
+           'A'::text         AS blok_awal,
+           'Z'::text         AS blok_akhir
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(CAST(stok.blok AS text), '')))  AS blok,
+        UPPER(BTRIM(COALESCE(CAST(stok.nomor AS text), ''))) AS nomor,
+        UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS text), ''))) AS flag_aktif,
+        NULLIF(BTRIM(COALESCE(CAST(stok.parent_id AS text), '')), '') IS NULL AS induk_kosong,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_perusahaan'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_unit'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_pt'), ''),
+            ''))) AS perusahaan_key
+    FROM public.sr_stok AS stok
+),
+terpilih AS (
+    SELECT
+        stok.blok || '/' || stok.nomor  AS blok_nomor,
+        BTRIM(CAST(st.no_surat AS text)) AS no_bast,
+        st.tgl_serah_terima,
+        p.tgl_ppjb
+    FROM public.sr_stok AS stok_raw
+    CROSS JOIN param
+    INNER JOIN stok_norm AS stok ON stok.stok_id = stok_raw.stok_id
+    INNER JOIN public.sr_ppjb AS p ON p.stok_id = stok.stok_id
+    LEFT JOIN public.sr_serah_terima AS st ON st.ppjb_id = p.ppjb_id
+    WHERE stok.perusahaan_key = param.perusahaan
+      AND stok.flag_aktif = 'A'
+      AND stok.induk_kosong
+      AND stok.blok <> '' AND stok.nomor <> ''
+      AND stok.blok BETWEEN param.blok_awal AND param.blok_akhir
+      AND NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
+      AND (
+            (UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'A'
+             AND p.tgl_ppjb >= param.tgl_awal
+             AND p.tgl_ppjb <  param.tgl_akhir + INTERVAL '1 day')
+         OR (UPPER(BTRIM(COALESCE(CAST(p.flag_aktif AS text), ''))) = 'T'
+             AND UPPER(BTRIM(COALESCE(to_jsonb(p) ->> 'flag_batal', 'T'))) = 'Y'
+             AND p.tgl_ppjb >= param.tgl_awal
+             AND p.tgl_ppjb <  param.tgl_akhir + INTERVAL '1 day'
+             AND CASE WHEN COALESCE(to_jsonb(p) ->> 'tgl_batal', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                      THEN CAST(to_jsonb(p) ->> 'tgl_batal' AS timestamp) END > param.tgl_akhir
+             AND st.tgl_serah_terima IS NOT NULL)
+      )
+      AND st.tgl_serah_terima >= param.tgl_st1
+      AND st.tgl_serah_terima <  param.tgl_st2 + INTERVAL '1 day'
+)
+SELECT
+    EXTRACT(YEAR FROM tgl_serah_terima)::integer AS tahun_realisasi,
+    COUNT(*)                                     AS jumlah_baris,
+    MIN(tgl_serah_terima)::date                  AS paling_awal,
+    MAX(tgl_serah_terima)::date                  AS paling_akhir
+FROM terpilih
+GROUP BY 1
+ORDER BY 1;
+
+
+/* =====================================================================
+ * QUERY 5 — Baris yang realisasinya mulai Juni 2026
+ *
+ * Bandingkan daftar ini dengan desktop pada periode yang sama. Baris yang
+ * ada di desktop tetapi tidak muncul di sini itulah delapan baris yang
+ * belum tersalin.
+ * ===================================================================== */
+WITH param AS (
+    SELECT DATE '2023-07-01' AS tgl_awal,
+           DATE '2026-09-10' AS tgl_akhir,
+           DATE '2026-06-01' AS tgl_st1,
+           DATE '2026-09-10' AS tgl_st2,
+           'DTSA'::text      AS perusahaan,
+           'A'::text         AS blok_awal,
+           'Z'::text         AS blok_akhir
+),
+stok_norm AS (
+    SELECT
+        stok.stok_id,
+        UPPER(BTRIM(COALESCE(CAST(stok.blok AS text), '')))  AS blok,
+        UPPER(BTRIM(COALESCE(CAST(stok.nomor AS text), ''))) AS nomor,
+        UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS text), ''))) AS flag_aktif,
+        NULLIF(BTRIM(COALESCE(CAST(stok.parent_id AS text), '')), '') IS NULL AS induk_kosong,
+        UPPER(BTRIM(COALESCE(
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_perusahaan'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_unit'), ''),
+            NULLIF(BTRIM(to_jsonb(stok) ->> 'kd_pt'), ''),
+            ''))) AS perusahaan_key
+    FROM public.sr_stok AS stok
+)
+SELECT
+    stok.blok || '/' || stok.nomor        AS blok_nomor,
+    BTRIM(CAST(st.no_surat AS text))      AS no_bast,
+    st.tgl_serah_terima::date             AS tgl_st,
+    p.tgl_ppjb::date                      AS tgl_ppjb,
+    UPPER(BTRIM(COALESCE(CAST(st.flag_aktif AS text), 'A'))) AS status_bast
+FROM public.sr_stok AS stok_raw
+CROSS JOIN param
+INNER JOIN stok_norm AS stok ON stok.stok_id = stok_raw.stok_id
+INNER JOIN public.sr_ppjb AS p ON p.stok_id = stok.stok_id
+INNER JOIN public.sr_serah_terima AS st ON st.ppjb_id = p.ppjb_id
+WHERE stok.perusahaan_key = param.perusahaan
+  AND stok.flag_aktif = 'A'
+  AND stok.induk_kosong
+  AND stok.blok <> '' AND stok.nomor <> ''
+  AND stok.blok BETWEEN param.blok_awal AND param.blok_akhir
+  AND NULLIF(BTRIM(COALESCE(CAST(p.parent_id AS text), '')), '') IS NULL
+  AND st.tgl_serah_terima >= param.tgl_st1
+  AND st.tgl_serah_terima <  param.tgl_st2 + INTERVAL '1 day'
+ORDER BY st.tgl_serah_terima, 1;
