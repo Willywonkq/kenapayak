@@ -458,3 +458,36 @@ WHERE stok.perusahaan_key = param.perusahaan
   AND st.tgl_serah_terima >= param.tgl_st1
   AND st.tgl_serah_terima <  param.tgl_st2 + INTERVAL '1 day'
 ORDER BY st.tgl_serah_terima, 1;
+
+
+/* =====================================================================
+ * ==== KESIMPULAN — sesudah QUERY 4 dan 5 dijalankan ====
+ *
+ * Hasil QUERY 4:
+ *     2024   77    2024-10-02 .. 2024-12-24
+ *     2025   310   2025-01-31 .. 2025-12-30
+ *     2026   201   2026-01-02 .. 2026-07-04
+ *     total  588   sama dengan t6
+ *
+ * Tanggal realisasi paling akhir berhenti pada 4 Juli 2026, sama persis
+ * dengan yang sudah terbukti pada laporan Daftar Serah Terima. Di sana
+ * PostgreSQL juga berhenti 4 Juli 2026 sedangkan SQL Server berlanjut
+ * sampai 30 Juli 2026, dengan selisih sembilan baris.
+ *
+ * QUERY 5 mendaftar 24 baris dari 2 Juni sampai 4 Juli 2026, dan berhenti
+ * pada HC/032 tanggal 4 Juli 2026. Tidak ada satu pun sesudah itu.
+ *
+ * Jadi delapan baris yang selisih pada laporan ini adalah serah terima yang
+ * terealisasi antara 5 dan 30 Juli 2026 dan belum tersalin ke PostgreSQL.
+ * Sumbernya sama dengan sembilan baris pada Daftar Serah Terima, hanya
+ * jumlahnya berbeda karena laporan ini menambah syarat TGL_PPJB harus
+ * berada di dalam rentang.
+ *
+ * Model tidak perlu diubah sama sekali. t6 sudah sama persis dengan angka
+ * web, yaitu 588, jadi model memang sudah setia pada syarat query desktop.
+ *
+ * Untuk memastikan dari sisi SQL Server, jalankan
+ * database/diagnostik/sqlserver_daftar_unit_st_sebaran.sql. Tahun 2026 di
+ * sana seharusnya bernilai 209 dengan tanggal paling akhir melewati
+ * 4 Juli 2026.
+ * ===================================================================== */
