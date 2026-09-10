@@ -618,6 +618,24 @@
         background: #fff8f2;
     }
 
+    /*
+     * Baris judul sektor. Desktop mengelompokkan laporan per sektor dan
+     * menuliskan judulnya sebelum kelompok dimulai, sementara nomor urutnya
+     * tetap berlanjut. Aturan ini diletakkan sesudah aturan selang-seling
+     * agar warnanya tidak tertimpa.
+     */
+    .report-table tbody tr.sektor-row td {
+        padding: 9px 12px;
+        color: #142842;
+        background: #fff2e4;
+        border-top: 1px solid #e9c29f;
+        border-bottom: 1px solid #e9c29f;
+        text-align: left;
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+    }
+
     .report-table th:first-child,
     .report-table td:first-child {
         border-left: 0;
@@ -2477,6 +2495,58 @@
         $('#stat-pending-percent').text(pendingPercent + '%');
     }
 
+    /*
+     * Mengelompokkan baris menurut sektor, lalu mengurutkan kelompoknya
+     * menurut nama sektor. Urutan itu sama dengan urutan pada lookup
+     * Sektor/Cluster, yang juga diurutkan menurut deskripsi, sehingga
+     * VIOLA RESIDENCE berada paling bawah seperti pada desktop.
+     *
+     * Urutan baris di dalam satu kelompok tidak diubah, jadi tetap mengikuti
+     * urutan dari model, yaitu flag laporan lalu blok dan nomor.
+     */
+    function groupRowsBySektor(rows) {
+        var groups = [];
+        var indexByName = {};
+
+        $.each(rows, function (i, item) {
+            item = item || {};
+
+            var nama = String(item.NAMA_SEKTOR || item.nama_sektor || '').trim();
+
+            if (nama === '') {
+                nama = '(Tanpa Sektor)';
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(indexByName, nama)) {
+                indexByName[nama] = groups.length;
+                groups.push({ nama: nama, rows: [] });
+            }
+
+            groups[indexByName[nama]].rows.push(item);
+        });
+
+        groups.sort(function (a, b) {
+            /*
+             * Kelompok tanpa nama sektor ditaruh paling belakang supaya tidak
+             * naik ke atas dan menggeser nomor urut seluruh laporan.
+             */
+            var aKosong = a.nama === '(Tanpa Sektor)' ? 1 : 0;
+            var bKosong = b.nama === '(Tanpa Sektor)' ? 1 : 0;
+
+            if (aKosong !== bKosong) {
+                return aKosong - bKosong;
+            }
+
+            if (a.nama === b.nama) {
+                return 0;
+            }
+
+            return a.nama < b.nama ? -1 : 1;
+        });
+
+        return groups;
+    }
+
     function renderReport(data) {
         var rows = normalizeSummaryRows(data);
         var periode = formatDateIndo($('#tgl_awal').val()) +
@@ -2564,8 +2634,16 @@
         if (rows.length < 1) {
             html += '<tr><td colspan="8" class="empty-row">Data tidak ditemukan.</td></tr>';
         } else {
-            $.each(rows, function (index, item) {
+            var nomorUrut = 0;
+
+            $.each(groupRowsBySektor(rows), function (grupIndex, grup) {
+                html += '<tr class="sektor-row"><td colspan="8">';
+                html += 'Sektor/Cluster : ' + escapeHtml(grup.nama);
+                html += '</td></tr>';
+
+                $.each(grup.rows, function (index, item) {
                 item = item || {};
+                nomorUrut += 1;
 
                 var alamat = valueOrDash(item.ALAMAT || item.alamat);
                 var kota = valueOrDash(item.KOTA || item.kota);
@@ -2581,7 +2659,7 @@
                     item.TGL_SERAH_TERIMA || item.tgl_serah_terima;
 
                 html += '<tr>';
-                html += '<td>' + (index + 1) + '</td>';
+                html += '<td>' + nomorUrut + '</td>';
                 html += '<td>' + escapeHtml(valueOrDash(blokNomor)) + '</td>';
                 html += '<td class="name-cell">' +
                     escapeHtml(valueOrDash(nama)) + '</td>';
@@ -2602,6 +2680,7 @@
 
                 html += '<br>Telp. ' + escapeHtml(telepon) + '</td>';
                 html += '</tr>';
+                });
             });
         }
 
