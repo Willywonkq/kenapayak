@@ -56,3 +56,42 @@ SELECT
          WHERE BTRIM(CAST(pb.nasabah_id AS text)) = BTRIM(CAST(n.nasabah_id AS text))
       ))                                                       AS pembeli_punya_nasabah,
     (SELECT COUNT(*) FROM public.sr_nasabah)                   AS nasabah_semua;
+
+
+/* =====================================================================
+ * ==== HASIL PENGUKURAN ====
+ *
+ * QUERY 4 pada kedua sisi:
+ *
+ *                              SQL Server    PostgreSQL     selisih
+ *     baris pembeli_ppjb           38.821        63.447     +24.626
+ *     punya pasangan nasabah       38.821        34.560      -4.261
+ *     baris nasabah                46.818        42.464      -4.354
+ *
+ *     tingkat kecocokan           100,0%         54,5%
+ *
+ * Di SQL Server seluruh baris PEMBELI_PPJB punya pasangan di NASABAH. Di
+ * PostgreSQL hanya 34.560 dari 63.447, jadi 28.887 baris kehilangan nama
+ * pembelinya. Itulah sebabnya kolom Nama Pembeli menjadi tanda hubung pada
+ * sebagian laporan.
+ *
+ * Angka 28.887 itu terurai rapi menjadi dua sebab yang berbeda:
+ *
+ *     24.626  baris sr_pembeli_ppjb yang berlebih dibanding SQL Server,
+ *             dan tidak satu pun punya pasangan di sr_nasabah
+ *      4.261  baris yang seharusnya punya pasangan, tetapi baris nasabahnya
+ *             belum tersalin. Sejalan dengan sr_nasabah yang kurang 4.354
+ *     ------
+ *     28.887
+ *
+ * Catatan untuk laporan yang sudah dikerjakan: kelebihan 24.626 baris itu
+ * TIDAK melipatgandakan hasil Daftar Serah Terima maupun Daftar Rencana
+ * Serah Terima. Pada kedua laporan itu sudah terukur jumlah_baris selalu
+ * sama dengan jumlah_ppjb di setiap tahun, jadi dalam cakupan DTSA dengan
+ * pembeli aktif dan di dalam rentang tanggal, tidak ada PPJB yang punya
+ * lebih dari satu pembeli. Kelebihan itu berada di luar cakupan laporan.
+ *
+ * Yang terpengaruh hanya kolom Nama Pembeli, dan penyebabnya data, bukan
+ * kode. Sambungan ke sr_nasabah pada model sudah diperbaiki sehingga nama
+ * muncul untuk baris yang pasangannya memang ada.
+ * ===================================================================== */
