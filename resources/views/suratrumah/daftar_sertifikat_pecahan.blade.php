@@ -1513,6 +1513,14 @@
 
 @section('js')
 <script>
+    /*
+     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
+     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
+     */
+    if (window.history && 'scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+    }
+
     var lastSertipikatRows = null;
     var kstActiveIndex = 0;
     var kstTotalCards = 0;

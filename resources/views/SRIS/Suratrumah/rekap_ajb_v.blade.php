@@ -1419,6 +1419,14 @@
 
 @section('js')
 <script>
+    /*
+     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
+     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
+     */
+    if (window.history && 'scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+    }
+
     var lastRajbRows = null;
 
     $(document).ready(function () {

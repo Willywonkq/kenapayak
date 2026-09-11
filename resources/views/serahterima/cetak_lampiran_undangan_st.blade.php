@@ -2158,6 +2158,14 @@
 
 @section('js')
 <script>
+    /*
+     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
+     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
+     */
+    if (window.history && 'scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+    }
+
     // LOOKUP_BLOK_FILTER_VERSION=V2-20260811-AUTO-SORT-DYNAMIC-SEARCH
     var blokLookupTarget = 'awal';
     var blokLookupXhr = null;
