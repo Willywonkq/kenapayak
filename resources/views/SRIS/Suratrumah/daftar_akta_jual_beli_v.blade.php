@@ -208,6 +208,359 @@
 }
 
 /* =========================================================
+   PEMILIH TANGGAL
+   Menggantikan kalender bawaan peramban, yang tampilannya
+   berbeda-beda di tiap peramban dan tidak bisa ditata.
+   Panel digantung ke <body> dengan position fixed supaya
+   tidak terpotong kartu filter maupun tabel laporan.
+   ========================================================= */
+.ajb-date {
+    position: relative;
+    min-width: 0;
+}
+
+.ajb-date-field {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    grid-template-columns: minmax(0, 1fr) 20px;
+    gap: 6px;
+    align-items: center;
+    padding: 0 8px 0 10px;
+    border: 1px solid #c8d3e1;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #101828;
+    cursor: pointer;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 650;
+    outline: 0;
+    text-align: left;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ajb-date-field:hover {
+    border-color: #aebed1;
+}
+
+.ajb-date-field:focus-visible,
+.ajb-date.is-open .ajb-date-field {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.ajb-date-value {
+    overflow: hidden;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ajb-date-value.is-empty {
+    color: #98a2b3;
+    font-weight: 600;
+}
+
+.ajb-date-icon {
+    display: grid;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+    border-radius: 7px;
+    background: #eff6ff;
+    color: #2563eb;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.ajb-date-field:hover .ajb-date-icon,
+.ajb-date.is-open .ajb-date-icon {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.ajb-date-icon svg {
+    width: 13px;
+    height: 13px;
+}
+
+/* ---------- panel ---------- */
+
+.ajb-dp {
+    position: fixed;
+    z-index: 2400;
+    width: 286px;
+    /* Pada jendela yang sangat pendek panel digulir, bukan terpotong. */
+    max-height: calc(100vh - 16px);
+    overflow: hidden auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 20px 46px rgba(15, 23, 42, 0.18);
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    animation: ajbDpMasuk 0.15s ease-out;
+}
+
+.ajb-dp[hidden] {
+    display: none;
+}
+
+@keyframes ajbDpMasuk {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.975);
+    }
+}
+
+.ajb-dp::before {
+    content: "";
+    display: block;
+    height: 4px;
+    background: linear-gradient(90deg, #38bdf8 0%, #2563eb 52%, #1d4ed8 100%);
+}
+
+.ajb-dp-head {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    gap: 6px;
+    align-items: center;
+    padding: 12px 12px 8px;
+}
+
+.ajb-dp-nav {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: #f4f7fb;
+    color: #475467;
+    cursor: pointer;
+    outline: 0;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.ajb-dp-nav:hover {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.ajb-dp-nav:focus-visible {
+    border-color: #2563eb;
+}
+
+.ajb-dp-nav svg {
+    width: 12px;
+    height: 12px;
+}
+
+.ajb-dp-title {
+    display: inline-flex;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: #101828;
+    cursor: pointer;
+    font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    outline: 0;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.ajb-dp-title:hover {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.ajb-dp-title:focus-visible {
+    border-color: #2563eb;
+}
+
+.ajb-dp-title svg {
+    width: 9px;
+    height: 9px;
+    opacity: 0.55;
+    transition: transform 0.18s ease;
+}
+
+.ajb-dp[data-view="bulan"] .ajb-dp-title svg,
+.ajb-dp[data-view="tahun"] .ajb-dp-title svg {
+    transform: rotate(180deg);
+}
+
+.ajb-dp-body {
+    padding: 0 12px 4px;
+}
+
+.ajb-dp-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    margin-bottom: 4px;
+}
+
+.ajb-dp-week span {
+    padding: 4px 0;
+    color: #8a94a6;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.ajb-dp-week span.is-weekend {
+    color: #60a5fa;
+}
+
+.ajb-dp-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+}
+
+.ajb-dp-grid.is-wide {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.ajb-dp-cell {
+    position: relative;
+    display: grid;
+    height: 34px;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: #344054;
+    cursor: pointer;
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    outline: 0;
+    transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.ajb-dp-grid.is-wide .ajb-dp-cell {
+    height: 40px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+}
+
+.ajb-dp-cell:hover:not(:disabled) {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.ajb-dp-cell:focus-visible {
+    border-color: #2563eb;
+}
+
+.ajb-dp-cell.is-muted {
+    color: #c3cad6;
+    font-weight: 600;
+}
+
+.ajb-dp-cell.is-weekend:not(.is-muted) {
+    color: #1d4ed8;
+}
+
+.ajb-dp-cell.is-today::after {
+    content: "";
+    position: absolute;
+    bottom: 5px;
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: #2563eb;
+}
+
+.ajb-dp-cell.is-selected,
+.ajb-dp-cell.is-selected:hover {
+    background: linear-gradient(135deg, #38bdf8 0%, #2563eb 58%, #1d4ed8 100%);
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.34);
+}
+
+.ajb-dp-cell.is-selected::after {
+    background: #ffffff;
+}
+
+/*
+ * Rentang yang sedang dipilih ikut ditandai di kedua panel, supaya
+ * terlihat berapa lebar rentangnya tanpa harus menutup kalender.
+ */
+.ajb-dp-cell.is-inrange:not(.is-selected):not(.is-partner) {
+    background: #eef5ff;
+    color: #1d4ed8;
+}
+
+.ajb-dp-cell.is-partner {
+    border-color: #93c5fd;
+    background: #ffffff;
+    color: #1d4ed8;
+    box-shadow: inset 0 0 0 1px #bfdbfe;
+}
+
+.ajb-dp-foot {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px 12px 12px;
+    border-top: 1px solid #eef2f7;
+    margin-top: 6px;
+}
+
+.ajb-dp-quick {
+    height: 28px;
+    padding: 0 4px;
+    overflow: hidden;
+    border: 1px solid #dbe7fb;
+    border-radius: 999px;
+    background: #f7faff;
+    color: #1d4ed8;
+    cursor: pointer;
+    font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    outline: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.ajb-dp-quick:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+
+.ajb-dp-quick:focus-visible {
+    border-color: #2563eb;
+}
+
+@media (max-width: 520px) {
+    .ajb-dp {
+        width: calc(100vw - 24px);
+        max-width: 300px;
+    }
+}
+
+@media print {
+    .ajb-dp {
+        display: none !important;
+    }
+}
+
+/* =========================================================
    DROPDOWN LOKASI
    Memakai tabel dua kolom, bukan <select>, supaya deskripsi
    selalu rata betapa pun panjang kode lokasinya.
@@ -1211,11 +1564,41 @@
             </div>
 
             <div class="ajb-field">
-                <label class="ajb-label" for="ajbTglAwal">Tanggal AJB</label>
+                <label class="ajb-label" for="ajbTglAwalField">Tanggal AJB</label>
                 <div class="ajb-range">
-                    <input type="date" id="ajbTglAwal" class="ajb-input" autocomplete="off">
+                    <div class="ajb-date" data-ajb-date="ajbTglAwal">
+                        <input type="hidden" id="ajbTglAwal" autocomplete="off">
+                        <button
+                            type="button"
+                            class="ajb-date-field"
+                            id="ajbTglAwalField"
+                            data-ajb-date-trigger
+                            aria-haspopup="dialog"
+                            aria-expanded="false"
+                        >
+                            <span class="ajb-date-value is-empty" data-ajb-date-text>
+                                Pilih tanggal
+                            </span>
+                            <span class="ajb-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.2" width="12" height="11" rx="2.4"/><path d="M2 6.6h12M5.4 1.8v2.6M10.6 1.8v2.6"/><circle cx="5.6" cy="9.6" r=".85" fill="currentColor" stroke="none"/></svg></span>
+                        </button>
+                    </div>
                     <span class="ajb-separator">s.d</span>
-                    <input type="date" id="ajbTglAkhir" class="ajb-input" autocomplete="off">
+                    <div class="ajb-date" data-ajb-date="ajbTglAkhir">
+                        <input type="hidden" id="ajbTglAkhir" autocomplete="off">
+                        <button
+                            type="button"
+                            class="ajb-date-field"
+                            id="ajbTglAkhirField"
+                            data-ajb-date-trigger
+                            aria-haspopup="dialog"
+                            aria-expanded="false"
+                        >
+                            <span class="ajb-date-value is-empty" data-ajb-date-text>
+                                Pilih tanggal
+                            </span>
+                            <span class="ajb-date-icon" aria-hidden="true"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.2" width="12" height="11" rx="2.4"/><path d="M2 6.6h12M5.4 1.8v2.6M10.6 1.8v2.6"/><circle cx="5.6" cy="9.6" r=".85" fill="currentColor" stroke="none"/></svg></span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1426,6 +1809,7 @@
         closeAjbLokasiPanel();
         toggleAjbSektorModal(false);
 
+        ajbDatePicker.tutup();
         setAjbDefaultDate();
         resetAjbPrint();
 
@@ -1448,6 +1832,8 @@
 
         $('#ajbTglAwal').val(today);
         $('#ajbTglAkhir').val(today);
+
+        ajbDatePicker.segarkanLabel();
     }
 
     function setAjbPrintEnabled(enabled) {
@@ -2539,5 +2925,642 @@
             }
         }, 180);
     }
+
+    /* ==============================================
+       PEMILIH TANGGAL
+
+       Kalender bawaan peramban tampilannya berbeda-beda
+       dan tidak bisa ditata, jadi diganti panel sendiri.
+       Nilai tetap disimpan pada input tersembunyi dengan
+       id yang sama seperti sebelumnya, format Y-m-d, agar
+       seluruh kode filter dan cetak tidak perlu berubah.
+       ============================================== */
+
+    var ajbDatePicker = (function () {
+        var NAMA_BULAN = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+        var NAMA_BULAN_SINGKAT = [
+            'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+            'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+        ];
+        // Pekan dimulai hari Senin supaya Sabtu dan Minggu berdampingan.
+        var NAMA_HARI = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
+        var PASANGAN = {
+            ajbTglAwal: { lain: 'ajbTglAkhir', peran: 'awal' },
+            ajbTglAkhir: { lain: 'ajbTglAwal', peran: 'akhir' }
+        };
+
+        var panel = null;
+        var elemenJudul = null;
+        var elemenIsi = null;
+        var aktif = null;
+        var tampilan = 'hari';
+        var kursor = null;
+        var fokusBerikut = null;
+        var menungguGambar = false;
+        var sudahDipasang = false;
+
+        function pad(angka) {
+            return String(angka).padStart(2, '0');
+        }
+
+        function keIso(tanggal) {
+            return tanggal.getFullYear()
+                + '-' + pad(tanggal.getMonth() + 1)
+                + '-' + pad(tanggal.getDate());
+        }
+
+        function dariIso(teks) {
+            var cocok = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(teks || ''));
+
+            if (!cocok) {
+                return null;
+            }
+
+            var tanggal = new Date(
+                Number(cocok[1]),
+                Number(cocok[2]) - 1,
+                Number(cocok[3])
+            );
+
+            return isNaN(tanggal.getTime()) ? null : tanggal;
+        }
+
+        function label(tanggal) {
+            return tanggal.getDate()
+                + ' ' + NAMA_BULAN_SINGKAT[tanggal.getMonth()]
+                + ' ' + tanggal.getFullYear();
+        }
+
+        function nilai(id) {
+            var elemen = document.getElementById(id);
+            return elemen ? dariIso(elemen.value) : null;
+        }
+
+        function svg(isi) {
+            return '<svg viewBox="0 0 16 16" aria-hidden="true" '
+                + 'fill="none" stroke="currentColor" stroke-width="2" '
+                + 'stroke-linecap="round" stroke-linejoin="round">'
+                + isi + '</svg>';
+        }
+
+        /* ---------- label pada kolom filter ---------- */
+
+        function segarkanLabel() {
+            var daftar = document.querySelectorAll('[data-ajb-date]');
+
+            Array.prototype.forEach.call(daftar, function (akar) {
+                var input = document.getElementById(
+                    akar.getAttribute('data-ajb-date')
+                );
+                var teks = akar.querySelector('[data-ajb-date-text]');
+
+                if (!input || !teks) {
+                    return;
+                }
+
+                var tanggal = dariIso(input.value);
+                teks.textContent = tanggal ? label(tanggal) : 'Pilih tanggal';
+
+                if (tanggal) {
+                    teks.classList.remove('is-empty');
+                } else {
+                    teks.classList.add('is-empty');
+                }
+            });
+        }
+
+        /* ---------- panel ---------- */
+
+        function bangunPanel() {
+            if (panel) {
+                return;
+            }
+
+            panel = document.createElement('div');
+            panel.className = 'ajb-dp';
+            panel.setAttribute('role', 'dialog');
+            panel.setAttribute('aria-label', 'Pilih tanggal');
+            panel.hidden = true;
+            panel.innerHTML =
+                '<div class="ajb-dp-head">'
+                + '<button type="button" class="ajb-dp-nav" data-dp-langkah="-1"'
+                + ' aria-label="Sebelumnya">'
+                + svg('<path d="M10 3 5 8l5 5"/>') + '</button>'
+                + '<button type="button" class="ajb-dp-title" data-dp-perbesar>'
+                + '<span data-dp-judul></span>'
+                + svg('<path d="M4 6l4 4 4-4"/>') + '</button>'
+                + '<button type="button" class="ajb-dp-nav" data-dp-langkah="1"'
+                + ' aria-label="Berikutnya">'
+                + svg('<path d="M6 3l5 5-5 5"/>') + '</button>'
+                + '</div>'
+                + '<div class="ajb-dp-body" data-dp-isi></div>'
+                + '<div class="ajb-dp-foot">'
+                + '<button type="button" class="ajb-dp-quick" data-dp-cepat="hari-ini">Hari ini</button>'
+                + '<button type="button" class="ajb-dp-quick" data-dp-cepat="awal-bulan">Awal bulan</button>'
+                + '<button type="button" class="ajb-dp-quick" data-dp-cepat="akhir-bulan">Akhir bulan</button>'
+                + '</div>';
+
+            document.body.appendChild(panel);
+
+            elemenJudul = panel.querySelector('[data-dp-judul]');
+            elemenIsi = panel.querySelector('[data-dp-isi]');
+
+            panel.addEventListener('mousedown', function (peristiwa) {
+                // Menahan blur supaya panel tidak tertutup sebelum klik terbaca.
+                peristiwa.preventDefault();
+            });
+
+            panel.addEventListener('click', function (peristiwa) {
+                /*
+                 * Penyimak di document tidak boleh ikut menerima klik ini.
+                 * Menekan sel kalender menggambar ulang isi panel, sehingga
+                 * tombol yang diklik sudah lepas dari DOM saat peristiwanya
+                 * sampai ke document, dan pemeriksaan closest('.ajb-dp') di
+                 * sana akan salah menyimpulkan kliknya terjadi di luar panel
+                 * lalu menutupnya.
+                 */
+                peristiwa.stopPropagation();
+                tanganiKlik(peristiwa);
+            });
+
+            panel.addEventListener('keydown', tanganiTombol);
+        }
+
+        function tanganiKlik(peristiwa) {
+            var tombol = peristiwa.target.closest('button');
+
+            if (!tombol || !aktif) {
+                return;
+            }
+
+            if (tombol.hasAttribute('data-dp-langkah')) {
+                geser(Number(tombol.getAttribute('data-dp-langkah')));
+                return;
+            }
+
+            if (tombol.hasAttribute('data-dp-perbesar')) {
+                tampilan = tampilan === 'hari'
+                    ? 'bulan'
+                    : (tampilan === 'bulan' ? 'tahun' : 'hari');
+                gambar();
+                return;
+            }
+
+            if (tombol.hasAttribute('data-dp-cepat')) {
+                cepat(tombol.getAttribute('data-dp-cepat'));
+                return;
+            }
+
+            if (tombol.hasAttribute('data-dp-iso')) {
+                pilih(dariIso(tombol.getAttribute('data-dp-iso')));
+                return;
+            }
+
+            if (tombol.hasAttribute('data-dp-bulan')) {
+                kursor.setDate(1);
+                kursor.setMonth(Number(tombol.getAttribute('data-dp-bulan')));
+                tampilan = 'hari';
+                gambar();
+                return;
+            }
+
+            if (tombol.hasAttribute('data-dp-tahun')) {
+                kursor.setDate(1);
+                kursor.setFullYear(Number(tombol.getAttribute('data-dp-tahun')));
+                tampilan = 'bulan';
+                gambar();
+            }
+        }
+
+        function tanganiTombol(peristiwa) {
+            if (peristiwa.key === 'Escape') {
+                peristiwa.preventDefault();
+                var pemicu = aktif ? aktif.pemicu : null;
+                tutup();
+
+                if (pemicu) {
+                    pemicu.focus();
+                }
+
+                return;
+            }
+
+            if (tampilan !== 'hari' || !aktif) {
+                return;
+            }
+
+            var langkah = {
+                ArrowLeft: -1,
+                ArrowRight: 1,
+                ArrowUp: -7,
+                ArrowDown: 7
+            }[peristiwa.key];
+
+            if (langkah !== undefined) {
+                peristiwa.preventDefault();
+                kursor.setDate(kursor.getDate() + langkah);
+                fokusBerikut = keIso(kursor);
+                gambar();
+                return;
+            }
+
+            if (peristiwa.key === 'PageUp' || peristiwa.key === 'PageDown') {
+                peristiwa.preventDefault();
+                geser(peristiwa.key === 'PageUp' ? -1 : 1);
+                fokusBerikut = keIso(kursor);
+                gambar();
+                return;
+            }
+
+            if (peristiwa.key === 'Home' || peristiwa.key === 'End') {
+                peristiwa.preventDefault();
+
+                if (peristiwa.key === 'Home') {
+                    kursor.setDate(1);
+                } else {
+                    kursor.setMonth(kursor.getMonth() + 1, 0);
+                }
+
+                fokusBerikut = keIso(kursor);
+                gambar();
+            }
+        }
+
+        function geser(arah) {
+            if (tampilan === 'hari') {
+                kursor.setDate(1);
+                kursor.setMonth(kursor.getMonth() + arah);
+            } else if (tampilan === 'bulan') {
+                kursor.setFullYear(kursor.getFullYear() + arah);
+            } else {
+                kursor.setFullYear(kursor.getFullYear() + arah * 12);
+            }
+
+            gambar();
+        }
+
+        function cepat(jenis) {
+            if (jenis === 'hari-ini') {
+                var sekarang = new Date();
+                pilih(new Date(
+                    sekarang.getFullYear(),
+                    sekarang.getMonth(),
+                    sekarang.getDate()
+                ));
+                return;
+            }
+
+            if (jenis === 'awal-bulan') {
+                pilih(new Date(kursor.getFullYear(), kursor.getMonth(), 1));
+                return;
+            }
+
+            pilih(new Date(kursor.getFullYear(), kursor.getMonth() + 1, 0));
+        }
+
+        /* ---------- penggambaran ---------- */
+
+        function gambar() {
+            if (!aktif) {
+                return;
+            }
+
+            panel.setAttribute('data-view', tampilan);
+
+            if (tampilan === 'hari') {
+                gambarHari();
+            } else if (tampilan === 'bulan') {
+                gambarBulan();
+            } else {
+                gambarTahun();
+            }
+
+            if (fokusBerikut) {
+                var sasaran = elemenIsi.querySelector(
+                    '[data-dp-iso="' + fokusBerikut + '"]'
+                );
+                fokusBerikut = null;
+
+                if (sasaran) {
+                    sasaran.focus();
+                }
+            }
+
+            tempatkan();
+        }
+
+        function gambarHari() {
+            var tahun = kursor.getFullYear();
+            var bulan = kursor.getMonth();
+            elemenJudul.textContent = NAMA_BULAN[bulan] + ' ' + tahun;
+
+            var awal = new Date(tahun, bulan, 1);
+            // getDay() mulai dari Minggu, digeser supaya pekan mulai Senin.
+            var mundur = (awal.getDay() + 6) % 7;
+            var mulai = new Date(tahun, bulan, 1 - mundur);
+            var jumlahHari = new Date(tahun, bulan + 1, 0).getDate();
+            /*
+             * Jumlah baris dihitung secukupnya, bukan selalu enam, supaya
+             * tidak ada baris yang seluruhnya berisi tanggal bulan lain.
+             */
+            var jumlahSel = Math.ceil((mundur + jumlahHari) / 7) * 7;
+
+            var hariIni = new Date();
+            var hariIniIso = keIso(hariIni);
+            var terpilih = nilai(aktif.id);
+            var pasangan = nilai(aktif.pasangan);
+            var batasBawah = null;
+            var batasAtas = null;
+
+            if (terpilih && pasangan) {
+                batasBawah = terpilih < pasangan ? terpilih : pasangan;
+                batasAtas = terpilih < pasangan ? pasangan : terpilih;
+            }
+
+            var html = '<div class="ajb-dp-week">';
+
+            NAMA_HARI.forEach(function (nama, indeks) {
+                html += '<span'
+                    + (indeks >= 5 ? ' class="is-weekend"' : '')
+                    + '>' + nama + '</span>';
+            });
+
+            html += '</div><div class="ajb-dp-grid" data-dp-grid>';
+
+            for (var i = 0; i < jumlahSel; i += 1) {
+                var tanggal = new Date(
+                    mulai.getFullYear(),
+                    mulai.getMonth(),
+                    mulai.getDate() + i
+                );
+                var iso = keIso(tanggal);
+                var kelas = ['ajb-dp-cell'];
+
+                if (tanggal.getMonth() !== bulan) {
+                    kelas.push('is-muted');
+                }
+
+                if (i % 7 >= 5) {
+                    kelas.push('is-weekend');
+                }
+
+                if (iso === hariIniIso) {
+                    kelas.push('is-today');
+                }
+
+                if (terpilih && iso === keIso(terpilih)) {
+                    kelas.push('is-selected');
+                } else if (pasangan && iso === keIso(pasangan)) {
+                    kelas.push('is-partner');
+                } else if (
+                    batasBawah
+                    && tanggal > batasBawah
+                    && tanggal < batasAtas
+                ) {
+                    kelas.push('is-inrange');
+                }
+
+                html += '<button type="button" class="' + kelas.join(' ') + '"'
+                    + ' data-dp-iso="' + iso + '"'
+                    + ' tabindex="' + (iso === keIso(kursor) ? '0' : '-1') + '"'
+                    + '>' + tanggal.getDate() + '</button>';
+            }
+
+            elemenIsi.innerHTML = html + '</div>';
+        }
+
+        function gambarBulan() {
+            elemenJudul.textContent = kursor.getFullYear();
+
+            var terpilih = nilai(aktif.id);
+            var html = '<div class="ajb-dp-grid is-wide">';
+
+            NAMA_BULAN_SINGKAT.forEach(function (nama, indeks) {
+                var aktifBulan = terpilih
+                    && terpilih.getFullYear() === kursor.getFullYear()
+                    && terpilih.getMonth() === indeks;
+
+                html += '<button type="button" class="ajb-dp-cell'
+                    + (aktifBulan ? ' is-selected' : '') + '"'
+                    + ' data-dp-bulan="' + indeks + '">' + nama + '</button>';
+            });
+
+            elemenIsi.innerHTML = html + '</div>';
+        }
+
+        function gambarTahun() {
+            var awal = Math.floor(kursor.getFullYear() / 12) * 12;
+            elemenJudul.textContent = awal + ' – ' + (awal + 11);
+
+            var terpilih = nilai(aktif.id);
+            var html = '<div class="ajb-dp-grid is-wide">';
+
+            for (var i = 0; i < 12; i += 1) {
+                var tahun = awal + i;
+                var aktifTahun = terpilih && terpilih.getFullYear() === tahun;
+
+                html += '<button type="button" class="ajb-dp-cell'
+                    + (aktifTahun ? ' is-selected' : '') + '"'
+                    + ' data-dp-tahun="' + tahun + '">' + tahun + '</button>';
+            }
+
+            elemenIsi.innerHTML = html + '</div>';
+        }
+
+        /* ---------- penempatan ---------- */
+
+        function tempatkan() {
+            if (!aktif) {
+                return;
+            }
+
+            var kotak = aktif.pemicu.getBoundingClientRect();
+            var lebar = panel.offsetWidth;
+            var tinggi = panel.offsetHeight;
+            var kiri = Math.max(
+                8,
+                Math.min(kotak.left, window.innerWidth - lebar - 8)
+            );
+            var atas = kotak.bottom + 8;
+
+            if (atas + tinggi > window.innerHeight - 8) {
+                var alternatif = kotak.top - tinggi - 8;
+                atas = alternatif >= 8
+                    ? alternatif
+                    : Math.max(8, window.innerHeight - tinggi - 8);
+            }
+
+            panel.style.left = Math.round(kiri) + 'px';
+            panel.style.top = Math.round(atas) + 'px';
+        }
+
+        /* ---------- pemilihan ---------- */
+
+        function pilih(tanggal) {
+            if (!tanggal || !aktif) {
+                return;
+            }
+
+            var input = document.getElementById(aktif.id);
+
+            if (!input) {
+                return;
+            }
+
+            input.value = keIso(tanggal);
+
+            /*
+             * Rentang dijaga tetap masuk akal tanpa memunculkan peringatan:
+             * ujung yang lain ikut bergeser bila terlewati.
+             */
+            var lain = document.getElementById(aktif.pasangan);
+
+            if (lain && lain.value) {
+                if (aktif.peran === 'awal' && lain.value < input.value) {
+                    lain.value = input.value;
+                }
+
+                if (aktif.peran === 'akhir' && lain.value > input.value) {
+                    lain.value = input.value;
+                }
+            }
+
+            segarkanLabel();
+
+            if (window.jQuery) {
+                window.jQuery(input).trigger('change');
+            }
+
+            var pemicu = aktif.pemicu;
+            tutup();
+            pemicu.focus();
+        }
+
+        /* ---------- buka dan tutup ---------- */
+
+        function buka(akar) {
+            bangunPanel();
+
+            var id = akar.getAttribute('data-ajb-date');
+            var pasangan = PASANGAN[id] || {};
+
+            if (aktif && aktif.akar === akar) {
+                tutup();
+                return;
+            }
+
+            tutup();
+
+            aktif = {
+                akar: akar,
+                id: id,
+                pasangan: pasangan.lain || '',
+                peran: pasangan.peran || 'awal',
+                pemicu: akar.querySelector('[data-ajb-date-trigger]')
+            };
+
+            akar.classList.add('is-open');
+
+            if (aktif.pemicu) {
+                aktif.pemicu.setAttribute('aria-expanded', 'true');
+            }
+
+            var terpilih = nilai(id) || new Date();
+            kursor = new Date(
+                terpilih.getFullYear(),
+                terpilih.getMonth(),
+                terpilih.getDate()
+            );
+            tampilan = 'hari';
+            fokusBerikut = keIso(kursor);
+
+            panel.hidden = false;
+            gambar();
+        }
+
+        function tutup() {
+            if (!aktif) {
+                return;
+            }
+
+            aktif.akar.classList.remove('is-open');
+
+            if (aktif.pemicu) {
+                aktif.pemicu.setAttribute('aria-expanded', 'false');
+            }
+
+            aktif = null;
+
+            if (panel) {
+                panel.hidden = true;
+            }
+        }
+
+        function jadwalkanTempatkan() {
+            if (!aktif || menungguGambar) {
+                return;
+            }
+
+            menungguGambar = true;
+            window.requestAnimationFrame(function () {
+                menungguGambar = false;
+                tempatkan();
+            });
+        }
+
+        /* ---------- pemasangan ---------- */
+
+        function pasang() {
+            segarkanLabel();
+
+            // Penjaga supaya pemasangan ganda tidak membuat panel
+            // langsung tertutup lagi oleh penyimak kedua.
+            if (sudahDipasang) {
+                return;
+            }
+
+            sudahDipasang = true;
+
+            document.addEventListener('click', function (peristiwa) {
+                var sasaran = peristiwa.target;
+
+                if (!sasaran || typeof sasaran.closest !== 'function') {
+                    if (aktif) {
+                        tutup();
+                    }
+
+                    return;
+                }
+
+                var pemicu = sasaran.closest('[data-ajb-date-trigger]');
+
+                if (pemicu) {
+                    peristiwa.preventDefault();
+                    buka(pemicu.closest('[data-ajb-date]'));
+                    return;
+                }
+
+                if (aktif && !sasaran.closest('.ajb-dp')) {
+                    tutup();
+                }
+            });
+
+            window.addEventListener('resize', jadwalkanTempatkan);
+            window.addEventListener('scroll', jadwalkanTempatkan, true);
+        }
+
+        return {
+            pasang: pasang,
+            segarkanLabel: segarkanLabel,
+            tutup: tutup
+        };
+    })();
+
+
+    ajbDatePicker.pasang();
 </script>
 @endsection
