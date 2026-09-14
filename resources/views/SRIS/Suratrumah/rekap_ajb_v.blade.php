@@ -2690,7 +2690,89 @@
                 height: 10px;
                 border-bottom: 1px dotted #444;
             }
-        `;
+        
+            /* =========================================================
+               GAYA CETAK SERAGAM
+
+               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
+               warna latar, dan kerenggangan baris. Susunan kolom, isi,
+               maupun urutan laporan tiap fitur tidak disentuh.
+
+               Jarak mendatar sengaja tidak diubah, karena jarak itulah
+               yang menentukan lebar kolom. Mengubahnya berisiko membuat
+               lebar kolom dihitung ulang per halaman, sehingga halaman
+               kedua dan seterusnya tidak lagi sejajar dengan halaman
+               pertama.
+               ========================================================= */
+
+            /*
+             * Peramban bawaannya tidak ikut mencetak warna latar, karena
+             * pilihan Background graphics pada kotak dialog print dalam
+             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
+             * bawah tidak akan terlihat sama sekali di kertas.
+             */
+            html,
+            body,
+            .rajb-report-table,
+            .rajb-report-table th,
+            .rajb-report-table td {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .rajb-report-table {
+                border-collapse: collapse !important;
+                border: 1px solid #9a9a9a !important;
+            }
+
+            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
+            .rajb-report-table th,
+            .rajb-report-table td {
+                border: 1px solid #d5d5d5 !important;
+                line-height: 1.3 !important;
+            }
+
+            .rajb-report-table thead th {
+                padding-top: 5px !important;
+                padding-bottom: 5px !important;
+                border-color: #9a9a9a !important;
+                background: #f1f3f5 !important;
+            }
+
+            .rajb-report-table tbody td {
+                padding-top: 4px !important;
+                padding-bottom: 4px !important;
+            }
+
+            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
+            .rajb-report-table tbody tr:nth-child(even) > td {
+                background: #fbfcfe !important;
+            }
+
+            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
+            .rajb-report-table tbody tr[class*="sector-row"] > td,
+            .rajb-report-table tbody tr[class*="sektor-row"] > td,
+            .rajb-report-table tbody tr[class*="cluster-row"] > td,
+            .rajb-report-table tbody tr[class*="group-heading"] > td,
+            .rajb-report-table tbody tr[class*="head-row"] > td {
+                background: #f1f3f5 !important;
+            }
+
+            /*
+             * Baris total keseluruhan. Ditulis lebih dulu karena kata
+             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
+             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
+             */
+            .rajb-report-table tbody tr[class*="total-row"] > td,
+            .rajb-report-table tbody tr[class*="grand-total"] > td {
+                background: #eff6ff !important;
+            }
+
+            /* Baris subtotal per kelompok. */
+            .rajb-report-table tbody tr[class*="subtotal"] > td {
+                background: #f8fafc !important;
+            }
+`;
 
         frameDocument.open();
         frameDocument.write(
