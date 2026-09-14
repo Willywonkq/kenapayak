@@ -2384,22 +2384,49 @@
     var summaryRequestSerial = 0;
 
     $(document).ready(function () {
-        setDefaultDate();
-        resetLookupDefaults();
+        resetFilterDefaults();
         resetReportDisplay();
         bindSummaryInvalidation();
     });
 
     /*
-     * Firefox dapat memulihkan value form/hidden input ketika reload atau
-     * kembali dari bfcache. Karena label sektor berupa <div>, nilai hidden
-     * dapat tetap VLA sementara layar sudah menulis "Semua Sektor".
-     * pageshow dipakai agar state lookup dan laporan selalu sinkron.
+     * Peramban memulihkan isi form ketika halaman di-refresh atau dibuka
+     * kembali dari bfcache. Yang dipulihkan bukan hanya kotak teks, tetapi
+     * juga pilihan, tombol pilih, dan kotak centang. Karena laporannya
+     * sendiri selalu dikosongkan saat halaman dibuka, penyaring yang masih
+     * membawa pilihan lama justru menyesatkan: layar menyatakan Per Tgl
+     * Bayar dan Tanda Jadi Aktif masih menyala padahal laporannya kosong.
+     *
+     * pageshow dipakai karena peristiwa ini juga terjadi ketika halaman
+     * diambil dari bfcache, saat ready tidak dijalankan lagi.
      */
     window.addEventListener('pageshow', function () {
-        resetLookupDefaults();
+        resetFilterDefaults();
         resetReportDisplay();
     });
+
+    /*
+     * Mengembalikan SELURUH penyaring ke keadaan awal, sama seperti saat
+     * fitur ini baru dibuka. Nilai awalnya diambil dari markup: Filter
+     * Tanggal pada Tgl. Entry SP, BGB pada Semua, ketiga tanggal pada hari
+     * ini, seluruh pilihan pada Semua, dan kedua kotak centang mati.
+     */
+    function resetFilterDefaults() {
+        setDefaultDate();
+
+        $('input[name="flag_tgl"][value="1"]').prop('checked', true);
+        $('input[name="bgb"][value="*"]').prop('checked', true);
+
+        $('#per_tgl_bayar').prop('checked', false);
+        $('#tanda_jadi_aktif').prop('checked', false);
+
+        $('#lokasi').val('*');
+        $('#status').val('*');
+        $('#jenis').val('*');
+        $('#tipe_bayar').val('*');
+
+        resetLookupDefaults();
+    }
 
     function resetLookupDefaults() {
         $('#sektor').val('*');
