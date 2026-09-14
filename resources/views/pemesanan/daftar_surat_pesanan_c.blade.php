@@ -3230,9 +3230,15 @@
 
         addColumn('No.', function (item, index, nomorUnit) {
             /*
-             * Desktop hanya memberi nomor pada baris pertama tiap surat pesanan
-             * dan mengulang penomoran di setiap tanggal. Baris pembayaran
-             * berikutnya untuk surat pesanan yang sama dibiarkan kosong.
+             * Nomor hanya diberikan pada baris pertama tiap surat pesanan;
+             * baris pembayaran berikutnya untuk surat pesanan yang sama
+             * dibiarkan kosong.
+             *
+             * Berbeda dengan desktop, penomoran di sini berjalan terus sampai
+             * baris terakhir dan tidak diulang dari 1 setiap ganti tanggal.
+             * Dengan begitu nomor terakhir langsung menunjukkan jumlah unit
+             * pada laporan, sedangkan hitungan per tanggal tetap terbaca pada
+             * baris JUMLAH / TGL.
              */
             if (nomorUnit === null || nomorUnit === undefined) {
                 return '';
@@ -3247,23 +3253,23 @@
 
         addColumn('Nomor<br>Surat Pesanan', function (item) {
             return escapeHtml(valueOrEmpty(item.NO_UANG_MUKA));
-        });
+        }, 'center');
 
         addColumn('Blok/<br>Nomor', function (item) {
             return escapeHtml(valueOrEmpty(item.BLOK_NOMOR));
-        });
+        }, 'center');
 
         addColumn('Tipe', function (item) {
             return escapeHtml(valueOrEmpty(item.TIPE_BGN));
-        });
+        }, 'center');
 
         addColumn('Model', function (item) {
             return escapeHtml(valueOrEmpty(item.MODEL));
-        });
+        }, 'center');
 
         addColumn('Spesifikasi', function (item) {
             return escapeHtml(valueOrEmpty(item.SPESIFIKASI));
-        });
+        }, 'center');
 
         addColumn('Luas<br>Tanah', function (item) {
             return formatNumber(item.LUAS_TANAH);
@@ -3307,7 +3313,7 @@
             if (!modePerTglBayar || modeGabungan) {
                 addColumn('Nomor<br>PPJB', function (item) {
                     return escapeHtml(valueOrEmpty(item.NO_PPJB));
-                });
+                }, 'center');
             }
 
             addColumn('Tanggal<br>PPJB', function (item) {
@@ -3354,7 +3360,7 @@
 
             addColumn('No. Bukti<br>Tahap I', function (item) {
                 return escapeHtml(getNoBuktiTahap1(item));
-            });
+            }, 'center');
 
             addColumn('Tgl. Bukti<br>Tahap I', function (item) {
                 return formatDateIndo(getTglBuktiTahap1(item));
@@ -3435,8 +3441,9 @@
             var akumulatorGrup = createSummaryAccumulator(columns);
             var tanggalGrup = null;
             var unitGrupTerlihat = {};
-            var nomorUnitGrup = 0;
             var barisGrup = 0;
+            // Penomoran berlaku untuk seluruh laporan, bukan per tanggal.
+            var nomorUnit = 0;
 
             $.each(data, function (index, item) {
                 var tanggal = dateGroupKey(item);
@@ -3451,7 +3458,6 @@
 
                     akumulatorGrup = createSummaryAccumulator(columns);
                     unitGrupTerlihat = {};
-                    nomorUnitGrup = 0;
                     barisGrup = 0;
                 }
 
@@ -3462,7 +3468,7 @@
 
                 if (unitBaru) {
                     unitGrupTerlihat[kunciUnit] = true;
-                    nomorUnitGrup += 1;
+                    nomorUnit += 1;
                 }
 
                 accumulateSummary(akumulatorGrup, columns, item, kunciUnit);
@@ -3481,7 +3487,7 @@
                     }
 
                     html += '<td' + style + '>';
-                    html += column.render(item, index, unitBaru ? nomorUnitGrup : null);
+                    html += column.render(item, index, unitBaru ? nomorUnit : null);
                     html += '</td>';
                 });
 
