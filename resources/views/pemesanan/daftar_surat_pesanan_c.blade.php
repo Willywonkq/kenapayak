@@ -3922,22 +3922,15 @@
                 display: none !important;
             }
 
-            /*
-             * GRID 1 — HEADER
-             *
-             * Desktop tidak mengurung kepala laporan dalam kotak, hanya
-             * memberi satu garis mendatar sebagai pemisah. Kotak membuat
-             * hasil cetak terasa kaku, jadi di sini ikut dihilangkan.
-             */
+            /* GRID 1 — HEADER */
             .report-header {
                 display: grid !important;
                 grid-template-columns: 1fr 1.45fr 1fr !important;
                 gap: 10px !important;
                 align-items: center !important;
-                margin: 0 0 4px !important;
-                padding: 0 2px 6px !important;
-                border: 0 !important;
-                border-bottom: 1px solid #000 !important;
+                margin: 0 0 6px !important;
+                padding: 9px 11px !important;
+                border: 1px solid #c8c8c8 !important;
                 border-radius: 0 !important;
                 background: #fff !important;
                 color: #000 !important;
@@ -3977,9 +3970,9 @@
                 min-height: 0 !important;
                 align-items: center !important;
                 gap: 8px !important;
-                margin: 0 0 3px !important;
-                padding: 3px 2px !important;
-                border: 0 !important;
+                margin: 0 0 6px !important;
+                padding: 6px 9px !important;
+                border: 1px solid #dcdcdc !important;
                 border-radius: 0 !important;
                 background: #fff !important;
                 color: #000 !important;
@@ -4054,21 +4047,10 @@
                 table-layout: auto !important;
                 border-collapse: collapse !important;
                 border-spacing: 0 !important;
-                border: 0 !important;
+                border: 1px solid #9a9a9a !important;
                 background: #fff !important;
                 color: #000 !important;
                 font-size: 10px !important;
-            }
-
-            /*
-             * Lebar kolom pada colgroup dihitung untuk tampilan layar.
-             * Kalau dipakai lagi di kertas, kolom sempit tetap sempit dan
-             * tulisannya terpenggal. Dilepas saja, biarkan table-layout
-             * auto membagi lebar menurut isi masing-masing kolom seperti
-             * hasil cetak desktop.
-             */
-            .report-table col {
-                width: auto !important;
             }
 
             .report-table thead {
@@ -4084,21 +4066,20 @@
                 page-break-inside: avoid !important;
             }
 
-            /*
-             * Inilah sumber utama kesan kaku: sebelumnya setiap sel diberi
-             * garis di keempat sisinya, sehingga hasil cetak menjadi kisi
-             * penuh. Desktop hanya menggarisi baris judul kolom; baris
-             * datanya bersih tanpa garis sama sekali, dan kolomnya dipisah
-             * oleh jarak, bukan oleh garis.
-             */
             .report-table th,
             .report-table td {
                 position: static !important;
                 min-width: 0 !important;
                 max-width: none !important;
                 height: auto !important;
-                padding: 2px 3px !important;
-                border: 0 !important;
+                padding: 4px 2px !important;
+                /*
+                 * Garis kisi dibuat abu-abu tipis, bukan hitam pekat.
+                 * Strukturnya tetap sama, hanya tidak lagi terasa mengurung
+                 * setiap angka sehingga isinya lebih menonjol daripada
+                 * garisnya.
+                 */
+                border: 1px solid #d5d5d5 !important;
                 background: #fff !important;
                 color: #000 !important;
                 box-shadow: none !important;
@@ -4109,67 +4090,44 @@
                 vertical-align: middle !important;
                 font-family: "Segoe UI", Tahoma, Arial, sans-serif !important;
                 font-size: 10px !important;
-                line-height: 1.15 !important;
+                line-height: 1.3 !important;
             }
 
+            /*
+             * Baris judul kolom diberi latar abu-abu sangat muda dan garis
+             * yang sedikit lebih tegas daripada garis isi, supaya kepala
+             * tabel terbaca sebagai satu kesatuan tanpa perlu garis tebal.
+             */
             .report-table thead th {
-                padding: 3px 3px !important;
-                border: 1px solid #000 !important;
+                padding: 5px 2px !important;
+                border-color: #9a9a9a !important;
+                background: #f1f3f5 !important;
                 text-align: center !important;
                 font-weight: 700 !important;
             }
 
-            /*
-             * Baris data dibiarkan tanpa garis. Jarak antar barisnya sedikit
-             * dilonggarkan supaya tetap enak dibaca walau tidak ada kisi.
-             *
-             * Pemenggalan kata hanya dipakai sebagai jalan terakhir, yaitu
-             * ketika satu kata memang lebih lebar daripada kolomnya. Dulu
-             * tulisan seperti JASMIA 10 terbelah menjadi JASMI dan A 10
-             * karena lebar kolomnya dipaksa mengikuti layar; setelah lebar
-             * itu dilepas, kolomnya cukup dan pemenggalan tidak terjadi.
-             */
-            .report-table tbody td {
-                padding: 3px 3px !important;
-                word-break: keep-all !important;
-                overflow-wrap: normal !important;
-                hyphens: none !important;
+            .report-table thead th:last-child {
+                border-right-color: #9a9a9a !important;
             }
 
             /*
-             * Penanda LIVE DATA hanya berguna di layar, untuk menegaskan
-             * angkanya diambil langsung dari basis data. Pada kertas
-             * penanda itu tidak ada artinya dan tidak ada di desktop.
+             * Selang-seling baris yang sangat muda. Pada tabel selebar ini
+             * mata jadi tidak mudah lompat baris ketika menelusuri ke kanan.
              */
-            .report-live-badge {
-                display: none !important;
-            }
-
-            .report-table tbody tr:nth-child(even) td,
-            .report-table tbody tr:hover td {
-                background: #fff !important;
+            .report-table tbody tr:nth-child(even) td {
+                background: #fafbfc !important;
             }
 
             .report-table tbody tr.report-subtotal-row td,
             .report-table tbody tr.report-total-row td {
-                background: #fff !important;
+                background: #f1f3f5 !important;
                 color: #000 !important;
                 font-weight: 700 !important;
+                white-space: nowrap !important;
             }
 
-            /*
-             * Hanya label dan angka pada baris ringkasan yang dilarang
-             * turun baris. Sebelumnya larangan itu dikenakan ke seluruh sel
-             * baris ringkasan, termasuk sel kosong, sehingga lebar minimum
-             * tabel ikut membengkak dan tabelnya melebihi lebar kertas.
-             */
-            .report-table tbody tr.report-subtotal-row td.summary-label,
-            .report-table tbody tr.report-subtotal-row td.summary-unit,
-            .report-table tbody tr.report-subtotal-row td.total-value,
-            .report-table tbody tr.report-total-row td.summary-label,
-            .report-table tbody tr.report-total-row td.summary-unit,
-            .report-table tbody tr.report-total-row td.total-value {
-                white-space: nowrap !important;
+            .report-table tbody tr.report-total-row td {
+                background: #e7ebef !important;
             }
 
             /*
@@ -4184,14 +4142,14 @@
             }
 
             .report-table tbody tr.report-subtotal-row td {
-                padding: 1px 4px !important;
+                padding: 3px 2px !important;
             }
 
             .report-table tbody tr.report-subtotal-row td.total-value,
             .report-table tbody tr.report-subtotal-row td.summary-unit,
             .report-table tbody tr.report-total-row td.total-value,
             .report-table tbody tr.report-total-row td.summary-unit {
-                border-top: 1px solid #000 !important;
+                border-top: 1px solid #9a9a9a !important;
             }
 
             .report-table tbody tr.report-subtotal-row td.summary-unit,
