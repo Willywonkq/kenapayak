@@ -1031,9 +1031,11 @@
     }
 
     var lastPbbRows = null;
-$(document).ready(function () {
-        setPbbDefaultDate();
-        resetPbbPrint();
+var pbbTampilanAwal = null;
+
+    $(document).ready(function () {
+        pbbTampilanAwal = $('#pbbMainDisplay').html();
+        resetPbbFilter();
         $('#pbbBlokAwal, #pbbBlokAkhir').on(
             'input',
             function () {
@@ -1057,12 +1059,77 @@ $(document).ready(function () {
             resetPbbPrint();
         });
     });
-    $(window).on('pageshow', function (event) {
-        var pageEvent = event.originalEvent || event;
-        if (pageEvent.persisted) {
-            resetPbbPrint();
-        }
+    /*
+     * Sebelumnya penyetelan ulang hanya dijalankan ketika halaman diambil
+     * dari bfcache, sehingga pada refresh biasa kedua kotak centang, blok,
+     * tahun, dan sektor tetap membawa pilihan lama. Sekarang seluruh
+     * penyaring dikembalikan pada setiap pageshow, apa pun sebabnya.
+     */
+    $(window).on('pageshow', function () {
+        resetPbbFilter();
     });
+
+    /*
+     * Mengembalikan setiap kontrol penyaring ke nilai bawaannya.
+     *
+     * Nilai bawaan dibaca dari defaultValue, defaultChecked, dan
+     * defaultSelected, yaitu nilai yang tertulis pada markup. Ketiganya
+     * tidak ikut berubah ketika peramban memulihkan isi form setelah
+     * halaman di-refresh, jadi selalu tepat dipakai sebagai acuan.
+     */
+    function resetPbbKontrol(wadah) {
+        var daftar = document.querySelectorAll(wadah + ' input, ' + wadah + ' select');
+
+        Array.prototype.forEach.call(daftar, function (kontrol) {
+            /*
+             * Input tersembunyi sengaja dilewati. Pada jenis ini menulis
+             * .value ikut mengubah atribut value, sehingga defaultValue
+             * tidak lagi menyimpan nilai awal dan tidak bisa dipakai
+             * sebagai acuan. Nilainya dikembalikan secara tersurat pada
+             * pemanggil, atau dibiarkan apa adanya bila memang berasal
+             * dari sesi dan selalu sama di setiap pemuatan halaman.
+             */
+            if (kontrol.type === 'hidden') {
+                return;
+            }
+
+            if (kontrol.type === 'checkbox' || kontrol.type === 'radio') {
+                kontrol.checked = kontrol.defaultChecked;
+                return;
+            }
+
+            if (kontrol.tagName === 'SELECT') {
+                var terpilih = -1;
+
+                for (var i = 0; i < kontrol.options.length; i++) {
+                    if (kontrol.options[i].defaultSelected) {
+                        terpilih = i;
+                        break;
+                    }
+                }
+
+                kontrol.selectedIndex = terpilih === -1 ? 0 : terpilih;
+                return;
+            }
+
+            kontrol.value = kontrol.defaultValue;
+        });
+    }
+
+    function resetPbbFilter() {
+        resetPbbKontrol('.pbb-filter');
+        setPbbDefaultDate();
+        resetPbbPrint();
+
+        $('#pbbSektor').val('*');
+
+        $('#pbbSektorEntry').text('Semua Sektor');
+
+        if (pbbTampilanAwal !== null) {
+            $('#pbbMainDisplay').html(pbbTampilanAwal);
+        }
+    }
+
     function setPbbDefaultDate() {
         var now = new Date();
         var year = now.getFullYear();

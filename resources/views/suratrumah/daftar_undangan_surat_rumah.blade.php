@@ -1024,10 +1024,11 @@
     var activeUndanganDataRequest = null;
     var undanganRequestSequence = 0;
 
+    var undanganTampilanAwal = null;
+
     $(document).ready(function () {
-        setDefaultDate();
-        normalizeUndanganClusterState(false);
-        setUndanganPrintEnabled(false);
+        undanganTampilanAwal = $('#mainDisplay').html();
+        resetUndanganFilter();
 
         $('#blok_awal, #blok_akhir').on('input', function () {
             $(this).val(
@@ -1050,22 +1051,79 @@
         );
     });
 
-    $(window).on('pageshow', function (event) {
-        window.setTimeout(function () {
-            if (isUndanganReloadOrHistoryRestore(event)) {
-                $('#cluster').val('*');
-                $('#clusterEntry').text('Semua Sektor');
-
-                lastUndanganRows = null;
-                lastLoadedUndanganFilter = null;
-                setUndanganPrintEnabled(false);
-                hideUndanganNoDataAlert();
-            } else {
-                normalizeUndanganClusterState(false);
-                syncUndanganPrintState();
-            }
-        }, 0);
+    /*
+     * Sebelumnya hanya sektor dan tombol print yang dikembalikan, dan itu
+     * pun hanya pada refresh atau kembali dari riwayat. Blok, Jenis Report,
+     * kotak centang Belum Diundang, serta periode tetap membawa pilihan
+     * lama. Sekarang seluruh penyaring dikembalikan pada setiap pageshow.
+     */
+    $(window).on('pageshow', function () {
+        window.setTimeout(resetUndanganFilter, 0);
     });
+
+    /*
+     * Mengembalikan setiap kontrol penyaring ke nilai bawaannya.
+     *
+     * Nilai bawaan dibaca dari defaultValue, defaultChecked, dan
+     * defaultSelected, yaitu nilai yang tertulis pada markup. Ketiganya
+     * tidak ikut berubah ketika peramban memulihkan isi form setelah
+     * halaman di-refresh, jadi selalu tepat dipakai sebagai acuan.
+     */
+    function resetUndanganKontrol(wadah) {
+        var daftar = document.querySelectorAll(wadah + ' input, ' + wadah + ' select');
+
+        Array.prototype.forEach.call(daftar, function (kontrol) {
+            /*
+             * Input tersembunyi sengaja dilewati. Pada jenis ini menulis
+             * .value ikut mengubah atribut value, sehingga defaultValue
+             * tidak lagi menyimpan nilai awal dan tidak bisa dipakai
+             * sebagai acuan. Nilainya dikembalikan secara tersurat pada
+             * pemanggil, atau dibiarkan apa adanya bila memang berasal
+             * dari sesi dan selalu sama di setiap pemuatan halaman.
+             */
+            if (kontrol.type === 'hidden') {
+                return;
+            }
+
+            if (kontrol.type === 'checkbox' || kontrol.type === 'radio') {
+                kontrol.checked = kontrol.defaultChecked;
+                return;
+            }
+
+            if (kontrol.tagName === 'SELECT') {
+                var terpilih = -1;
+
+                for (var i = 0; i < kontrol.options.length; i++) {
+                    if (kontrol.options[i].defaultSelected) {
+                        terpilih = i;
+                        break;
+                    }
+                }
+
+                kontrol.selectedIndex = terpilih === -1 ? 0 : terpilih;
+                return;
+            }
+
+            kontrol.value = kontrol.defaultValue;
+        });
+    }
+
+    function resetUndanganFilter() {
+        resetUndanganKontrol('.undangan-filter');
+        setDefaultDate();
+
+        $('#cluster').val('*');
+        normalizeUndanganClusterState(true);
+
+        lastUndanganRows = null;
+        lastLoadedUndanganFilter = null;
+        setUndanganPrintEnabled(false);
+        hideUndanganNoDataAlert();
+
+        if (undanganTampilanAwal !== null) {
+            $('#mainDisplay').html(undanganTampilanAwal);
+        }
+    }
 
     function isUndanganReloadOrHistoryRestore(event) {
         var pageEvent = event && (event.originalEvent || event);
