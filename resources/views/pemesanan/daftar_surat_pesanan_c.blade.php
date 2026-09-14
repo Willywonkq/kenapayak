@@ -3230,15 +3230,10 @@
 
         addColumn('No.', function (item, index, nomorUnit) {
             /*
-             * Nomor hanya diberikan pada baris pertama tiap surat pesanan;
-             * baris pembayaran berikutnya untuk surat pesanan yang sama
-             * dibiarkan kosong.
-             *
-             * Berbeda dengan desktop, penomoran di sini berjalan terus sampai
-             * baris terakhir dan tidak diulang dari 1 setiap ganti tanggal.
-             * Dengan begitu nomor terakhir langsung menunjukkan jumlah unit
-             * pada laporan, sedangkan hitungan per tanggal tetap terbaca pada
-             * baris JUMLAH / TGL.
+             * Sama seperti desktop: penomoran diulang dari 1 di setiap
+             * tanggal, dan hanya baris pertama tiap surat pesanan yang
+             * diberi nomor. Baris pembayaran berikutnya untuk surat pesanan
+             * yang sama dibiarkan kosong.
              */
             if (nomorUnit === null || nomorUnit === undefined) {
                 return '';
@@ -3441,8 +3436,6 @@
             var akumulatorGrup = createSummaryAccumulator(columns);
             var tanggalGrup = null;
             var unitGrupTerlihat = {};
-            var barisGrup = 0;
-            // Penomoran berlaku untuk seluruh laporan, bukan per tanggal.
             var nomorUnit = 0;
 
             $.each(data, function (index, item) {
@@ -3452,13 +3445,12 @@
                     html += renderDateSubtotalRow(
                         columns,
                         tanggalGrup,
-                        akumulatorGrup,
-                        barisGrup
+                        akumulatorGrup
                     );
 
                     akumulatorGrup = createSummaryAccumulator(columns);
                     unitGrupTerlihat = {};
-                    barisGrup = 0;
+                    nomorUnit = 0;
                 }
 
                 tanggalGrup = tanggal;
@@ -3473,7 +3465,6 @@
 
                 accumulateSummary(akumulatorGrup, columns, item, kunciUnit);
                 accumulateSummary(akumulatorTotal, columns, item, kunciUnit);
-                barisGrup += 1;
 
                 html += '<tr>';
 
@@ -3498,8 +3489,7 @@
                 html += renderDateSubtotalRow(
                     columns,
                     tanggalGrup,
-                    akumulatorGrup,
-                    barisGrup
+                    akumulatorGrup
                 );
             }
 
@@ -3614,18 +3604,11 @@
     }
 
     /*
-     * Subtotal per tanggal dilewati ketika tanggal itu hanya berisi satu
-     * baris untuk satu unit, karena angkanya akan sama persis dengan baris
-     * tepat di atasnya sehingga hanya menambah baris tanpa menambah
-     * informasi. Tanggal dengan lebih dari satu unit, atau satu unit yang
-     * memiliki beberapa baris pembayaran, tetap diberi subtotal karena di
-     * situ penjumlahannya benar-benar berarti.
+     * Subtotal ditampilkan di setiap tanggal tanpa kecuali, termasuk tanggal
+     * yang hanya berisi satu unit, supaya jumlah baris JUMLAH / TGL. pada
+     * hasil cetak sama persis dengan desktop dan mudah dicocokkan.
      */
-    function renderDateSubtotalRow(columns, tanggal, akumulator, jumlahBaris) {
-        if (akumulator.unit <= 1 && jumlahBaris <= 1) {
-            return '';
-        }
-
+    function renderDateSubtotalRow(columns, tanggal, akumulator) {
         return renderSummaryRow(
             columns,
             'report-subtotal-row',
@@ -3710,7 +3693,8 @@
 
         var html = '<tr class="' + kelas + '">';
 
-        html += '<td colspan="' + indeksBlok + '" style="text-align:right;">';
+        html += '<td class="summary-label" colspan="' + indeksBlok + '"'
+            + ' style="text-align:right;">';
         html += escapeHtml(label) + '</td>';
 
         html += '<td class="summary-unit">' + akumulator.unit + ' Unit</td>';
@@ -3796,7 +3780,6 @@
             var penanda = 'print-table-' + i;
 
             tabel[i].setAttribute('data-print-table', penanda);
-            aturan += printTableColumnCss(tabel[i], penanda);
             aturan += printTableNowrapCss(tabel[i], penanda, polaAngka);
         }
 
@@ -3809,32 +3792,6 @@
         gaya.setAttribute('data-print-table-rules', 'true');
         gaya.appendChild(doc.createTextNode(aturan));
         (doc.head || doc.documentElement).appendChild(gaya);
-    }
-
-    function printTableColumnCss(tabel, penanda) {
-        var kolom = tabel.querySelectorAll('colgroup > col');
-        var lebar = [];
-        var total = 0;
-
-        for (var i = 0; i < kolom.length; i++) {
-            var nilai = parseFloat(kolom[i].style.width) || 0;
-
-            lebar.push(nilai);
-            total += nilai;
-        }
-
-        if (total <= 0) {
-            return '';
-        }
-
-        var css = '';
-
-        for (var k = 0; k < lebar.length; k++) {
-            css += '[data-print-table="' + penanda + '"] col:nth-child(' + (k + 1) + ')'
-                + '{width:' + ((lebar[k] / total) * 100).toFixed(3) + '% !important}';
-        }
-
-        return css;
     }
 
     /*
@@ -3965,15 +3922,22 @@
                 display: none !important;
             }
 
-            /* GRID 1 — HEADER */
+            /*
+             * GRID 1 — HEADER
+             *
+             * Desktop tidak mengurung kepala laporan dalam kotak, hanya
+             * memberi satu garis mendatar sebagai pemisah. Kotak membuat
+             * hasil cetak terasa kaku, jadi di sini ikut dihilangkan.
+             */
             .report-header {
                 display: grid !important;
                 grid-template-columns: 1fr 1.45fr 1fr !important;
                 gap: 10px !important;
                 align-items: center !important;
-                margin: 0 0 6px !important;
-                padding: 8px 10px !important;
-                border: 1px solid #777 !important;
+                margin: 0 0 4px !important;
+                padding: 0 2px 6px !important;
+                border: 0 !important;
+                border-bottom: 1px solid #000 !important;
                 border-radius: 0 !important;
                 background: #fff !important;
                 color: #000 !important;
@@ -4013,9 +3977,9 @@
                 min-height: 0 !important;
                 align-items: center !important;
                 gap: 8px !important;
-                margin: 0 0 6px !important;
-                padding: 5px 8px !important;
-                border: 1px solid #aaa !important;
+                margin: 0 0 3px !important;
+                padding: 3px 2px !important;
+                border: 0 !important;
                 border-radius: 0 !important;
                 background: #fff !important;
                 color: #000 !important;
@@ -4090,10 +4054,21 @@
                 table-layout: auto !important;
                 border-collapse: collapse !important;
                 border-spacing: 0 !important;
-                border: 1px solid #000 !important;
+                border: 0 !important;
                 background: #fff !important;
                 color: #000 !important;
                 font-size: 10px !important;
+            }
+
+            /*
+             * Lebar kolom pada colgroup dihitung untuk tampilan layar.
+             * Kalau dipakai lagi di kertas, kolom sempit tetap sempit dan
+             * tulisannya terpenggal. Dilepas saja, biarkan table-layout
+             * auto membagi lebar menurut isi masing-masing kolom seperti
+             * hasil cetak desktop.
+             */
+            .report-table col {
+                width: auto !important;
             }
 
             .report-table thead {
@@ -4109,14 +4084,21 @@
                 page-break-inside: avoid !important;
             }
 
+            /*
+             * Inilah sumber utama kesan kaku: sebelumnya setiap sel diberi
+             * garis di keempat sisinya, sehingga hasil cetak menjadi kisi
+             * penuh. Desktop hanya menggarisi baris judul kolom; baris
+             * datanya bersih tanpa garis sama sekali, dan kolomnya dipisah
+             * oleh jarak, bukan oleh garis.
+             */
             .report-table th,
             .report-table td {
                 position: static !important;
                 min-width: 0 !important;
                 max-width: none !important;
                 height: auto !important;
-                padding: 2px !important;
-                border: 1px solid #000 !important;
+                padding: 2px 3px !important;
+                border: 0 !important;
                 background: #fff !important;
                 color: #000 !important;
                 box-shadow: none !important;
@@ -4130,9 +4112,37 @@
                 line-height: 1.15 !important;
             }
 
-            .report-table th {
+            .report-table thead th {
+                padding: 3px 3px !important;
+                border: 1px solid #000 !important;
                 text-align: center !important;
                 font-weight: 700 !important;
+            }
+
+            /*
+             * Baris data dibiarkan tanpa garis. Jarak antar barisnya sedikit
+             * dilonggarkan supaya tetap enak dibaca walau tidak ada kisi.
+             *
+             * Pemenggalan kata hanya dipakai sebagai jalan terakhir, yaitu
+             * ketika satu kata memang lebih lebar daripada kolomnya. Dulu
+             * tulisan seperti JASMIA 10 terbelah menjadi JASMI dan A 10
+             * karena lebar kolomnya dipaksa mengikuti layar; setelah lebar
+             * itu dilepas, kolomnya cukup dan pemenggalan tidak terjadi.
+             */
+            .report-table tbody td {
+                padding: 3px 3px !important;
+                word-break: keep-all !important;
+                overflow-wrap: normal !important;
+                hyphens: none !important;
+            }
+
+            /*
+             * Penanda LIVE DATA hanya berguna di layar, untuk menegaskan
+             * angkanya diambil langsung dari basis data. Pada kertas
+             * penanda itu tidak ada artinya dan tidak ada di desktop.
+             */
+            .report-live-badge {
+                display: none !important;
             }
 
             .report-table tbody tr:nth-child(even) td,
@@ -4145,6 +4155,20 @@
                 background: #fff !important;
                 color: #000 !important;
                 font-weight: 700 !important;
+            }
+
+            /*
+             * Hanya label dan angka pada baris ringkasan yang dilarang
+             * turun baris. Sebelumnya larangan itu dikenakan ke seluruh sel
+             * baris ringkasan, termasuk sel kosong, sehingga lebar minimum
+             * tabel ikut membengkak dan tabelnya melebihi lebar kertas.
+             */
+            .report-table tbody tr.report-subtotal-row td.summary-label,
+            .report-table tbody tr.report-subtotal-row td.summary-unit,
+            .report-table tbody tr.report-subtotal-row td.total-value,
+            .report-table tbody tr.report-total-row td.summary-label,
+            .report-table tbody tr.report-total-row td.summary-unit,
+            .report-table tbody tr.report-total-row td.total-value {
                 white-space: nowrap !important;
             }
 
