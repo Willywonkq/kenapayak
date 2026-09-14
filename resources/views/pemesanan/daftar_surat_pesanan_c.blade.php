@@ -3268,15 +3268,15 @@
 
         addColumn('Luas<br>Tanah', function (item) {
             return formatNumber(item.LUAS_TANAH);
-        }, 'right');
+        }, 'center');
 
         addColumn('Luas<br>Bgn (m2)', function (item) {
             return formatNumber(item.LUAS_BANGUNAN);
-        }, 'right');
+        }, 'center');
 
         addColumn('Nama<br>Pembeli', function (item) {
             return escapeHtml(cleanCustomerName(item.NASABAH_NAMA));
-        });
+        }, 'center');
 
         addColumn('Harga DPP<br>(Excl. PPN)', function (item) {
             return formatNumber(item.HRGJUAL_SBLM_PPN);
@@ -3303,7 +3303,7 @@
 
             addColumn('Nama Sales/<br>Agen', function (item) {
                 return escapeHtml(getNamaSalesAgen(item));
-            });
+            }, 'center');
 
             if (!modePerTglBayar || modeGabungan) {
                 addColumn('Nomor<br>PPJB', function (item) {
@@ -3899,6 +3899,24 @@
                 font-family: "Segoe UI", Tahoma, Arial, sans-serif;
             }
 
+            /*
+             * Peramban secara bawaan TIDAK ikut mencetak warna latar; pilihan
+             * Background graphics pada kotak dialog print biasanya mati.
+             * Karena itu pewarnaan baris ringkasan sebelumnya tidak terlihat
+             * sama sekali di hasil cetak walaupun aturannya sudah ada.
+             * Dua baris berikut meminta peramban tetap mencetak warnanya
+             * tanpa pengguna perlu mengubah apa pun di kotak dialog.
+             */
+            html,
+            body,
+            .report-wrapper,
+            .report-table,
+            .report-table th,
+            .report-table td {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
             *,
             *::before,
             *::after {
@@ -4115,19 +4133,24 @@
              * mata jadi tidak mudah lompat baris ketika menelusuri ke kanan.
              */
             .report-table tbody tr:nth-child(even) td {
-                background: #fafbfc !important;
+                background: #fbfcfe !important;
             }
 
+            /*
+             * Warna baris ringkasan mengikuti tampilan laporan di layar:
+             * baris JUMLAH / TGL. memakai #f8fafc dan baris TOTAL memakai
+             * #eff6ff, persis seperti yang terlihat sebelum dicetak.
+             */
             .report-table tbody tr.report-subtotal-row td,
             .report-table tbody tr.report-total-row td {
-                background: #f1f3f5 !important;
+                background: #f8fafc !important;
                 color: #000 !important;
                 font-weight: 700 !important;
                 white-space: nowrap !important;
             }
 
             .report-table tbody tr.report-total-row td {
-                background: #e7ebef !important;
+                background: #eff6ff !important;
             }
 
             /*
