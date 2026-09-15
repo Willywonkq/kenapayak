@@ -2809,5 +2809,282 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/'/g, '&#039;');
     }
 });
+
+    /* =========================================================
+       PENGURUT LOOKUP
+
+       Menambahkan satu dropdown di atas setiap tabel lookup untuk
+       mengurutkan isinya menurut kolom yang dipilih, meniru Column
+       Criteria pada aplikasi desktop.
+
+       Daftar pilihannya dibangun dari judul kolom tabel itu sendiri,
+       sehingga setiap lookup otomatis memperoleh pilihan yang sesuai
+       dengan kolom yang memang ditampilkannya, tanpa perlu diatur
+       satu per satu.
+
+       Blok ini memasang dirinya sendiri lewat MutationObserver karena
+       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
+       membentuknya dengan cara yang berbeda-beda.
+       ========================================================= */
+    (function () {
+        var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
+        var sudahPasangGaya = false;
+
+        function pasangGaya() {
+            if (sudahPasangGaya) {
+                return;
+            }
+
+            sudahPasangGaya = true;
+
+            var gaya = document.createElement('style');
+
+            gaya.setAttribute('data-lookup-sort', 'true');
+            gaya.textContent =
+                '.lookup-sort-bar{display:flex;align-items:center;gap:8px;'
+                + 'margin:0 0 8px;padding:0;flex-wrap:wrap}'
+                + '.lookup-sort-bar label{margin:0;color:#475467;'
+                + 'font-family:"Segoe UI Semibold","Segoe UI",Tahoma,Arial,sans-serif;'
+                + 'font-size:10px;font-weight:900;letter-spacing:.08em;'
+                + 'text-transform:uppercase;white-space:nowrap}'
+                + '.lookup-sort-bar select{min-width:170px;max-width:100%;height:34px;'
+                + 'padding:0 30px 0 10px;border:1px solid #c8d3e1;border-radius:10px;'
+                + 'background:#fff;color:#101828;cursor:pointer;'
+                + 'font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:12px;'
+                + 'font-weight:650;outline:0;appearance:none;-webkit-appearance:none;'
+                + 'background-image:url("data:image/svg+xml;charset=utf-8,'
+                + '%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\' fill=\'none\''
+                + ' stroke=\'%23475467\' stroke-width=\'2\' stroke-linecap=\'round\''
+                + ' stroke-linejoin=\'round\'%3E%3Cpath d=\'M4 6l4 4 4-4\'/%3E%3C/svg%3E");'
+                + 'background-repeat:no-repeat;background-position:right 9px center;'
+                + 'background-size:12px}'
+                + '.lookup-sort-bar select:hover{border-color:#aebed1}'
+                + '.lookup-sort-bar select:focus{border-color:#2563eb;'
+                + 'box-shadow:0 0 0 3px rgba(37,99,235,.13)}';
+
+            (document.head || document.documentElement).appendChild(gaya);
+        }
+
+        function judulKolom(tabel) {
+            var barisJudul = tabel.querySelector('tr');
+
+            if (!barisJudul) {
+                return [];
+            }
+
+            var sel = barisJudul.querySelectorAll('th');
+
+            if (sel.length === 0) {
+                return [];
+            }
+
+            return Array.prototype.map.call(sel, function (th) {
+                return String(th.textContent || '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            });
+        }
+
+        function barisData(tabel) {
+            var semua = tabel.querySelectorAll('tr');
+
+            return Array.prototype.filter.call(semua, function (tr) {
+                return tr.querySelector('td') !== null;
+            });
+        }
+
+        /*
+         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
+         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
+         * diurutkan bersama isinya.
+         */
+        function barisSemua(tr) {
+            var sel = tr.querySelector('td');
+            var teks = sel ? String(sel.textContent || '').trim() : '';
+
+            return teks === '*' || /^\*+$/.test(teks);
+        }
+
+        function nilaiSel(tr, indeks) {
+            var sel = tr.querySelectorAll('td');
+
+            if (indeks >= sel.length) {
+                return '';
+            }
+
+            return String(sel[indeks].textContent || '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function urutkan(tabel, indeks) {
+            var baris = barisData(tabel);
+
+            if (baris.length < 2) {
+                return;
+            }
+
+            var induk = baris[0].parentNode;
+            var ditahan = [];
+            var diurut = [];
+
+            baris.forEach(function (tr) {
+                if (barisSemua(tr)) {
+                    ditahan.push(tr);
+                } else {
+                    diurut.push(tr);
+                }
+            });
+
+            if (indeks >= 0) {
+                diurut.sort(function (a, b) {
+                    var kiri = nilaiSel(a, indeks);
+                    var kanan = nilaiSel(b, indeks);
+
+                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
+                    if (kiri === '' && kanan !== '') {
+                        return 1;
+                    }
+
+                    if (kanan === '' && kiri !== '') {
+                        return -1;
+                    }
+
+                    return kiri.localeCompare(kanan, 'id', {
+                        numeric: true,
+                        sensitivity: 'base'
+                    });
+                });
+            } else {
+                diurut.sort(function (a, b) {
+                    return Number(a.getAttribute('data-lookup-urutan-asal'))
+                        - Number(b.getAttribute('data-lookup-urutan-asal'));
+                });
+            }
+
+            ditahan.concat(diurut).forEach(function (tr) {
+                induk.appendChild(tr);
+            });
+        }
+
+        function pasang(tabel) {
+            if (!tabel || tabel.getAttribute('data-lookup-sort') === 'sudah') {
+                return;
+            }
+
+            var judul = judulKolom(tabel);
+            var baris = barisData(tabel);
+
+            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
+               tidak perlu pengurut. */
+            if (judul.length < 2 || baris.length < 2) {
+                return;
+            }
+
+            tabel.setAttribute('data-lookup-sort', 'sudah');
+            pasangGaya();
+
+            baris.forEach(function (tr, i) {
+                tr.setAttribute('data-lookup-urutan-asal', String(i));
+            });
+
+            var bar = document.createElement('div');
+
+            bar.className = 'lookup-sort-bar';
+
+            var label = document.createElement('label');
+
+            label.textContent = 'Urutkan';
+            bar.appendChild(label);
+
+            var pilihan = document.createElement('select');
+
+            label.setAttribute('for', '');
+            pilihan.setAttribute('aria-label', 'Urutkan daftar');
+
+            var bawaan = document.createElement('option');
+
+            bawaan.value = '-1';
+            bawaan.textContent = 'Urutan bawaan';
+            pilihan.appendChild(bawaan);
+
+            judul.forEach(function (nama, i) {
+                if (nama === '') {
+                    return;
+                }
+
+                var opsi = document.createElement('option');
+
+                opsi.value = String(i);
+                opsi.textContent = nama;
+                pilihan.appendChild(opsi);
+            });
+
+            pilihan.addEventListener('change', function () {
+                urutkan(tabel, Number(pilihan.value));
+            });
+
+            bar.appendChild(pilihan);
+
+            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
+               supaya tidak ikut tergulir bersama isinya. */
+            var sasaran = tabel;
+
+            while (
+                sasaran.parentNode
+                && sasaran.parentNode.nodeType === 1
+                && /(-wrap|-wrapper)\b/.test(sasaran.parentNode.className || '')
+            ) {
+                sasaran = sasaran.parentNode;
+            }
+
+            if (sasaran.parentNode) {
+                sasaran.parentNode.insertBefore(bar, sasaran);
+            }
+        }
+
+        function pindai(akar) {
+            if (!akar || !akar.querySelectorAll) {
+                return;
+            }
+
+            if (akar.matches && akar.matches(PILIH_TABEL)) {
+                pasang(akar);
+            }
+
+            Array.prototype.forEach.call(
+                akar.querySelectorAll(PILIH_TABEL),
+                pasang
+            );
+        }
+
+        function mulai() {
+            pindai(document.body);
+
+            if (typeof MutationObserver !== 'function') {
+                return;
+            }
+
+            new MutationObserver(function (daftar) {
+                daftar.forEach(function (rekaman) {
+                    Array.prototype.forEach.call(
+                        rekaman.addedNodes,
+                        function (simpul) {
+                            if (simpul.nodeType === 1) {
+                                pindai(simpul);
+                            }
+                        }
+                    );
+                });
+            }).observe(document.body, { childList: true, subtree: true });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', mulai);
+        } else {
+            mulai();
+        }
+    })();
+
 </script>
 @endsection
