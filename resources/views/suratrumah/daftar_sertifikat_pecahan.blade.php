@@ -2610,16 +2610,21 @@
     }
 
     /* =========================================================
-       PENGURUT LOOKUP
+       PENGURUT DAN RUPA LOOKUP
 
-       Menambahkan satu dropdown di atas setiap tabel lookup untuk
-       mengurutkan isinya menurut kolom yang dipilih, meniru Column
-       Criteria pada aplikasi desktop.
+       Dua hal sekaligus untuk setiap tabel lookup:
 
-       Daftar pilihannya dibangun dari judul kolom tabel itu sendiri,
-       sehingga setiap lookup otomatis memperoleh pilihan yang sesuai
-       dengan kolom yang memang ditampilkannya, tanpa perlu diatur
-       satu per satu.
+       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
+          pada kotak Search aplikasi desktop. Daftar pilihannya
+          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
+          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
+          yang memang ditampilkannya.
+
+       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
+          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
+          dengan latar biru muda, garis pemisah tipis, dan seluruh
+          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
+          tiap lookup tetap milik lookup itu sendiri.
 
        Blok ini memasang dirinya sendiri lewat MutationObserver karena
        isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
@@ -2627,20 +2632,48 @@
        ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
-        var sudahPasangGaya = false;
+        var gayaUmumTerpasang = false;
+        var gayaTabelTerpasang = {};
 
-        function pasangGaya() {
-            if (sudahPasangGaya) {
+        function sisipkanGaya(penanda, isi) {
+            var gaya = document.createElement('style');
+
+            gaya.setAttribute('data-lookup-gaya', penanda);
+            gaya.textContent = isi;
+            (document.head || document.documentElement).appendChild(gaya);
+        }
+
+        /*
+         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
+         * tabel, kotak pencarian, dan dropdown pengurut.
+         */
+        function pasangGayaUmum() {
+            if (gayaUmumTerpasang) {
                 return;
             }
 
-            sudahPasangGaya = true;
+            gayaUmumTerpasang = true;
 
-            var gaya = document.createElement('style');
+            sisipkanGaya('umum',
+                '[class*="modal-table-wrap"],[class*="lookup-table-wrap"]{'
+                + 'max-height:430px!important;overflow:auto!important;'
+                + 'border:1px solid #dbe3ef!important;border-radius:16px!important;'
+                + 'background:#fff!important;box-shadow:none!important}'
 
-            gaya.setAttribute('data-lookup-sort', 'true');
-            gaya.textContent =
-                '.lookup-sort-bar{display:flex;align-items:center;gap:8px;'
+                + 'input[class*="modal-search"],input[class*="lookup-search"],'
+                + 'input[id="modalSearchInput"]{'
+                + 'width:100%!important;height:42px!important;'
+                + 'border:1px solid #c8d3e1!important;'
+                + 'border-radius:12px!important;background:#fff!important;'
+                + 'color:#101828!important;box-shadow:none!important;'
+                + 'font-family:"Segoe UI",Tahoma,Arial,sans-serif!important;'
+                + 'font-size:12px!important;outline:0!important}'
+                + 'input[class*="modal-search"]:focus,input[class*="lookup-search"]:focus,'
+                + 'input[id="modalSearchInput"]:focus{'
+                + 'border-color:#2563eb!important;'
+                + 'box-shadow:0 0 0 3px rgba(37,99,235,.12)!important}'
+
+                + '.lookup-sort-bar{display:flex;align-items:center;gap:8px;'
                 + 'margin:0 0 8px;padding:0;flex-wrap:wrap}'
                 + '.lookup-sort-bar label{margin:0;color:#475467;'
                 + 'font-family:"Segoe UI Semibold","Segoe UI",Tahoma,Arial,sans-serif;'
@@ -2659,9 +2692,88 @@
                 + 'background-size:12px}'
                 + '.lookup-sort-bar select:hover{border-color:#aebed1}'
                 + '.lookup-sort-bar select:focus{border-color:#2563eb;'
-                + 'box-shadow:0 0 0 3px rgba(37,99,235,.13)}';
+                + 'box-shadow:0 0 0 3px rgba(37,99,235,.13)}');
+        }
 
-            (document.head || document.documentElement).appendChild(gaya);
+        function idAman(elemen) {
+            var id = elemen && elemen.id ? String(elemen.id) : '';
+
+            return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
+        }
+
+        /*
+         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
+         *
+         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
+         * misalnya #suratPesananModal .modal-table th, lengkap dengan
+         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
+         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
+         * antar fitur, awalannya dibaca saat berjalan.
+         */
+        function pasangGayaTabel(tabel) {
+            var wadah = tabel.closest ? tabel.closest('[id]') : null;
+            var id = idAman(wadah);
+            var awalan = id ? '#' + id + ' ' : '';
+
+            if (gayaTabelTerpasang[awalan]) {
+                return;
+            }
+
+            gayaTabelTerpasang[awalan] = true;
+
+            var dasar = ['table[class*="modal-table"]', 'table[class*="lookup-table"]'];
+
+            function gabung(akhiran) {
+                return dasar.map(function (t) {
+                    return awalan + t + akhiran;
+                }).join(',');
+            }
+
+            sisipkanGaya('tabel' + (id || '-umum'),
+                gabung('') + '{width:100%!important;margin:0!important;'
+                + 'border:0!important;border-collapse:separate!important;'
+                + 'border-spacing:0!important;background:#fff!important;'
+                + 'font-family:"Segoe UI",Tahoma,Arial,sans-serif!important;'
+                + 'font-size:12px!important}'
+
+                + gabung(' th') + ',' + gabung(' td')
+                + '{padding:10px 12px!important;border:0!important;'
+                + 'border-right:1px solid #e2e8f0!important;'
+                + 'border-bottom:1px solid #e2e8f0!important;'
+                + 'text-align:center!important;vertical-align:middle!important;'
+                + 'white-space:normal!important;word-break:normal!important;'
+                + 'border-radius:0!important}'
+
+                + gabung(' th:last-child') + ',' + gabung(' td:last-child')
+                + '{border-right:0!important}'
+
+                + gabung(' th')
+                + '{position:sticky!important;top:0!important;z-index:2!important;'
+                + 'background:linear-gradient(180deg,#eff6ff 0%,#e7f0fc 100%)!important;'
+                + 'color:#344054!important;'
+                + 'font-family:"Segoe UI Semibold","Segoe UI",Tahoma,Arial,sans-serif!important;'
+                + 'font-weight:850!important;letter-spacing:normal!important;'
+                + 'text-transform:none!important}'
+
+                + gabung(' tbody tr') + '{cursor:pointer!important}'
+                + gabung(' tbody tr td') + '{color:#344054!important;'
+                + 'background:#fff!important;font-weight:400!important}'
+
+                /*
+                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
+                 * td:first-child. Pemilih itu menambah satu bobot kelas,
+                 * sehingga perlu ditandingi pemilih yang juga memuat
+                 * pseudo-kelas, bukan hanya aturan td biasa.
+                 */
+                + gabung(' tbody tr td:first-child') + ','
+                + gabung(' tbody tr td:last-child')
+                + '{color:#344054!important;background:#fff!important;'
+                + 'font-weight:400!important}'
+
+                + gabung(' tbody tr:hover td') + ','
+                + gabung(' tbody tr:hover td:first-child') + ','
+                + gabung(' tbody tr:hover td:last-child')
+                + '{background:#eff6ff!important;color:#1d4ed8!important}');
         }
 
         function judulKolom(tabel) {
@@ -2698,10 +2810,16 @@
          * diurutkan bersama isinya.
          */
         function barisSemua(tr) {
-            var sel = tr.querySelector('td');
-            var teks = sel ? String(sel.textContent || '').trim() : '';
+            var sel = tr.querySelectorAll('td');
+            var i;
 
-            return teks === '*' || /^\*+$/.test(teks);
+            for (i = 0; i < sel.length; i += 1) {
+                if (/^\*+$/.test(String(sel[i].textContent || '').trim())) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         function nilaiSel(tr, indeks) {
@@ -2771,17 +2889,18 @@
                 return;
             }
 
+            tabel.setAttribute('data-lookup-sort', 'sudah');
+            pasangGayaUmum();
+            pasangGayaTabel(tabel);
+
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
             /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. */
+               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
-
-            tabel.setAttribute('data-lookup-sort', 'sudah');
-            pasangGaya();
 
             baris.forEach(function (tr, i) {
                 tr.setAttribute('data-lookup-urutan-asal', String(i));
@@ -2798,7 +2917,6 @@
 
             var pilihan = document.createElement('select');
 
-            label.setAttribute('for', '');
             pilihan.setAttribute('aria-label', 'Urutkan daftar');
 
             var bawaan = document.createElement('option');
@@ -2884,6 +3002,9 @@
             mulai();
         }
     })();
+
+
+
 
 </script>
 @endsection
