@@ -199,6 +199,11 @@ class daftar_akta_jual_beli_m extends Model
             'kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2',
         ]);
 
+        $kunciAkta = $this->kunciSertipikat('akta.sertipikat_id');
+        $kunciPengambilan = $this->kunciSertipikat(
+            'pengambilan.sertipikat_id'
+        );
+
         $sql = <<<SQL
             SELECT
                 UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
@@ -287,33 +292,35 @@ class daftar_akta_jual_beli_m extends Model
              * tidak utuh. sr_sertipikat menyimpan teks berawalan seperti
              * DBPSA-18784, sedangkan sr_akta terlanjur dibuat bertipe
              * numeric sehingga awalannya terbuang dan hanya menyisakan
-             * 18784. Diukur pada database DTSA: cocok apa adanya 0 baris,
-             * cocok setelah awalan dibuang 17.407 dari 17.407 baris. Karena
-             * itu awalan dibuang lebih dulu di kedua sisi.
+             * 18784.
+             *
+             * Awalannya tidak boleh sekadar dibuang. Pada database DTSA
+             * ada DUA awalan yang dipakai bersamaan, DBPSA- dan DBPSS-,
+             * dan setiap angka muncul pada keduanya: DBPSA-1 dan DBPSS-1
+             * sama-sama ada. Membuang awalan membuat satu akta menemukan
+             * dua sertipikat sekaligus, sehingga barisnya berganda dan
+             * sebagiannya menunjuk unit yang salah.
+             *
+             * Awalan yang benar diambil dari PPJB_ID pada baris akta itu
+             * sendiri, karena kolom itu selamat sebagai teks lengkap.
+             * Akta dengan PPJB_ID DBPSA-18784 berarti sertipikatnya
+             * DBPSA- ditambah angka pada SERTIPIKAT_ID, bukan DBPSS-.
              *
              * Hanya kolom ini yang diperlakukan begitu. PPJB_ID, STOK_ID,
              * dan NASABAH_ID sudah sama bentuknya di semua tabel, jadi
              * dibandingkan apa adanya.
              */
             INNER JOIN public.sr_sertipikat AS sertipikat
-                ON REGEXP_REPLACE(
-                       BTRIM(CAST(sertipikat.sertipikat_id AS TEXT)),
-                       '^[^0-9]+', ''
-                   )
-                 = REGEXP_REPLACE(
-                       BTRIM(CAST(akta.sertipikat_id AS TEXT)),
-                       '^[^0-9]+', ''
-                   )
+                ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT))
+                 = {$kunciAkta}
 
+            /*
+             * SERTIPIKAT_ID pada sr_pengambilan juga bertipe numeric dan
+             * kehilangan awalannya, jadi awalan yang sama dipakai lagi.
+             */
             LEFT JOIN public.sr_pengambilan AS pengambilan
-                ON REGEXP_REPLACE(
-                       BTRIM(CAST(pengambilan.sertipikat_id AS TEXT)),
-                       '^[^0-9]+', ''
-                   )
-                 = REGEXP_REPLACE(
-                       BTRIM(CAST(sertipikat.sertipikat_id AS TEXT)),
-                       '^[^0-9]+', ''
-                   )
+                ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT))
+                 = {$kunciPengambilan}
 
             INNER JOIN public.sr_stok AS stok
                 ON BTRIM(CAST(stok.stok_id AS TEXT))
@@ -396,6 +403,43 @@ class daftar_akta_jual_beli_m extends Model
             'sektor_filter' => $sektor,
             'sektor_semua' => $sektor,
         ]);
+    }
+
+    /**
+     * Menyusun ulang SERTIPIKAT_ID agar bisa disamakan dengan
+     * sr_sertipikat.sertipikat_id.
+     *
+     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-18784, sedangkan
+     * sr_akta dan sr_pengambilan bertipe numeric sehingga awalannya terbuang
+     * dan hanya menyisakan 18784.
+     *
+     * Awalannya tidak boleh sekadar dibuang dari sisi sertipikat. Pada
+     * database DTSA ada DUA awalan yang dipakai bersamaan, DBPSA- dan
+     * DBPSS-, dan setiap angka muncul pada keduanya. Membuang awalan
+     * membuat satu akta menemukan dua sertipikat sekaligus, sehingga
+     * barisnya berganda dan sebagiannya menunjuk unit yang salah.
+     *
+     * Awalan yang benar diambil dari PPJB_ID pada baris akta itu sendiri,
+     * karena kolom itu selamat sebagai teks lengkap. Akta dengan PPJB_ID
+     * DBPSA-18784 berarti sertipikatnya DBPSA- ditambah angkanya.
+     *
+     * Bila nilainya ternyata sudah membawa awalan sendiri, nilainya dipakai
+     * apa adanya. Bila PPJB_ID tidak berawalan, angkanya juga dipakai apa
+     * adanya. Jadi skema yang kuncinya sudah konsisten tidak ikut berubah.
+     */
+    private function kunciSertipikat(string $kolom): string
+    {
+        return <<<SQL
+            CASE
+                WHEN BTRIM(CAST({$kolom} AS TEXT)) !~ '^[0-9]+$'
+                THEN BTRIM(CAST({$kolom} AS TEXT))
+                WHEN BTRIM(CAST(akta.ppjb_id AS TEXT)) ~ '^[^0-9]+[0-9]+$'
+                THEN REGEXP_REPLACE(
+                         BTRIM(CAST(akta.ppjb_id AS TEXT)), '[0-9]+\$', ''
+                     ) || BTRIM(CAST({$kolom} AS TEXT))
+                ELSE BTRIM(CAST({$kolom} AS TEXT))
+            END
+            SQL;
     }
 
     /**
