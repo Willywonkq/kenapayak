@@ -373,6 +373,7 @@ class daftar_akta_jual_beli_m extends Model
         $leftType = $this->columnType($leftLogis, $leftColumn);
         $rightType = $this->columnType($rightLogis, $rightColumn);
         $directTypes = ['int2', 'int4', 'int8', 'numeric', 'uuid'];
+        $angkaTypes = ['int2', 'int4', 'int8', 'numeric', 'float4', 'float8'];
 
         $left = $leftAlias . '.' . $this->quoteIdentifier($leftColumn);
         $right = $rightAlias . '.' . $this->quoteIdentifier($rightColumn);
@@ -383,6 +384,48 @@ class daftar_akta_jual_beli_m extends Model
             && in_array($leftType, $directTypes, true)
         ) {
             return $left . ' = ' . $right;
+        }
+
+        /*
+         * Kedua sisi sama-sama angka tetapi tipenya berbeda, misalnya
+         * numeric pada satu tabel dan int8 pada tabel lain. Perbandingan
+         * sebagai teks akan gagal di sini, karena numeric 11 dituliskan
+         * 11.0 sedangkan int8 11 dituliskan 11, sehingga join tidak
+         * menghasilkan satu baris pun. Karena itu dibandingkan sebagai
+         * angka, bukan sebagai teks.
+         */
+        if (
+            in_array($leftType, $angkaTypes, true)
+            && in_array($rightType, $angkaTypes, true)
+        ) {
+            return sprintf(
+                'CAST(%s AS NUMERIC) = CAST(%s AS NUMERIC)',
+                $left,
+                $right
+            );
+        }
+
+        /*
+         * Satu sisi angka dan sisi lain teks. Teksnya dibersihkan lebih
+         * dulu, lalu dibandingkan sebagai angka bila isinya memang angka.
+         * Perbandingan teks polos dipakai sebagai jalan terakhir.
+         */
+        $kiriAngka = in_array($leftType, $angkaTypes, true);
+        $kananAngka = in_array($rightType, $angkaTypes, true);
+
+        if ($kiriAngka !== $kananAngka) {
+            $teks = $kiriAngka ? $right : $left;
+            $angka = $kiriAngka ? $left : $right;
+
+            return sprintf(
+                'CASE WHEN BTRIM(COALESCE(CAST(%s AS TEXT), \'\')) '
+                . '~ \'^-{0,1}[0-9]+([.][0-9]+){0,1}$\' '
+                . 'THEN CAST(BTRIM(CAST(%s AS TEXT)) AS NUMERIC) END '
+                . '= CAST(%s AS NUMERIC)',
+                $teks,
+                $teks,
+                $angka
+            );
         }
 
         return sprintf(
