@@ -410,21 +410,30 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            ppjb_kunci AS (
+            awalan_unit AS (
                 /*
-                 * Angka PPJB beserta bentuk lengkapnya. Kolom jumlah
-                 * memberitahu berapa PPJB yang memakai angka itu; hanya
-                 * yang bernilai 1 yang boleh dipakai menyambung baris
-                 * biaya, karena selebihnya tidak bisa dipastikan.
+                 * Awalan kunci yang dipakai tiap unit, dibaca dari STOK_ID
+                 * pada sr_stok. Diukur pada database DTSA: kedua puluh enam
+                 * kode perusahaan masing-masing hanya memakai satu awalan,
+                 * misalnya DTSA dan SBKS memakai DBPSA- sedangkan SSPG dan
+                 * SPCK memakai DBPSS-. DISTINCT ON mengambil yang terbanyak
+                 * supaya tetap satu baris per unit seandainya suatu saat ada
+                 * unit yang datanya bercampur.
                  */
-                SELECT
-                    REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '^[^0-9]+', '')
-                        AS angka,
-                    MIN(BTRIM(CAST(ppjb_id AS TEXT))) AS ppjb_id_lengkap,
-                    COUNT(*) AS jumlah
-                FROM public.sr_ppjb
-                WHERE ppjb_id IS NOT NULL
-                GROUP BY 1
+                SELECT DISTINCT ON (kode_unit) kode_unit, awalan
+                FROM (
+                    SELECT
+                        UPPER(BTRIM(COALESCE(CAST(kd_perusahaan AS TEXT), '')))
+                            AS kode_unit,
+                        REGEXP_REPLACE(BTRIM(CAST(stok_id AS TEXT)), '[0-9]+$', '')
+                            AS awalan,
+                        COUNT(*) AS jumlah
+                    FROM public.sr_stok
+                    WHERE stok_id IS NOT NULL
+                    GROUP BY 1, 2
+                ) AS daftar
+                WHERE kode_unit <> ''
+                ORDER BY kode_unit, jumlah DESC, awalan
             ),
             pembeli_ppjb_nama AS (
                 /*
@@ -516,33 +525,36 @@ class rekap_estimasi_biaya_ajb_m extends Model
              * sr_biaya_ajb yang PPJB_ID-nya terisi, nol yang cocok bila
              * dibandingkan apa adanya.
              *
-             * Awalan itu TIDAK BISA ditebak dari angkanya saja. Ada dua
+             * Awalan itu tidak boleh ditebak dari angkanya saja. Ada dua
              * awalan yang dipakai bersamaan, DBPSA- dan DBPSS-, dan dari
              * 62.328 baris sr_ppjb hanya 38.895 angka yang berbeda: angka
-             * yang sama dipakai oleh kedua awalan. Akibatnya 1.348 dari
-             * 1.664 baris biaya menempel ke dua PPJB sekaligus, dan tidak
-             * ada cara memastikan mana yang benar.
+             * yang sama dipakai oleh kedua awalan. Membandingkan angkanya
+             * saja membuat 1.348 dari 1.664 baris biaya menempel ke dua
+             * PPJB sekaligus, dan salah satunya pasti milik unit lain.
              *
-             * Berbeda dengan SERTIPIKAT_ID pada model Daftar Akta Jual
-             * Beli, di sini tidak ada kolom teks lain pada baris biaya yang
-             * bisa dipakai untuk menyusun ulang awalannya.
+             * Untungnya sr_biaya_ajb membawa KD_PERUSAHAAN sendiri, dan
+             * setiap unit hanya memakai satu awalan. Jadi awalan yang benar
+             * diambil dari unit pada baris biaya itu, lalu disambung dengan
+             * angkanya menjadi PPJB_ID yang utuh. Hasilnya menunjuk tepat
+             * satu PPJB, sama pastinya seperti cara model Daftar Akta Jual
+             * Beli mengambil awalan SERTIPIKAT_ID dari PPJB_ID.
              *
-             * Karena itu hanya baris yang angkanya menunjuk tepat satu PPJB
-             * yang diikutkan. Menempelkan baris yang meragukan ke unit yang
-             * kebetulan lolos penyaring akan menampilkan angka biaya milik
-             * unit lain, dan itu lebih berbahaya daripada tidak menampilkan
-             * apa-apa. Batasan ini bisa dicabut begitu kolom pada
-             * sr_biaya_ajb yang membawa awalannya ditemukan.
+             * Bila PPJB_ID pada baris biaya ternyata sudah membawa awalan
+             * sendiri, nilainya dipakai apa adanya, sehingga skema yang
+             * kuncinya sudah konsisten tidak ikut berubah.
              */
-            INNER JOIN ppjb_kunci
-                ON ppjb_kunci.angka
-                 = REGEXP_REPLACE(
-                       BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT)), '^[^0-9]+', ''
-                   )
-               AND ppjb_kunci.jumlah = 1
+            INNER JOIN awalan_unit
+                ON awalan_unit.kode_unit
+                 = UPPER(BTRIM(COALESCE(CAST(biaya_ajb.kd_perusahaan AS TEXT), '')))
 
             INNER JOIN public.sr_ppjb AS ppjb
-                ON BTRIM(CAST(ppjb.ppjb_id AS TEXT)) = ppjb_kunci.ppjb_id_lengkap
+                ON BTRIM(CAST(ppjb.ppjb_id AS TEXT))
+                 = CASE
+                       WHEN BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT)) !~ '^[0-9]+$'
+                       THEN BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT))
+                       ELSE awalan_unit.awalan
+                            || BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT))
+                   END
                AND UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
 
             INNER JOIN stok_terpilih AS stok

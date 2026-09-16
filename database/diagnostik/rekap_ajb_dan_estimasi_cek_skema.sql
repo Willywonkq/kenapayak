@@ -32,12 +32,15 @@
 --           DBPSA-1 dan DBPSS-1 sama-sama ada. Akibatnya 1.348 dari 1.664
 --           baris biaya menempel ke dua PPJB sekaligus.
 --
--- Karena itu model hanya mengikutkan baris biaya yang angkanya menunjuk
--- tepat satu PPJB. Sisanya sengaja tidak ditampilkan, sebab menempelkan
--- baris yang meragukan berarti menampilkan angka biaya milik unit lain.
+-- QUERY 6 : jawabannya ada di kolom pertama sr_biaya_ajb, yaitu
+--           KD_PERUSAHAAN varchar(5), berisi SKLG, MKPP, dan seterusnya.
+--           Karena setiap unit hanya memakai satu awalan, awalan yang
+--           benar bisa diambil dari unit pada baris biaya itu lalu
+--           disambung dengan angkanya menjadi PPJB_ID yang utuh.
 --
--- Yang masih perlu dicari: kolom pada sr_biaya_ajb yang membawa awalannya.
--- Jalankan QUERY 6 di bawah.
+-- Model sudah memakai cara itu, jadi seluruh baris biaya terpakai dan
+-- tidak ada yang menempel ke unit yang salah. Diagnostik ini tinggal
+-- menjadi catatan; tidak ada lagi yang perlu dijalankan.
 -- =====================================================================
 
 
