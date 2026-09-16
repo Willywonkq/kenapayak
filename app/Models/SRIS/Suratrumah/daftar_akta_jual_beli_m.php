@@ -49,14 +49,14 @@ class daftar_akta_jual_beli_m extends Model
         ]);
 
         $sql = <<<SQL
-            SELECT DISTINCT ON (UPPER(BTRIM(COALESCE(lokasi.{$lokasiKode}, ''))))
-                UPPER(BTRIM(COALESCE(lokasi.{$lokasiKode}, ''))) AS "KD_LOKASI",
-                BTRIM(COALESCE(lokasi.deskripsi, '')) AS "DESKRIPSI"
+            SELECT DISTINCT ON (UPPER(BTRIM(COALESCE(CAST(lokasi.{$lokasiKode} AS TEXT), ''))))
+                UPPER(BTRIM(COALESCE(CAST(lokasi.{$lokasiKode} AS TEXT), ''))) AS "KD_LOKASI",
+                BTRIM(COALESCE(CAST(lokasi.deskripsi AS TEXT), '')) AS "DESKRIPSI"
             FROM public.sr_lokasi AS lokasi
-            WHERE UPPER(BTRIM(COALESCE(lokasi.{$lokasiKode}, ''))) <> ''
+            WHERE UPPER(BTRIM(COALESCE(CAST(lokasi.{$lokasiKode} AS TEXT), ''))) <> ''
             ORDER BY
-                UPPER(BTRIM(COALESCE(lokasi.{$lokasiKode}, ''))),
-                BTRIM(COALESCE(lokasi.deskripsi, ''))
+                UPPER(BTRIM(COALESCE(CAST(lokasi.{$lokasiKode} AS TEXT), ''))),
+                BTRIM(COALESCE(CAST(lokasi.deskripsi AS TEXT), ''))
         SQL;
 
         return collect(
@@ -88,22 +88,22 @@ class daftar_akta_jual_beli_m extends Model
 
         $sql = <<<SQL
             SELECT
-                UPPER(BTRIM(COALESCE(sektor.{$sektorKode}, ''))) AS "KD_SEKTOR",
-                BTRIM(COALESCE(sektor.deskripsi, '')) AS "DESKRIPSI",
-                UPPER(BTRIM(COALESCE(sektor.{$sektorPerusahaan}, '')))
+                UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorKode} AS TEXT), ''))) AS "KD_SEKTOR",
+                BTRIM(COALESCE(CAST(sektor.deskripsi AS TEXT), '')) AS "DESKRIPSI",
+                UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorPerusahaan} AS TEXT), '')))
                     AS "KD_PERUSAHAAN"
             FROM public.sr_sektor AS sektor
-            WHERE UPPER(BTRIM(COALESCE(sektor.flag_aktif, ''))) = 'A'
-              AND UPPER(BTRIM(COALESCE(sektor.{$sektorKode}, ''))) <> ''
+            WHERE UPPER(BTRIM(COALESCE(CAST(sektor.flag_aktif AS TEXT), ''))) = 'A'
+              AND UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorKode} AS TEXT), ''))) <> ''
               AND (
-                    UPPER(BTRIM(COALESCE(sektor.{$sektorPerusahaan}, '')))
+                    UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorPerusahaan} AS TEXT), '')))
                         = :kd_perusahaan
-                    OR UPPER(BTRIM(COALESCE(sektor.{$sektorPerusahaan}, '')))
+                    OR UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorPerusahaan} AS TEXT), '')))
                         = ''
                   )
             ORDER BY
-                BTRIM(COALESCE(sektor.deskripsi, '')),
-                UPPER(BTRIM(COALESCE(sektor.{$sektorKode}, '')))
+                BTRIM(COALESCE(CAST(sektor.deskripsi AS TEXT), '')),
+                UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorKode} AS TEXT), '')))
         SQL;
 
         return collect(
@@ -201,8 +201,8 @@ class daftar_akta_jual_beli_m extends Model
 
         $sql = <<<SQL
             SELECT
-                UPPER(BTRIM(COALESCE(stok.blok, ''))) || '/'
-                    || UPPER(BTRIM(COALESCE(stok.nomor, ''))) AS "BLOK_NOMOR",
+                UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
+                    || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), ''))) AS "BLOK_NOMOR",
                 stok.blok AS "BLOK",
                 stok.nomor AS "NOMOR",
                 nasabah.nama AS "NAMA",
@@ -242,15 +242,15 @@ class daftar_akta_jual_beli_m extends Model
                 (
                     SELECT lokasi.deskripsi
                     FROM public.sr_lokasi AS lokasi
-                    WHERE UPPER(BTRIM(COALESCE(lokasi.{$lokasiKode}, '')))
-                        = UPPER(BTRIM(COALESCE(stok.{$stokLokasi}, '')))
+                    WHERE UPPER(BTRIM(COALESCE(CAST(lokasi.{$lokasiKode} AS TEXT), '')))
+                        = UPPER(BTRIM(COALESCE(CAST(stok.{$stokLokasi} AS TEXT), '')))
                     LIMIT 1
                 ) AS "NAMA_LOKASI",
                 (
                     SELECT sektor.deskripsi
                     FROM public.sr_sektor AS sektor
-                    WHERE UPPER(BTRIM(COALESCE(sektor.{$sektorKode}, '')))
-                        = UPPER(BTRIM(COALESCE(stok.{$stokSektor}, '')))
+                    WHERE UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorKode} AS TEXT), '')))
+                        = UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
                     LIMIT 1
                 ) AS "NAMA_SEKTOR",
                 (
@@ -258,7 +258,7 @@ class daftar_akta_jual_beli_m extends Model
                     FROM public.sr_angsuran AS angsuran
                     WHERE BTRIM(CAST(angsuran.ppjb_id AS TEXT))
                         = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
-                      AND UPPER(BTRIM(COALESCE(angsuran.kd_transaksi, '')))
+                      AND UPPER(BTRIM(COALESCE(CAST(angsuran.kd_transaksi AS TEXT), '')))
                         = 'BBN'
                     LIMIT 1
                 ) AS "TGL_KUITANSI_BBN"
@@ -332,33 +332,33 @@ class daftar_akta_jual_beli_m extends Model
                        END AS tgl_akta_valid
             ) AS tgl_ref ON TRUE
 
-            WHERE UPPER(BTRIM(COALESCE(stok.flag_aktif, ''))) = 'A'
-              AND UPPER(BTRIM(COALESCE(ppjb.flag_aktif, ''))) = 'A'
-              AND UPPER(BTRIM(COALESCE(pembeli_ppjb.flag_aktif, ''))) = 'Y'
+            WHERE UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS TEXT), ''))) = 'A'
+              AND UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
+              AND UPPER(BTRIM(COALESCE(CAST(pembeli_ppjb.flag_aktif AS TEXT), ''))) = 'Y'
               AND ppjb.parent_id IS NULL
               AND (
                     (
-                        UPPER(BTRIM(COALESCE(stok.blok, ''))) || '/'
-                        || UPPER(BTRIM(COALESCE(stok.nomor, '')))
+                        UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
+                        || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')))
                         BETWEEN :blok_awal_unit AND :blok_akhir_unit
                     )
                     OR
                     (
-                        UPPER(BTRIM(COALESCE(stok.blok, '')))
+                        UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
                         BETWEEN :blok_awal_blok AND :blok_akhir_blok
                     )
                   )
               AND tgl_ref.tgl_akta_valid >= CAST(:tgl_awal AS DATE)
               AND tgl_ref.tgl_akta_valid < CAST(:tgl_akhir AS DATE)
-              AND UPPER(BTRIM(COALESCE(stok.{$stokPerusahaan}, '')))
+              AND UPPER(BTRIM(COALESCE(CAST(stok.{$stokPerusahaan} AS TEXT), '')))
                     = :perusahaan
               AND (
-                    UPPER(BTRIM(COALESCE(stok.{$stokLokasi}, '')))
+                    UPPER(BTRIM(COALESCE(CAST(stok.{$stokLokasi} AS TEXT), '')))
                         = :lokasi_filter
                     OR :lokasi_semua = '*'
                   )
               AND (
-                    UPPER(BTRIM(COALESCE(stok.{$stokSektor}, '')))
+                    UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
                         = :sektor_filter
                     OR :sektor_semua = '*'
                   )
@@ -367,16 +367,16 @@ class daftar_akta_jual_beli_m extends Model
               AND sertipikat.stok_id IS NOT NULL
 
             ORDER BY
-                UPPER(BTRIM(COALESCE(stok.{$stokSektor}, ''))) ASC,
-                UPPER(BTRIM(COALESCE(stok.blok, ''))) ASC,
+                UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), ''))) ASC,
+                UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) ASC,
                 CASE
-                    WHEN BTRIM(COALESCE(stok.nomor, '')) ~ '^[0-9]+$'
+                    WHEN BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')) ~ '^[0-9]+$'
                     THEN 0
                     ELSE 1
                 END ASC,
                 CASE
-                    WHEN BTRIM(COALESCE(stok.nomor, '')) ~ '^[0-9]+$'
-                    THEN LPAD(BTRIM(stok.nomor), 50, '0')
+                    WHEN BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')) ~ '^[0-9]+$'
+                    THEN LPAD(BTRIM(CAST(stok.nomor AS TEXT)), 50, '0')
                     ELSE ''
                 END ASC,
                 stok.nomor ASC,
