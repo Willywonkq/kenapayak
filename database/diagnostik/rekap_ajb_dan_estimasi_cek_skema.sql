@@ -6,7 +6,29 @@
 --
 -- Kedua model menulis nama tabel dan kolom apa adanya, mengikuti bentuk
 -- berkas lama. Konsekuensinya, tabel atau kolom yang tidak ada akan
--- membuat query gagal. Jalankan ketiga query di bawah lebih dulu.
+-- membuat query gagal.
+--
+-- ---------------------------------------------------------------------
+-- HASIL PADA DATABASE DTSA  (QUERY 1 s/d 4 sudah dijawab)
+-- ---------------------------------------------------------------------
+-- QUERY 1 : ketujuh belas tabel ada semua.
+--
+-- QUERY 2 : hanya dua kolom yang tidak ketemu, yaitu sr_stok.kd_jenis dan
+--           sr_stok.kd_tipe. Nama sebenarnya kd_jenis_bgn dan kd_tipe_bgn,
+--           sedangkan sr_tipe dan sr_jenis_bangunan tetap memakai kd_jenis
+--           dan kd_tipe. Model sudah disesuaikan.
+--
+-- QUERY 3 : sr_biaya_ajb.ppjb_id bertipe numeric(18,0), sedangkan
+--           sr_ppjb.ppjb_id bertipe varchar berisi teks berawalan seperti
+--           DBPSA-18784. Sama persis dengan cacat migrasi pada
+--           SERTIPIKAT_ID di fitur Daftar Akta Jual Beli.
+--
+-- QUERY 4 : 1.664 baris sr_biaya_ajb, seluruhnya terisi, dan NOL yang
+--           cocok bila dibandingkan apa adanya. Tanpa perbaikan, Rekap
+--           Estimasi Biaya AJB pasti kosong.
+--
+-- Model sudah diperbaiki: awalan dibuang lebih dulu di kedua sisi. Yang
+-- masih perlu dipastikan hanya QUERY 5 di bawah.
 -- =====================================================================
 
 
@@ -165,3 +187,55 @@ SELECT
       WHERE EXISTS (SELECT 1 FROM public.sr_ppjb p
                      WHERE BTRIM(CAST(p.ppjb_id AS TEXT))
                          = BTRIM(CAST(b.ppjb_id AS TEXT)))) AS ppjb_id_cocok;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 5 : apakah membuang awalan PPJB_ID aman        [JALANKAN INI]
+-- ---------------------------------------------------------------------
+-- sr_biaya_ajb.ppjb_id kehilangan awalannya saat migrasi, dan berbeda
+-- dengan kasus SERTIPIKAT_ID dulu, di sini tidak ada kolom teks lain
+-- pada baris biaya yang bisa dipakai untuk menyusun ulang awalan itu.
+-- Jadi join terpaksa membandingkan angkanya saja.
+--
+-- Itu hanya aman bila tidak ada angka PPJB yang dipakai oleh dua awalan
+-- sekaligus. Kalau DBPSA-500 dan DBPSS-500 sama-sama ada, satu baris
+-- biaya bisa menempel ke unit yang salah.
+--
+-- Yang diharapkan: query pertama menunjukkan angka_unik sama dengan
+-- jumlah_baris, dan query kedua NOL BARIS.
+SELECT
+    COUNT(*) AS jumlah_baris,
+    COUNT(DISTINCT REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '^[^0-9]+', ''))
+        AS angka_unik,
+    COUNT(DISTINCT REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '[0-9]+$', ''))
+        AS awalan_berbeda
+FROM public.sr_ppjb
+WHERE ppjb_id IS NOT NULL;
+
+-- Daftar angka PPJB yang dipakai lebih dari satu awalan. Kosong berarti
+-- aman, dan Rekap Estimasi Biaya AJB bisa dipakai apa adanya.
+SELECT
+    REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '^[^0-9]+', '') AS angka,
+    COUNT(*) AS jumlah,
+    STRING_AGG(BTRIM(CAST(ppjb_id AS TEXT)), ', ') AS nilai_asli
+FROM public.sr_ppjb
+WHERE ppjb_id IS NOT NULL
+GROUP BY 1
+HAVING COUNT(*) > 1
+LIMIT 20;
+
+-- Berapa baris sr_biaya_ajb yang menemukan pasangan setelah awalan
+-- dibuang. Bandingkan dengan 1.664 baris yang terisi.
+SELECT
+    (SELECT COUNT(*) FROM public.sr_biaya_ajb b
+      WHERE EXISTS (
+            SELECT 1 FROM public.sr_ppjb p
+            WHERE REGEXP_REPLACE(BTRIM(CAST(p.ppjb_id AS TEXT)), '^[^0-9]+', '')
+                = REGEXP_REPLACE(BTRIM(CAST(b.ppjb_id AS TEXT)), '^[^0-9]+', '')
+      )) AS cocok_tanpa_awalan,
+    (SELECT COUNT(*) FROM public.sr_biaya_ajb b
+      WHERE (
+            SELECT COUNT(*) FROM public.sr_ppjb p
+            WHERE REGEXP_REPLACE(BTRIM(CAST(p.ppjb_id AS TEXT)), '^[^0-9]+', '')
+                = REGEXP_REPLACE(BTRIM(CAST(b.ppjb_id AS TEXT)), '^[^0-9]+', '')
+      ) > 1) AS menempel_ke_lebih_dari_satu;

@@ -109,6 +109,15 @@ class rekap_estimasi_biaya_ajb_m extends Model
             'kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2',
         ]);
 
+        /*
+         * Pada hasil migrasi kolom jenis dan tipe bangunan di sr_stok
+         * bernama kd_jenis_bgn dan kd_tipe_bgn, sedangkan di sr_tipe dan
+         * sr_jenis_bangunan tetap kd_jenis dan kd_tipe. Karena itu nama
+         * kolomnya dicari lebih dulu, seperti kolom kode lainnya.
+         */
+        $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
+        $stokTipe = $this->kolomKode('sr_stok', ['kd_tipe_bgn', 'kd_tipe']);
+
         $sql = <<<SQL
             WITH tipe_unik AS (
                 SELECT DISTINCT ON (kode) kode, deskripsi
@@ -181,8 +190,8 @@ class rekap_estimasi_biaya_ajb_m extends Model
 
             LEFT JOIN tipe_unik
                 ON tipe_unik.kode
-                 = BTRIM(COALESCE(CAST(stok.kd_jenis AS TEXT), '')) || '|'
-                   || BTRIM(COALESCE(CAST(stok.kd_tipe AS TEXT), ''))
+                 = BTRIM(COALESCE(CAST(stok.{$stokJenis} AS TEXT), '')) || '|'
+                   || BTRIM(COALESCE(CAST(stok.{$stokTipe} AS TEXT), ''))
             LEFT JOIN lokasi_unik
                 ON lokasi_unik.kode
                  = BTRIM(COALESCE(CAST(stok.{$stokLokasi} AS TEXT), ''))
@@ -296,6 +305,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
         $sektorKode = $this->kolomKode('sr_sektor', [
             'kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2',
         ]);
+        $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
 
         $sql = <<<SQL
             WITH biaya_terpilih AS (
@@ -392,7 +402,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
                         a.ctid AS urutan_fisik
                     FROM public.sr_jenis_bangunan AS a
                     INNER JOIN public.sr_stok AS b
-                        ON BTRIM(CAST(b.kd_jenis AS TEXT))
+                        ON BTRIM(CAST(b.{$stokJenis} AS TEXT))
                          = BTRIM(CAST(a.kd_jenis AS TEXT))
                     INNER JOIN public.sr_ppjb AS c
                         ON BTRIM(CAST(c.stok_id AS TEXT))
@@ -481,9 +491,35 @@ class rekap_estimasi_biaya_ajb_m extends Model
 
             FROM biaya_terpilih AS biaya_ajb
 
+            /*
+             * PPJB_ID ditulis berbeda di kedua tabel karena migrasi tidak
+             * utuh. sr_ppjb menyimpan teks lengkap berawalan seperti
+             * DBPSA-18784, sedangkan sr_biaya_ajb terlanjur dibuat bertipe
+             * numeric sehingga awalannya terbuang dan hanya menyisakan
+             * 18784. Diukur pada database DTSA: dari 1.664 baris
+             * sr_biaya_ajb yang PPJB_ID-nya terisi, nol yang cocok bila
+             * dibandingkan apa adanya.
+             *
+             * Karena itu awalan dibuang lebih dulu di kedua sisi. Berbeda
+             * dengan SERTIPIKAT_ID pada model Daftar Akta Jual Beli, di
+             * sini tidak ada kolom teks lain pada baris biaya yang bisa
+             * dipakai untuk menyusun ulang awalannya, sehingga awalan
+             * memang tidak bisa dipulihkan.
+             *
+             * Penyaring unit pada stok_terpilih menjadi pengaman: setiap
+             * kode perusahaan pada sr_stok hanya memakai satu awalan, jadi
+             * dari sepasang PPJB berawalan berbeda dengan angka sama hanya
+             * satu yang bisa lolos. Lihat QUERY 5 pada diagnostik
+             * rekap_ajb_dan_estimasi_cek_skema.sql untuk memastikan tidak
+             * ada angka PPJB yang dipakai oleh dua awalan sekaligus.
+             */
             INNER JOIN public.sr_ppjb AS ppjb
-                ON BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT))
-                 = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
+                ON REGEXP_REPLACE(
+                       BTRIM(CAST(ppjb.ppjb_id AS TEXT)), '^[^0-9]+', ''
+                   )
+                 = REGEXP_REPLACE(
+                       BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT)), '^[^0-9]+', ''
+                   )
                AND UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
 
             INNER JOIN stok_terpilih AS stok
@@ -507,7 +543,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ON sektor_unik.kode
                  = UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
             LEFT JOIN jenis_bgn_ppjb
-                ON jenis_bgn_ppjb.kode = BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT))
+                ON jenis_bgn_ppjb.kode = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
             LEFT JOIN pembeli_ppjb_nama
                 ON pembeli_ppjb_nama.kode = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
 
