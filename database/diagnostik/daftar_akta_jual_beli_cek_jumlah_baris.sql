@@ -325,3 +325,62 @@ WHERE COALESCE(CAST(a.tgl_akta AS TEXT), '')
       ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
 GROUP BY 1
 ORDER BY 1;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 11 : kolom yang dipakai model, adakah yang hilang [JALANKAN INI]
+-- ---------------------------------------------------------------------
+-- Model kini menulis nama kolom apa adanya, mengikuti bentuk berkas lama,
+-- dan tidak lagi menebak-nebak sendiri. Konsekuensinya, kolom yang tidak
+-- ada akan membuat query gagal. Query ini memeriksanya sekaligus.
+--
+-- Yang diharapkan: NOL BARIS. Setiap baris yang muncul berarti kolom itu
+-- tidak ada pada hasil migrasi dan perlu saya tangani.
+WITH diperlukan (nama_tabel, nama_kolom) AS (
+    VALUES
+        ('sr_akta', 'ppjb_id'), ('sr_akta', 'sertipikat_id'),
+        ('sr_akta', 'no_notaris'), ('sr_akta', 'tgl_notaris'),
+        ('sr_akta', 'notaris'), ('sr_akta', 'no_akta'),
+        ('sr_akta', 'tgl_akta'), ('sr_akta', 'tgl_input'),
+        ('sr_akta', 'ttd_akta'), ('sr_akta', 'tgl_entry'),
+        ('sr_akta', 'user_entry'),
+
+        ('sr_ppjb', 'ppjb_id'), ('sr_ppjb', 'no_ppjb'),
+        ('sr_ppjb', 'tgl_ppjb'), ('sr_ppjb', 'harga_jual'),
+        ('sr_ppjb', 'flag_aktif'), ('sr_ppjb', 'parent_id'),
+
+        ('sr_pembeli_ppjb', 'ppjb_id'), ('sr_pembeli_ppjb', 'nasabah_id'),
+        ('sr_pembeli_ppjb', 'flag_aktif'),
+
+        ('sr_nasabah', 'nasabah_id'), ('sr_nasabah', 'nama'),
+        ('sr_nasabah', 'telp_rmh'), ('sr_nasabah', 'fax_rmh'),
+        ('sr_nasabah', 'telp_ktr'), ('sr_nasabah', 'fax_ktr'),
+        ('sr_nasabah', 'no_hp'), ('sr_nasabah', 'alamat_rmh'),
+        ('sr_nasabah', 'kota_rmh'), ('sr_nasabah', 'kode_pos_rmh'),
+
+        ('sr_sertipikat', 'sertipikat_id'), ('sr_sertipikat', 'stok_id'),
+
+        ('sr_pengambilan', 'sertipikat_id'),
+        ('sr_pengambilan', 'tgl_ambil_akta'),
+        ('sr_pengambilan', 'tgl_cetak_akta'),
+
+        ('sr_stok', 'stok_id'), ('sr_stok', 'blok'), ('sr_stok', 'nomor'),
+        ('sr_stok', 'luas_tanah'), ('sr_stok', 'luas_bangunan'),
+        ('sr_stok', 'flag_aktif'),
+
+        ('sr_lokasi', 'deskripsi'),
+        ('sr_sektor', 'deskripsi'), ('sr_sektor', 'flag_aktif'),
+
+        ('sr_angsuran', 'ppjb_id'), ('sr_angsuran', 'kd_transaksi'),
+        ('sr_angsuran', 'tgl_kuitansi')
+)
+SELECT d.nama_tabel, d.nama_kolom AS kolom_yang_hilang
+FROM diperlukan AS d
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns AS c
+    WHERE c.table_schema = 'public'
+      AND c.table_name = d.nama_tabel
+      AND LOWER(c.column_name) = d.nama_kolom
+)
+ORDER BY 1, 2;
