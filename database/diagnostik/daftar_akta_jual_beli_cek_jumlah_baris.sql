@@ -384,3 +384,29 @@ WHERE NOT EXISTS (
       AND LOWER(c.column_name) = d.nama_kolom
 )
 ORDER BY 1, 2;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 12 : tabel yang dipakai model, adakah yang hilang [JALANKAN INI]
+-- ---------------------------------------------------------------------
+-- Model menulis nama tabel apa adanya dengan awalan sr_ pada schema
+-- public, sama seperti model lain yang sudah dimigrasi. Query ini
+-- memastikan kesepuluh tabelnya memang ada dengan nama itu.
+--
+-- Yang diharapkan: kolom "ada" bernilai true untuk seluruh baris.
+WITH dipakai (nama_tabel) AS (
+    VALUES
+        ('sr_akta'), ('sr_ppjb'), ('sr_pembeli_ppjb'), ('sr_nasabah'),
+        ('sr_sertipikat'), ('sr_pengambilan'), ('sr_stok'),
+        ('sr_lokasi'), ('sr_sektor'), ('sr_angsuran')
+)
+SELECT
+    d.nama_tabel,
+    EXISTS (
+        SELECT 1
+        FROM information_schema.tables AS t
+        WHERE t.table_schema = 'public'
+          AND t.table_name = d.nama_tabel
+    ) AS ada
+FROM dipakai AS d
+ORDER BY 2, 1;
