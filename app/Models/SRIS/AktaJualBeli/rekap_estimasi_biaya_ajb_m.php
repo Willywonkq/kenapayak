@@ -307,6 +307,42 @@ class rekap_estimasi_biaya_ajb_m extends Model
         ]);
         $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
 
+        /*
+         * Syarat penyaring unit dipakai di dua tempat dan dirakit sekali di
+         * sini supaya tidak mungkin berbeda.
+         *
+         * Keduanya sengaja tidak memakai satu CTE bersama. CTE yang dirujuk
+         * lebih dari sekali otomatis dimaterialisasi oleh PostgreSQL, dan
+         * begitu itu terjadi jumlah barisnya tidak lagi terlihat oleh
+         * perencana. Pada percobaan sebelumnya stok_terpilih ditaksir satu
+         * baris padahal isinya 5.167, sehingga nested loop tampak murah dan
+         * sr_ppjb dibaca habis 5.167 kali.
+         */
+        $syaratStok = <<<SQL
+        UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS TEXT), ''))) = 'A'
+                  AND stok.blok IS NOT NULL
+                  AND stok.nomor IS NOT NULL
+                  AND UPPER(BTRIM(COALESCE(CAST(stok.{$stokPerusahaan} AS TEXT), '')))
+                        = :perusahaan
+                  AND (
+                        UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
+                            = :cluster_filter
+                        OR :cluster_semua = '*'
+                      )
+                  AND (
+                        (
+                            UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
+                            || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')))
+                            BETWEEN :blok_awal_unit AND :blok_akhir_unit
+                        )
+                        OR
+                        (
+                            UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
+                            BETWEEN :blok_awal_blok AND :blok_akhir_blok
+                        )
+                      )
+        SQL;
+
         $sql = <<<SQL
             WITH awalan_unit AS MATERIALIZED (
                 /*
@@ -397,28 +433,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
                 FROM public.sr_stok AS stok
-                WHERE UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS TEXT), ''))) = 'A'
-                  AND stok.blok IS NOT NULL
-                  AND stok.nomor IS NOT NULL
-                  AND UPPER(BTRIM(COALESCE(CAST(stok.{$stokPerusahaan} AS TEXT), '')))
-                        = :perusahaan
-                  AND (
-                        UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
-                            = :cluster_filter
-                        OR :cluster_semua = '*'
-                      )
-                  AND (
-                        (
-                            UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
-                            || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')))
-                            BETWEEN :blok_awal_unit AND :blok_akhir_unit
-                        )
-                        OR
-                        (
-                            UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
-                            BETWEEN :blok_awal_blok AND :blok_akhir_blok
-                        )
-                      )
+                WHERE {$syaratStok}
             ),
             sektor_unik AS (
                 SELECT DISTINCT ON (kode) kode, deskripsi
@@ -467,8 +482,10 @@ class rekap_estimasi_biaya_ajb_m extends Model
                  */
                 SELECT DISTINCT BTRIM(CAST(p.ppjb_id AS TEXT)) AS kode
                 FROM public.sr_ppjb AS p
-                INNER JOIN stok_terpilih AS st
-                    ON st.kunci_stok = BTRIM(CAST(p.stok_id AS TEXT))
+                INNER JOIN public.sr_stok AS stok
+                    ON BTRIM(CAST(stok.stok_id AS TEXT))
+                     = BTRIM(CAST(p.stok_id AS TEXT))
+                WHERE {$syaratStok}
             ),
             pembeli_ppjb_nama AS MATERIALIZED (
                 /*
