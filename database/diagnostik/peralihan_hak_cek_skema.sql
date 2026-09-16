@@ -190,3 +190,107 @@ SELECT
 FROM public.sr_peralihan
 GROUP BY 1
 ORDER BY 2 DESC;
+
+
+-- =====================================================================
+-- HASIL PADA DATABASE DTSA  (QUERY 1 s/d 6 sudah dijawab)
+-- =====================================================================
+-- QUERY 1 : kesepuluh tabel ada semua.
+--
+-- QUERY 2 : tiga kolom tidak ada, yaitu sr_peralihan.nm_agen, nm_sales,
+--           dan no_telp. Model sudah disesuaikan: bila kolomnya memang
+--           tidak ada, nilainya diisi NULL dan susunan kolom tetap utuh.
+--
+-- QUERY 3 : PERALIHAN_ID konsisten numeric(5,0) di ketiga tabelnya, dan
+--           APPROVAL.PARENT_ID numeric(18,0) masih cocok sebagai teks.
+--           Yang tidak cocok ada dua:
+--             sr_peralihan.ppjb_id        numeric(18,0)
+--             sr_ppjb.ppjb_id             varchar berawalan
+--             sr_pembeli_lama.nasabah_id  numeric(18,0)
+--             sr_pembeli_baru.nasabah_id  numeric(18,0)
+--             sr_nasabah.nasabah_id       varchar berawalan
+--
+-- QUERY 4 : 3069 peralihan, ppjb_cocok NOL, pembeli_lama 2990,
+--           pembeli_baru 2989, approval jenis 6 sebanyak 1526.
+--           Tanpa perbaikan laporannya pasti kosong.
+--
+-- QUERY 5 : sr_peralihan hanya punya 16 kolom dan TIDAK membawa
+--           KD_PERUSAHAAN. Jadi awalan yang hilang tidak bisa dipulihkan
+--           dari baris itu sendiri, berbeda dengan sr_biaya_ajb.
+--
+-- QUERY 6 : flag_entry berisi Y sebanyak 2.992 dan T sebanyak 77.
+--
+-- Karena awalannya tidak bisa dipulihkan, model hanya memakai angka yang
+-- menunjuk TEPAT SATU pasangan. Angka yang dipakai dua awalan sekaligus
+-- sengaja tidak ditampilkan, sebab menempelkannya berarti menampilkan
+-- peralihan hak milik unit lain.
+--
+-- QUERY 7 di bawah mengukur berapa banyak yang terpengaruh.
+-- =====================================================================
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 7 : berapa baris yang terpakai dan berapa yang tersingkir
+-- ---------------------------------------------------------------------
+-- Bagian pertama: dari 3.069 peralihan, berapa angka PPJB-nya menunjuk
+-- tepat satu PPJB, berapa menunjuk dua, dan berapa tidak ketemu.
+SELECT
+    COUNT(*) AS jumlah_peralihan,
+    COUNT(*) FILTER (WHERE k.jumlah = 1) AS menunjuk_satu_ppjb,
+    COUNT(*) FILTER (WHERE k.jumlah > 1) AS menunjuk_lebih_dari_satu,
+    COUNT(*) FILTER (WHERE k.angka IS NULL) AS tidak_ketemu
+FROM public.sr_peralihan AS p
+LEFT JOIN (
+    SELECT REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '^[^0-9]+', '') AS angka,
+           COUNT(*) AS jumlah
+    FROM public.sr_ppjb WHERE ppjb_id IS NOT NULL GROUP BY 1
+) AS k
+    ON k.angka = REGEXP_REPLACE(BTRIM(CAST(p.ppjb_id AS TEXT)), '^[^0-9]+', '');
+
+-- Bagian kedua: hal yang sama untuk NASABAH_ID pada pembeli lama.
+SELECT
+    COUNT(*) AS jumlah_pembeli_lama,
+    COUNT(*) FILTER (WHERE k.jumlah = 1) AS menunjuk_satu_nasabah,
+    COUNT(*) FILTER (WHERE k.jumlah > 1) AS menunjuk_lebih_dari_satu,
+    COUNT(*) FILTER (WHERE k.angka IS NULL) AS tidak_ketemu
+FROM public.sr_pembeli_lama AS pl
+LEFT JOIN (
+    SELECT REGEXP_REPLACE(BTRIM(CAST(nasabah_id AS TEXT)), '^[^0-9]+', '') AS angka,
+           COUNT(*) AS jumlah
+    FROM public.sr_nasabah WHERE nasabah_id IS NOT NULL GROUP BY 1
+) AS k
+    ON k.angka = REGEXP_REPLACE(BTRIM(CAST(pl.nasabah_id AS TEXT)), '^[^0-9]+', '');
+
+-- Bagian ketiga: seandainya SELURUH sr_peralihan berasal dari satu sumber
+-- saja, awalan mana yang paling cocok. Kalau salah satu awalan mencakup
+-- hampir seluruh 3.069 baris sedangkan yang lain jauh lebih sedikit,
+-- berarti tabelnya memang satu sumber dan pembatasan di atas bisa
+-- dicabut sehingga seluruh baris terpakai.
+SELECT
+    awalan,
+    COUNT(*) AS peralihan_yang_cocok
+FROM public.sr_peralihan AS p
+CROSS JOIN (SELECT DISTINCT REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)),
+                                           '[0-9]+$', '') AS awalan
+            FROM public.sr_ppjb WHERE ppjb_id IS NOT NULL) AS a
+WHERE EXISTS (
+    SELECT 1 FROM public.sr_ppjb AS x
+    WHERE BTRIM(CAST(x.ppjb_id AS TEXT))
+        = a.awalan || REGEXP_REPLACE(BTRIM(CAST(p.ppjb_id AS TEXT)), '^[^0-9]+', '')
+)
+GROUP BY 1
+ORDER BY 2 DESC;
+
+-- Bagian keempat: isi kolom no_peralihan, kalau-kalau kolom itu membawa
+-- kode unit seperti AJB-SKLG... pada sr_biaya_ajb.
+SELECT
+    COUNT(*) AS jumlah_baris,
+    COUNT(*) FILTER (
+        WHERE NULLIF(BTRIM(COALESCE(CAST(no_peralihan AS TEXT), '')), '') IS NOT NULL
+    ) AS no_peralihan_terisi
+FROM public.sr_peralihan;
+
+SELECT DISTINCT BTRIM(CAST(no_peralihan AS TEXT)) AS contoh_no_peralihan
+FROM public.sr_peralihan
+WHERE NULLIF(BTRIM(COALESCE(CAST(no_peralihan AS TEXT), '')), '') IS NOT NULL
+LIMIT 10;

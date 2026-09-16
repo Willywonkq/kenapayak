@@ -151,8 +151,62 @@ class dftr_peralihan_hak_m extends Model
         $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
         $stokTipe = $this->kolomKode('sr_stok', ['kd_tipe_bgn', 'kd_tipe']);
 
+        /*
+         * Tiga kolom ini ada pada query desktop tetapi tidak ikut tersalin
+         * ke sr_peralihan. Diagnostik pada database DTSA memastikannya:
+         * nm_agen, nm_sales, dan no_telp tidak ditemukan. Kolom yang tidak
+         * ada akan membuat seluruh query gagal, jadi bila memang tidak ada
+         * nilainya diisi NULL dan susunan kolom keluaran tetap utuh.
+         */
+        $nmAgen = $this->kolomOpsional('sr_peralihan', 'peralihan', 'nm_agen');
+        $nmSales = $this->kolomOpsional('sr_peralihan', 'peralihan', 'nm_sales');
+        $noTelp = $this->kolomOpsional('sr_peralihan', 'peralihan', 'no_telp');
+
         $sql = <<<SQL
-            WITH peralihan_terpilih AS (
+            WITH ppjb_kunci AS (
+                /*
+                 * sr_peralihan.ppjb_id bertipe numeric sehingga awalannya
+                 * terbuang, sedangkan sr_ppjb.ppjb_id menyimpan teks lengkap
+                 * berawalan seperti DBPSA-18784. Diukur pada database DTSA:
+                 * dari 3.069 baris peralihan, NOL yang cocok bila
+                 * dibandingkan apa adanya.
+                 *
+                 * Berbeda dengan sr_biaya_ajb, sr_peralihan tidak membawa
+                 * KD_PERUSAHAAN sehingga awalannya tidak bisa dipulihkan
+                 * dari baris itu sendiri. Angkanya pun tidak bisa dipakai
+                 * begitu saja, karena DBPSA-1 dan DBPSS-1 sama-sama ada.
+                 *
+                 * Karena itu hanya angka yang menunjuk tepat satu PPJB yang
+                 * dipakai. Kolom jumlah memberitahu berapa PPJB memakai
+                 * angka itu. Menempelkan baris yang meragukan berarti
+                 * menampilkan peralihan hak milik unit lain, dan itu lebih
+                 * berbahaya daripada tidak menampilkannya.
+                 */
+                SELECT
+                    REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '^[^0-9]+', '')
+                        AS angka,
+                    MIN(BTRIM(CAST(ppjb_id AS TEXT))) AS id_lengkap,
+                    COUNT(*) AS jumlah
+                FROM public.sr_ppjb
+                WHERE ppjb_id IS NOT NULL
+                GROUP BY 1
+            ),
+            nasabah_kunci AS (
+                /*
+                 * Hal yang sama terjadi pada NASABAH_ID: sr_pembeli_lama dan
+                 * sr_pembeli_baru bertipe numeric sedangkan sr_nasabah
+                 * varchar berawalan.
+                 */
+                SELECT
+                    REGEXP_REPLACE(BTRIM(CAST(nasabah_id AS TEXT)), '^[^0-9]+', '')
+                        AS angka,
+                    MIN(BTRIM(CAST(nasabah_id AS TEXT))) AS id_lengkap,
+                    COUNT(*) AS jumlah
+                FROM public.sr_nasabah
+                WHERE nasabah_id IS NOT NULL
+                GROUP BY 1
+            ),
+            peralihan_terpilih AS (
                 /*
                  * Peralihan disaring tanggal lebih dulu supaya yang dijoin
                  * tinggal sedikit. Kunci pada database ini dibandingkan lewat
@@ -177,8 +231,18 @@ class dftr_peralihan_hak_m extends Model
                         THEN CAST(peralihan.tgl_peralihan AS TIMESTAMP)
                     END AS tgl_peralihan_valid,
                     BTRIM(CAST(peralihan.peralihan_id AS TEXT)) AS kunci_peralihan,
-                    BTRIM(CAST(peralihan.ppjb_id AS TEXT)) AS kunci_ppjb
+                    CASE
+                        WHEN BTRIM(CAST(peralihan.ppjb_id AS TEXT)) !~ '^[0-9]+$'
+                        THEN BTRIM(CAST(peralihan.ppjb_id AS TEXT))
+                        ELSE ppjb_kunci.id_lengkap
+                    END AS kunci_ppjb
                 FROM public.sr_peralihan AS peralihan
+                LEFT JOIN ppjb_kunci
+                    ON ppjb_kunci.angka
+                     = REGEXP_REPLACE(
+                           BTRIM(CAST(peralihan.ppjb_id AS TEXT)), '^[^0-9]+', ''
+                       )
+                   AND ppjb_kunci.jumlah = 1
                 WHERE CASE
                           WHEN COALESCE(CAST(peralihan.tgl_peralihan AS TEXT), '')
                                ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
@@ -256,9 +320,9 @@ class dftr_peralihan_hak_m extends Model
                 peralihan.tgl_kuitansi AS "TGL_KUITANSI",
                 peralihan.jml_kuitansi AS "JML_KUITANSI",
                 peralihan.harga_pasar AS "HARGA_PASAR",
-                peralihan.nm_agen AS "NM_AGEN",
-                peralihan.nm_sales AS "NM_SALES",
-                peralihan.no_telp AS "NO_TELP",
+                {$nmAgen} AS "NM_AGEN",
+                {$nmSales} AS "NM_SALES",
+                {$noTelp} AS "NO_TELP",
 
                 nasabah_lama.nama AS "PEMBELI_LAMA",
                 nasabah_baru.nama AS "PEMBELI_BARU",
@@ -307,13 +371,33 @@ class dftr_peralihan_hak_m extends Model
              * baris saja yang cocok, dan pasangannya yang belum ikut
              * tersalin tidak ikut menghapus barisnya.
              */
+            LEFT JOIN nasabah_kunci AS kunci_nasabah_lama
+                ON kunci_nasabah_lama.angka
+                 = REGEXP_REPLACE(
+                       BTRIM(CAST(pembeli_lama.nasabah_id AS TEXT)), '^[^0-9]+', ''
+                   )
+               AND kunci_nasabah_lama.jumlah = 1
             LEFT JOIN public.sr_nasabah AS nasabah_lama
                 ON BTRIM(CAST(nasabah_lama.nasabah_id AS TEXT))
-                 = BTRIM(CAST(pembeli_lama.nasabah_id AS TEXT))
+                 = CASE
+                       WHEN BTRIM(CAST(pembeli_lama.nasabah_id AS TEXT)) !~ '^[0-9]+$'
+                       THEN BTRIM(CAST(pembeli_lama.nasabah_id AS TEXT))
+                       ELSE kunci_nasabah_lama.id_lengkap
+                   END
 
+            LEFT JOIN nasabah_kunci AS kunci_nasabah_baru
+                ON kunci_nasabah_baru.angka
+                 = REGEXP_REPLACE(
+                       BTRIM(CAST(pembeli_baru.nasabah_id AS TEXT)), '^[^0-9]+', ''
+                   )
+               AND kunci_nasabah_baru.jumlah = 1
             LEFT JOIN public.sr_nasabah AS nasabah_baru
                 ON BTRIM(CAST(nasabah_baru.nasabah_id AS TEXT))
-                 = BTRIM(CAST(pembeli_baru.nasabah_id AS TEXT))
+                 = CASE
+                       WHEN BTRIM(CAST(pembeli_baru.nasabah_id AS TEXT)) !~ '^[0-9]+$'
+                       THEN BTRIM(CAST(pembeli_baru.nasabah_id AS TEXT))
+                       ELSE kunci_nasabah_baru.id_lengkap
+                   END
 
             /*
              * Desktop memakai INNER JOIN ke TIPE dan SEKTOR. Di PostgreSQL
@@ -447,31 +531,41 @@ class dftr_peralihan_hak_m extends Model
     }
 
     /**
+     * Menyebut kolom yang boleh saja tidak ada pada hasil migrasi.
+     *
+     * Mengembalikan acuan kolomnya bila ada, atau NULL bila tidak, sehingga
+     * susunan kolom keluaran tetap utuh dan query tidak gagal.
+     */
+    private function kolomOpsional(
+        string $tabel,
+        string $alias,
+        string $kolom
+    ): string {
+        return $this->adaKolom($tabel, $kolom)
+            ? $alias . '.' . $kolom
+            : 'NULL';
+    }
+
+    private function adaKolom(string $tabel, string $kolom): bool
+    {
+        return in_array(
+            strtolower($kolom),
+            $this->kolomTabel($tabel),
+            true
+        );
+    }
+
+    /**
      * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
      * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
      * unit. Sama seperti pada model lain yang sudah dimigrasi.
      */
     private function kolomKode(string $tabel, array $kandidat): string
     {
-        static $kolomTabel = [];
-
-        if (!isset($kolomTabel[$tabel])) {
-            $baris = DB::connection(self::CONNECTION)->select(
-                'SELECT column_name
-                   FROM information_schema.columns
-                  WHERE table_schema = :schema
-                    AND table_name = :tabel',
-                ['schema' => self::SCHEMA, 'tabel' => $tabel]
-            );
-
-            $kolomTabel[$tabel] = array_map(
-                static fn ($item) => strtolower($item->column_name),
-                $baris
-            );
-        }
+        $tersedia = $this->kolomTabel($tabel);
 
         foreach ($kandidat as $kolom) {
-            if (in_array(strtolower($kolom), $kolomTabel[$tabel], true)) {
+            if (in_array(strtolower($kolom), $tersedia, true)) {
                 return strtolower($kolom);
             }
         }
@@ -480,6 +574,31 @@ class dftr_peralihan_hak_m extends Model
             'Kolom kode tidak ditemukan pada tabel ' . $tabel . ': '
             . implode(', ', $kandidat)
         );
+    }
+
+    /**
+     * Daftar nama kolom pada satu tabel, dibaca sekali lalu diingat.
+     */
+    private function kolomTabel(string $tabel): array
+    {
+        static $ingatan = [];
+
+        if (!isset($ingatan[$tabel])) {
+            $baris = DB::connection(self::CONNECTION)->select(
+                'SELECT column_name
+                   FROM information_schema.columns
+                  WHERE table_schema = :schema
+                    AND table_name = :tabel',
+                ['schema' => self::SCHEMA, 'tabel' => $tabel]
+            );
+
+            $ingatan[$tabel] = array_map(
+                static fn ($item) => strtolower($item->column_name),
+                $baris
+            );
+        }
+
+        return $ingatan[$tabel];
     }
 
     /**
