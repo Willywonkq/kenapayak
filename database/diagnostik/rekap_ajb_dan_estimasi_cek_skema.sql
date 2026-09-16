@@ -27,8 +27,17 @@
 --           cocok bila dibandingkan apa adanya. Tanpa perbaikan, Rekap
 --           Estimasi Biaya AJB pasti kosong.
 --
--- Model sudah diperbaiki: awalan dibuang lebih dulu di kedua sisi. Yang
--- masih perlu dipastikan hanya QUERY 5 di bawah.
+-- QUERY 5 : ternyata awalan TIDAK BISA ditebak dari angkanya. Dari
+--           62.328 baris sr_ppjb hanya 38.895 angka yang berbeda, karena
+--           DBPSA-1 dan DBPSS-1 sama-sama ada. Akibatnya 1.348 dari 1.664
+--           baris biaya menempel ke dua PPJB sekaligus.
+--
+-- Karena itu model hanya mengikutkan baris biaya yang angkanya menunjuk
+-- tepat satu PPJB. Sisanya sengaja tidak ditampilkan, sebab menempelkan
+-- baris yang meragukan berarti menampilkan angka biaya milik unit lain.
+--
+-- Yang masih perlu dicari: kolom pada sr_biaya_ajb yang membawa awalannya.
+-- Jalankan QUERY 6 di bawah.
 -- =====================================================================
 
 
@@ -239,3 +248,49 @@ SELECT
             WHERE REGEXP_REPLACE(BTRIM(CAST(p.ppjb_id AS TEXT)), '^[^0-9]+', '')
                 = REGEXP_REPLACE(BTRIM(CAST(b.ppjb_id AS TEXT)), '^[^0-9]+', '')
       ) > 1) AS menempel_ke_lebih_dari_satu;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 6 : mencari kolom sr_biaya_ajb yang membawa awalan [JALANKAN INI]
+-- ---------------------------------------------------------------------
+-- Setiap tabel pada database ini punya kunci sendiri bertipe teks
+-- berawalan: sr_ppjb punya ppjb_id DBPSA-18784, sr_stok punya stok_id,
+-- sr_sertipikat punya sertipikat_id. Besar kemungkinan sr_biaya_ajb juga
+-- punya kunci semacam itu, misalnya biaya_ajb_id, dan awalannya bisa
+-- diambil dari situ persis seperti cara model Daftar Akta Jual Beli
+-- mengambil awalan SERTIPIKAT_ID dari PPJB_ID.
+--
+-- Query pertama menampilkan seluruh kolom sr_biaya_ajb. Cari kolom
+-- bertipe varchar yang isinya berawalan huruf.
+SELECT
+    ordinal_position AS urutan,
+    column_name AS nama_kolom,
+    udt_name AS tipe,
+    character_maximum_length AS panjang,
+    numeric_precision AS presisi,
+    numeric_scale AS skala
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'sr_biaya_ajb'
+ORDER BY ordinal_position;
+
+-- Query kedua menampilkan lima baris apa adanya, supaya terlihat kolom
+-- mana yang isinya berbentuk DBPSA-xxxx atau DBPSS-xxxx.
+SELECT *
+FROM public.sr_biaya_ajb
+LIMIT 5;
+
+-- Query ketiga: untuk setiap kolom teks pada sr_biaya_ajb, berapa banyak
+-- nilainya yang berbentuk awalan-huruf diikuti angka. Kolom dengan
+-- jumlah besar itulah kandidat pembawa awalan.
+SELECT
+    c.column_name AS nama_kolom,
+    (SELECT COUNT(*) FROM public.sr_biaya_ajb b
+      WHERE to_jsonb(b) ->> c.column_name ~ '^[A-Za-z]+[^0-9]*[0-9]+$')
+        AS berbentuk_berawalan,
+    (SELECT COUNT(*) FROM public.sr_biaya_ajb) AS jumlah_baris
+FROM information_schema.columns AS c
+WHERE c.table_schema = 'public'
+  AND c.table_name = 'sr_biaya_ajb'
+  AND c.udt_name IN ('varchar', 'bpchar', 'text')
+ORDER BY 2 DESC, 1;

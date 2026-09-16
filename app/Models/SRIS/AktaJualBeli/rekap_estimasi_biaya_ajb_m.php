@@ -410,6 +410,22 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
+            ppjb_kunci AS (
+                /*
+                 * Angka PPJB beserta bentuk lengkapnya. Kolom jumlah
+                 * memberitahu berapa PPJB yang memakai angka itu; hanya
+                 * yang bernilai 1 yang boleh dipakai menyambung baris
+                 * biaya, karena selebihnya tidak bisa dipastikan.
+                 */
+                SELECT
+                    REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '^[^0-9]+', '')
+                        AS angka,
+                    MIN(BTRIM(CAST(ppjb_id AS TEXT))) AS ppjb_id_lengkap,
+                    COUNT(*) AS jumlah
+                FROM public.sr_ppjb
+                WHERE ppjb_id IS NOT NULL
+                GROUP BY 1
+            ),
             pembeli_ppjb_nama AS (
                 /*
                  * Pengganti F_GET_PEMBELI(PPJB_ID) milik SQL Server. Nama
@@ -500,26 +516,33 @@ class rekap_estimasi_biaya_ajb_m extends Model
              * sr_biaya_ajb yang PPJB_ID-nya terisi, nol yang cocok bila
              * dibandingkan apa adanya.
              *
-             * Karena itu awalan dibuang lebih dulu di kedua sisi. Berbeda
-             * dengan SERTIPIKAT_ID pada model Daftar Akta Jual Beli, di
-             * sini tidak ada kolom teks lain pada baris biaya yang bisa
-             * dipakai untuk menyusun ulang awalannya, sehingga awalan
-             * memang tidak bisa dipulihkan.
+             * Awalan itu TIDAK BISA ditebak dari angkanya saja. Ada dua
+             * awalan yang dipakai bersamaan, DBPSA- dan DBPSS-, dan dari
+             * 62.328 baris sr_ppjb hanya 38.895 angka yang berbeda: angka
+             * yang sama dipakai oleh kedua awalan. Akibatnya 1.348 dari
+             * 1.664 baris biaya menempel ke dua PPJB sekaligus, dan tidak
+             * ada cara memastikan mana yang benar.
              *
-             * Penyaring unit pada stok_terpilih menjadi pengaman: setiap
-             * kode perusahaan pada sr_stok hanya memakai satu awalan, jadi
-             * dari sepasang PPJB berawalan berbeda dengan angka sama hanya
-             * satu yang bisa lolos. Lihat QUERY 5 pada diagnostik
-             * rekap_ajb_dan_estimasi_cek_skema.sql untuk memastikan tidak
-             * ada angka PPJB yang dipakai oleh dua awalan sekaligus.
+             * Berbeda dengan SERTIPIKAT_ID pada model Daftar Akta Jual
+             * Beli, di sini tidak ada kolom teks lain pada baris biaya yang
+             * bisa dipakai untuk menyusun ulang awalannya.
+             *
+             * Karena itu hanya baris yang angkanya menunjuk tepat satu PPJB
+             * yang diikutkan. Menempelkan baris yang meragukan ke unit yang
+             * kebetulan lolos penyaring akan menampilkan angka biaya milik
+             * unit lain, dan itu lebih berbahaya daripada tidak menampilkan
+             * apa-apa. Batasan ini bisa dicabut begitu kolom pada
+             * sr_biaya_ajb yang membawa awalannya ditemukan.
              */
-            INNER JOIN public.sr_ppjb AS ppjb
-                ON REGEXP_REPLACE(
-                       BTRIM(CAST(ppjb.ppjb_id AS TEXT)), '^[^0-9]+', ''
-                   )
+            INNER JOIN ppjb_kunci
+                ON ppjb_kunci.angka
                  = REGEXP_REPLACE(
                        BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT)), '^[^0-9]+', ''
                    )
+               AND ppjb_kunci.jumlah = 1
+
+            INNER JOIN public.sr_ppjb AS ppjb
+                ON BTRIM(CAST(ppjb.ppjb_id AS TEXT)) = ppjb_kunci.ppjb_id_lengkap
                AND UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
 
             INNER JOIN stok_terpilih AS stok
