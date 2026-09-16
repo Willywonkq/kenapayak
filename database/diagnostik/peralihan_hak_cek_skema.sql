@@ -393,3 +393,39 @@ SELECT awalan, kode_unit, COUNT(*) AS jumlah
 FROM kandidat
 GROUP BY 1, 2
 ORDER BY 1, 3 DESC;
+
+
+-- =====================================================================
+-- HASIL QUERY 8 DAN 9 PADA DATABASE DTSA  -  SUDAH TERJAWAB
+-- =====================================================================
+-- QUERY 8, kelayakan tanggal:
+--
+--     awalan   pasangan   layak   melanggar   tanggal kosong
+--     DBPSA-      3.068   3.064           0                4
+--     DBPSS-      2.991   1.795       1.192                4
+--
+-- DBPSA- tidak melanggar sama sekali, sedangkan DBPSS- melanggar pada
+-- 40 persen pasangannya. Peralihan hak tidak mungkin terjadi sebelum
+-- PPJB-nya, jadi kecocokan DBPSS- itu hanyalah tabrakan angka.
+-- Kesimpulannya sr_peralihan berasal dari satu sumber saja, yaitu yang
+-- berawalan DBPSA-.
+--
+-- QUERY 9, sebaran unit di bawah DBPSA-:
+--
+--     SBKS 1.552, SKLG 721, GDOR 324, WGP 206, MKPP 101, SKPN 46,
+--     KCJA 40, BHMS 33, SKRW 25, MNST 10, SGMC 9, SMSF 1
+--
+-- Seluruhnya unit berawalan DBPSA-, dan jumlahnya tepat 3.068. Sejalan
+-- dengan kesimpulan di atas.
+--
+-- Model sudah memakai cara ini. Awalannya TIDAK ditulis mati, melainkan
+-- ditentukan dari data memakai penguji kelayakan tanggal yang sama,
+-- sehingga tetap benar bila suatu saat sumbernya berubah. Hasilnya
+-- diingat supaya query penentunya hanya jalan sekali per permintaan,
+-- dan pada pengujian seukuran produksi query itu memakan 132 milidetik.
+--
+-- Dengan begitu pembatasan "hanya angka yang tunggal" tidak diperlukan
+-- lagi, dan seluruh baris peralihan terpakai, bukan hanya 77.
+--
+-- Tidak ada lagi query yang perlu dijalankan pada berkas ini.
+-- =====================================================================

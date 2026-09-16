@@ -163,35 +163,7 @@ class dftr_peralihan_hak_m extends Model
         $noTelp = $this->kolomOpsional('sr_peralihan', 'peralihan', 'no_telp');
 
         $sql = <<<SQL
-            WITH ppjb_kunci AS (
-                /*
-                 * sr_peralihan.ppjb_id bertipe numeric sehingga awalannya
-                 * terbuang, sedangkan sr_ppjb.ppjb_id menyimpan teks lengkap
-                 * berawalan seperti DBPSA-18784. Diukur pada database DTSA:
-                 * dari 3.069 baris peralihan, NOL yang cocok bila
-                 * dibandingkan apa adanya.
-                 *
-                 * Berbeda dengan sr_biaya_ajb, sr_peralihan tidak membawa
-                 * KD_PERUSAHAAN sehingga awalannya tidak bisa dipulihkan
-                 * dari baris itu sendiri. Angkanya pun tidak bisa dipakai
-                 * begitu saja, karena DBPSA-1 dan DBPSS-1 sama-sama ada.
-                 *
-                 * Karena itu hanya angka yang menunjuk tepat satu PPJB yang
-                 * dipakai. Kolom jumlah memberitahu berapa PPJB memakai
-                 * angka itu. Menempelkan baris yang meragukan berarti
-                 * menampilkan peralihan hak milik unit lain, dan itu lebih
-                 * berbahaya daripada tidak menampilkannya.
-                 */
-                SELECT
-                    REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '^[^0-9]+', '')
-                        AS angka,
-                    MIN(BTRIM(CAST(ppjb_id AS TEXT))) AS id_lengkap,
-                    COUNT(*) AS jumlah
-                FROM public.sr_ppjb
-                WHERE ppjb_id IS NOT NULL
-                GROUP BY 1
-            ),
-            nasabah_kunci AS (
+            WITH nasabah_kunci AS (
                 /*
                  * Hal yang sama terjadi pada NASABAH_ID: sr_pembeli_lama dan
                  * sr_pembeli_baru bertipe numeric sedangkan sr_nasabah
@@ -218,6 +190,13 @@ class dftr_peralihan_hak_m extends Model
                  * desktop: pada database legacy kolom tanggal dapat berisi
                  * nilai yang tidak valid.
                  *
+                 * PPJB_ID pada sr_peralihan bertipe numeric sehingga
+                 * awalannya terbuang, sedangkan sr_ppjb menyimpan teks
+                 * lengkap berawalan seperti DBPSA-18784. Awalan yang benar
+                 * ditentukan sekali oleh awalanPeralihan(), lalu disambung
+                 * di sini. Bila nilainya ternyata sudah membawa awalan
+                 * sendiri, nilainya dipakai apa adanya.
+                 *
                  * Batas atas dibuat eksklusif (tanggal akhir + 1 hari) agar
                  * baris yang jamnya bukan 00:00 pada tanggal akhir tetap
                  * ikut. Query asli memakai <= tanggal akhir, sehingga baris
@@ -234,15 +213,10 @@ class dftr_peralihan_hak_m extends Model
                     CASE
                         WHEN BTRIM(CAST(peralihan.ppjb_id AS TEXT)) !~ '^[0-9]+$'
                         THEN BTRIM(CAST(peralihan.ppjb_id AS TEXT))
-                        ELSE ppjb_kunci.id_lengkap
+                        ELSE :awalan_peralihan
+                             || BTRIM(CAST(peralihan.ppjb_id AS TEXT))
                     END AS kunci_ppjb
                 FROM public.sr_peralihan AS peralihan
-                LEFT JOIN ppjb_kunci
-                    ON ppjb_kunci.angka
-                     = REGEXP_REPLACE(
-                           BTRIM(CAST(peralihan.ppjb_id AS TEXT)), '^[^0-9]+', ''
-                       )
-                   AND ppjb_kunci.jumlah = 1
                 WHERE CASE
                           WHEN COALESCE(CAST(peralihan.tgl_peralihan AS TEXT), '')
                                ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
@@ -486,6 +460,7 @@ class dftr_peralihan_hak_m extends Model
         SQL;
 
         return DB::connection(self::CONNECTION)->select($sql, [
+            'awalan_peralihan' => $this->awalanPeralihan(),
             'sts_entry_filter' => $stsEntry,
             'sts_entry_semua' => $stsEntry,
             'tgl_awal' => $tglAwal,
@@ -528,6 +503,99 @@ class dftr_peralihan_hak_m extends Model
         $status = strtoupper(trim((string) $value));
 
         return in_array($status, ['Y', 'T'], true) ? $status : '*';
+    }
+
+    /**
+     * Menentukan awalan yang dipakai PPJB_ID pada sr_peralihan.
+     *
+     * sr_peralihan.ppjb_id bertipe numeric sehingga awalannya terbuang,
+     * sedangkan sr_ppjb menyimpan teks lengkap berawalan. Angkanya saja
+     * tidak cukup: pada database DTSA, 2.991 dari 3.069 baris peralihan
+     * cocok dengan DUA PPJB sekaligus, karena rentang angka DBPSA- dan
+     * DBPSS- bertumpang tindih. Berbeda dengan sr_biaya_ajb, sr_peralihan
+     * juga tidak membawa KD_PERUSAHAAN yang bisa menunjukkan awalannya.
+     *
+     * Penentunya memakai kelayakan tanggal, yang tidak bergantung pada
+     * nama awalan: peralihan hak terjadi SETELAH PPJB, jadi pasangan yang
+     * benar tidak mungkin tanggal peralihannya mendahului tanggal PPJB.
+     * Diukur pada database DTSA:
+     *
+     *     DBPSA-   3.068 pasangan   3.064 layak   0 melanggar
+     *     DBPSS-   2.991 pasangan   1.795 layak   1.192 melanggar
+     *
+     * DBPSA- tidak melanggar sama sekali sedangkan DBPSS- melanggar pada
+     * 40 persen pasangannya, jadi kecocokan DBPSS- hanyalah tabrakan
+     * angka. Sebaran unitnya ikut sejalan: di bawah DBPSA- seluruhnya
+     * unit berawalan DBPSA-, dipimpin SBKS 1.552 dan SKLG 721.
+     *
+     * Awalannya tidak ditulis mati di sini, melainkan dihitung dari data
+     * sehingga tetap benar bila suatu saat sumbernya berubah. Hasilnya
+     * diingat supaya query penentu ini hanya jalan sekali.
+     */
+    private function awalanPeralihan(): string
+    {
+        static $awalan = null;
+
+        if ($awalan !== null) {
+            return $awalan;
+        }
+
+        /*
+         * Kedua sisi dibuat berkunci "angka" lebih dulu supaya syarat
+         * join hanya menyangkut dua tabel dan bisa memakai hash join.
+         * Menyusun awalan di dalam syarat join membuatnya menyangkut tiga
+         * tabel, dan PostgreSQL jatuh ke nested loop yang membaca habis
+         * sr_ppjb berulang kali.
+         */
+        $sql = <<<SQL
+            SELECT
+                pp.awalan AS awalan,
+                COUNT(*) FILTER (
+                    WHERE pr.tgl_peralihan IS NOT NULL
+                      AND pp.tgl_ppjb IS NOT NULL
+                      AND pr.tgl_peralihan >= CAST(pp.tgl_ppjb AS TIMESTAMP)
+                ) AS layak,
+                COUNT(*) FILTER (
+                    WHERE pr.tgl_peralihan IS NOT NULL
+                      AND pp.tgl_ppjb IS NOT NULL
+                      AND pr.tgl_peralihan < CAST(pp.tgl_ppjb AS TIMESTAMP)
+                ) AS melanggar
+            FROM (
+                SELECT
+                    REGEXP_REPLACE(BTRIM(CAST(x.ppjb_id AS TEXT)), '[0-9]+$', '')
+                        AS awalan,
+                    REGEXP_REPLACE(BTRIM(CAST(x.ppjb_id AS TEXT)), '^[^0-9]+', '')
+                        AS angka,
+                    x.tgl_ppjb AS tgl_ppjb
+                FROM public.sr_ppjb AS x
+                WHERE x.ppjb_id IS NOT NULL
+            ) AS pp
+            INNER JOIN (
+                SELECT
+                    BTRIM(CAST(p.ppjb_id AS TEXT)) AS angka,
+                    CASE
+                        WHEN COALESCE(CAST(p.tgl_peralihan AS TEXT), '')
+                             ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                        THEN CAST(p.tgl_peralihan AS TIMESTAMP)
+                    END AS tgl_peralihan
+                FROM public.sr_peralihan AS p
+                WHERE BTRIM(CAST(p.ppjb_id AS TEXT)) ~ '^[0-9]+$'
+            ) AS pr
+                ON pr.angka = pp.angka
+            GROUP BY 1
+            HAVING COUNT(*) FILTER (
+                       WHERE pr.tgl_peralihan IS NOT NULL
+                         AND pp.tgl_ppjb IS NOT NULL
+                         AND pr.tgl_peralihan >= CAST(pp.tgl_ppjb AS TIMESTAMP)
+                   ) > 0
+            ORDER BY 3 ASC, 2 DESC
+            LIMIT 1
+        SQL;
+
+        $baris = DB::connection(self::CONNECTION)->select($sql);
+        $awalan = $baris ? (string) $baris[0]->awalan : '';
+
+        return $awalan;
     }
 
     /**
