@@ -294,3 +294,102 @@ SELECT DISTINCT BTRIM(CAST(no_peralihan AS TEXT)) AS contoh_no_peralihan
 FROM public.sr_peralihan
 WHERE NULLIF(BTRIM(COALESCE(CAST(no_peralihan AS TEXT), '')), '') IS NOT NULL
 LIMIT 10;
+
+
+-- =====================================================================
+-- HASIL QUERY 7 PADA DATABASE DTSA
+-- =====================================================================
+-- Bagian 1 : 3069 peralihan, hanya 77 yang angka PPJB-nya menunjuk tepat
+--            satu PPJB. Sebanyak 2.991 menunjuk dua, dan 1 tidak ketemu.
+--            Jadi aturan "hanya yang tunggal" cuma menampilkan 2,5 persen
+--            datanya. Terlalu sedikit untuk dipakai.
+--
+-- Bagian 2 : 3007 pembeli lama, SELURUHNYA menunjuk tepat satu nasabah.
+--            Nama pembeli lama dan baru aman, tidak perlu pembatasan.
+--
+-- Bagian 3 : awalan DBPSA- mencakup 3.068 dari 3.069 baris, DBPSS-
+--            mencakup 2.991. Keduanya tinggi karena rentang angkanya
+--            memang bertumpang tindih, jadi ini belum membuktikan apa pun.
+--
+-- Bagian 4 : no_peralihan berisi nomor akta notaris seperti 09/2023 dan
+--            43/2022, bukan kode unit. Tidak bisa dipakai.
+--
+-- QUERY 8 di bawah memakai penguji yang tidak bergantung pada awalan:
+-- tanggal peralihan tidak mungkin mendahului tanggal PPJB-nya.
+-- =====================================================================
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 8 : menentukan awalan lewat kelayakan tanggal
+-- ---------------------------------------------------------------------
+-- Peralihan hak terjadi SETELAH PPJB. Jadi pasangan yang benar hampir
+-- selalu memenuhi tgl_peralihan >= tgl_ppjb, sedangkan pasangan yang
+-- salah akan sering melanggarnya.
+--
+-- Bandingkan kedua baris hasilnya. Awalan yang "layak"-nya jauh lebih
+-- banyak dan "melanggar"-nya jauh lebih sedikit adalah sumber yang benar.
+WITH kandidat AS (
+    SELECT
+        a.awalan,
+        p.peralihan_id,
+        CASE
+            WHEN COALESCE(CAST(p.tgl_peralihan AS TEXT), '')
+                 ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+            THEN CAST(p.tgl_peralihan AS TIMESTAMP)
+        END AS tgl_peralihan,
+        x.tgl_ppjb AS tgl_ppjb
+    FROM public.sr_peralihan AS p
+    CROSS JOIN (
+        SELECT DISTINCT REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '[0-9]+$', '')
+            AS awalan
+        FROM public.sr_ppjb WHERE ppjb_id IS NOT NULL
+    ) AS a
+    INNER JOIN public.sr_ppjb AS x
+        ON BTRIM(CAST(x.ppjb_id AS TEXT))
+         = a.awalan
+           || REGEXP_REPLACE(BTRIM(CAST(p.ppjb_id AS TEXT)), '^[^0-9]+', '')
+)
+SELECT
+    awalan,
+    COUNT(*) AS jumlah_pasangan,
+    COUNT(*) FILTER (WHERE tgl_peralihan >= tgl_ppjb) AS layak_tanggal,
+    COUNT(*) FILTER (WHERE tgl_peralihan < tgl_ppjb) AS melanggar_tanggal,
+    COUNT(*) FILTER (WHERE tgl_peralihan IS NULL OR tgl_ppjb IS NULL)
+        AS tanggal_kosong
+FROM kandidat
+GROUP BY 1
+ORDER BY 3 DESC;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 9 : sebaran unit di bawah masing-masing awalan
+-- ---------------------------------------------------------------------
+-- Penguji kedua. Peralihan hak biasanya terkumpul di beberapa unit saja.
+-- Awalan yang benar akan memberi sebaran unit yang masuk akal, sedangkan
+-- yang salah biasanya tersebar tidak karuan.
+--
+-- Perhatikan juga apakah unit yang muncul di bawah DBPSA- memang unit
+-- berawalan DBPSA-, dan sebaliknya. Kalau iya untuk keduanya, berarti
+-- memang tidak bisa dibedakan dari sini.
+WITH kandidat AS (
+    SELECT
+        a.awalan,
+        UPPER(BTRIM(COALESCE(CAST(st.kd_perusahaan AS TEXT), '(kosong)')))
+            AS kode_unit
+    FROM public.sr_peralihan AS p
+    CROSS JOIN (
+        SELECT DISTINCT REGEXP_REPLACE(BTRIM(CAST(ppjb_id AS TEXT)), '[0-9]+$', '')
+            AS awalan
+        FROM public.sr_ppjb WHERE ppjb_id IS NOT NULL
+    ) AS a
+    INNER JOIN public.sr_ppjb AS x
+        ON BTRIM(CAST(x.ppjb_id AS TEXT))
+         = a.awalan
+           || REGEXP_REPLACE(BTRIM(CAST(p.ppjb_id AS TEXT)), '^[^0-9]+', '')
+    INNER JOIN public.sr_stok AS st
+        ON BTRIM(CAST(st.stok_id AS TEXT)) = BTRIM(CAST(x.stok_id AS TEXT))
+)
+SELECT awalan, kode_unit, COUNT(*) AS jumlah
+FROM kandidat
+GROUP BY 1, 2
+ORDER BY 1, 3 DESC;
