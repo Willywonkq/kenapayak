@@ -1,11 +1,11 @@
 <?php
 
-// CONTROLLER VERSION SQLSERVER-V1-20260902
+// CONTROLLER VERSION POSTGRES-V1-20260916
 
 namespace App\Http\Controllers\SRIS\Suratrumah;
 
 use App\Http\Controllers\Controller;
-use App\Models\SRIS\Suratrumah\rekap_ajb_m;
+use App\Models\SRIS\AktaJualBeli\rekap_ajb_m;
 use Illuminate\Http\Request;
 
 class rekap_ajb_c extends Controller
