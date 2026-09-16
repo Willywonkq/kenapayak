@@ -429,3 +429,68 @@ ORDER BY 1, 3 DESC;
 --
 -- Tidak ada lagi query yang perlu dijalankan pada berkas ini.
 -- =====================================================================
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 10 : seberapa terisi kolom kuitansi pada sr_peralihan
+-- ---------------------------------------------------------------------
+-- Pada layar, bagian KUITANSI (Nomor, Tanggal, Jumlah) tampil kosong
+-- sedangkan Harga Pasar terisi. Ketiganya diambil langsung dari
+-- sr_peralihan, sama persis seperti query desktop, jadi yang perlu
+-- dipastikan adalah apakah kolomnya memang berisi.
+--
+-- Bagian pertama: seluruh tabel.
+SELECT
+    COUNT(*) AS jumlah_baris,
+    COUNT(no_kuitansi) AS no_kuitansi_terisi,
+    COUNT(tgl_kuitansi) AS tgl_kuitansi_terisi,
+    COUNT(jml_kuitansi) AS jml_kuitansi_terisi,
+    COUNT(*) FILTER (WHERE jml_kuitansi IS NOT NULL AND jml_kuitansi <> 0)
+        AS jml_kuitansi_bukan_nol,
+    COUNT(harga_pasar) AS harga_pasar_terisi
+FROM public.sr_peralihan;
+
+-- Bagian kedua: per tahun, supaya terlihat apakah hanya tahun tertentu
+-- yang terisi.
+SELECT
+    EXTRACT(YEAR FROM CAST(tgl_peralihan AS TIMESTAMP))::int AS tahun,
+    COUNT(*) AS jumlah_baris,
+    COUNT(jml_kuitansi) AS jml_kuitansi_terisi,
+    COUNT(harga_pasar) AS harga_pasar_terisi
+FROM public.sr_peralihan
+WHERE COALESCE(CAST(tgl_peralihan AS TEXT), '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+GROUP BY 1
+ORDER BY 1;
+
+-- Bagian ketiga: khusus baris milik SBKS pada rentang yang dibuka di
+-- layar, yaitu 01-07-2023 sampai 16-09-2026.
+WITH baris_sbks AS (
+    SELECT p.*
+    FROM public.sr_peralihan AS p
+    INNER JOIN public.sr_ppjb AS x
+        ON BTRIM(CAST(x.ppjb_id AS TEXT))
+         = 'DBPSA-' || BTRIM(CAST(p.ppjb_id AS TEXT))
+    INNER JOIN public.sr_stok AS st
+        ON BTRIM(CAST(st.stok_id AS TEXT)) = BTRIM(CAST(x.stok_id AS TEXT))
+    WHERE UPPER(BTRIM(COALESCE(CAST(st.kd_perusahaan AS TEXT), ''))) = 'SBKS'
+      AND CAST(p.tgl_peralihan AS TIMESTAMP) >= DATE '2023-07-01'
+      AND CAST(p.tgl_peralihan AS TIMESTAMP) < DATE '2026-09-16' + INTERVAL '1 day'
+)
+SELECT
+    COUNT(*) AS baris_sbks_di_rentang,
+    COUNT(no_kuitansi) AS no_kuitansi_terisi,
+    COUNT(tgl_kuitansi) AS tgl_kuitansi_terisi,
+    COUNT(jml_kuitansi) AS jml_kuitansi_terisi,
+    COUNT(harga_pasar) AS harga_pasar_terisi
+FROM baris_sbks;
+
+-- Bagian keempat: contoh baris yang kolom kuitansinya memang terisi,
+-- kalau ada. Kosong berarti kolom itu tidak pernah terisi sama sekali.
+SELECT
+    peralihan_id, tgl_peralihan, no_kuitansi, tgl_kuitansi,
+    jml_kuitansi, harga_pasar
+FROM public.sr_peralihan
+WHERE jml_kuitansi IS NOT NULL
+   OR NULLIF(BTRIM(COALESCE(CAST(no_kuitansi AS TEXT), '')), '') IS NOT NULL
+ORDER BY tgl_peralihan DESC NULLS LAST
+LIMIT 10;
