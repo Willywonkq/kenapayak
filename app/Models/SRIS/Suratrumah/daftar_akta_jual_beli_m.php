@@ -200,11 +200,128 @@ class daftar_akta_jual_beli_m extends Model
         ]);
 
         $kunciAkta = $this->kunciSertipikat('akta.sertipikat_id');
-        $kunciPengambilan = $this->kunciSertipikat(
-            'pengambilan.sertipikat_id'
-        );
 
+        /*
+         * Susunan query sengaja dibuat menyempit lebih dulu.
+         *
+         * Seluruh kunci pada database ini harus dibandingkan lewat
+         * BTRIM(CAST(...)), dan perbandingan semacam itu tidak bisa memakai
+         * index. Kalau tabel besar dijoin apa adanya, PostgreSQL membaca
+         * habis semuanya berkali-kali. Karena itu akta disaring tanggal
+         * lebih dulu dan stok disaring unit, lokasi, sektor, serta blok
+         * lebih dulu, sehingga yang dijoin tinggal sedikit.
+         *
+         * Ketiga kolom yang dulu diambil lewat subquery berkorelasi kini
+         * disiapkan sebagai tabel kecil dan disambung dengan LEFT JOIN.
+         * Subquery berkorelasi dijalankan sekali untuk setiap baris hasil,
+         * dan untuk sr_angsuran yang besar itu berarti membacanya ratusan
+         * kali. Sekarang tabel itu dibaca satu kali saja.
+         *
+         * Ketiga subquery itu memakai LIMIT 1 tanpa ORDER BY, jadi barisnya
+         * dipilih sekenanya: yang pertama ditemukan saat tabel dibaca
+         * berurutan, yaitu yang letak fisiknya paling awal. Supaya nilai
+         * yang tampil tidak berubah sedikit pun, DISTINCT ON di sini juga
+         * mengurutkan berdasarkan letak fisik lewat ctid, bukan berdasarkan
+         * tanggal. Satu PPJB yang punya lebih dari satu kuitansi BBN tetap
+         * menampilkan tanggal yang sama seperti sebelumnya.
+         *
+         * Susunan kolom keluaran tidak berubah sama sekali.
+         */
         $sql = <<<SQL
+            WITH akta_terpilih AS (
+                SELECT
+                    akta.*,
+                    CASE
+                        WHEN COALESCE(CAST(akta.tgl_akta AS TEXT), '')
+                             ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                        THEN CAST(akta.tgl_akta AS TIMESTAMP)
+                    END AS tgl_akta_valid,
+                    {$kunciAkta} AS kunci_sertipikat
+                FROM public.sr_akta AS akta
+                WHERE CASE
+                          WHEN COALESCE(CAST(akta.tgl_akta AS TEXT), '')
+                               ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                          THEN CAST(akta.tgl_akta AS TIMESTAMP)
+                      END >= CAST(:tgl_awal AS DATE)
+                  AND CASE
+                          WHEN COALESCE(CAST(akta.tgl_akta AS TEXT), '')
+                               ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                          THEN CAST(akta.tgl_akta AS TIMESTAMP)
+                      END < CAST(:tgl_akhir AS DATE)
+            ),
+            stok_terpilih AS (
+                SELECT
+                    stok.*,
+                    BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
+                FROM public.sr_stok AS stok
+                WHERE UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS TEXT), '')))
+                        = 'A'
+                  AND stok.blok IS NOT NULL
+                  AND stok.nomor IS NOT NULL
+                  AND UPPER(BTRIM(COALESCE(CAST(stok.{$stokPerusahaan} AS TEXT), '')))
+                        = :perusahaan
+                  AND (
+                        UPPER(BTRIM(COALESCE(CAST(stok.{$stokLokasi} AS TEXT), '')))
+                            = :lokasi_filter
+                        OR :lokasi_semua = '*'
+                      )
+                  AND (
+                        UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
+                            = :sektor_filter
+                        OR :sektor_semua = '*'
+                      )
+                  AND (
+                        (
+                            UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
+                            || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')))
+                            BETWEEN :blok_awal_unit AND :blok_akhir_unit
+                        )
+                        OR
+                        (
+                            UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
+                            BETWEEN :blok_awal_blok AND :blok_akhir_blok
+                        )
+                      )
+            ),
+            lokasi_unik AS (
+                SELECT DISTINCT ON (kode) kode, deskripsi
+                FROM (
+                    SELECT
+                        UPPER(BTRIM(COALESCE(CAST(lokasi.{$lokasiKode} AS TEXT), '')))
+                            AS kode,
+                        lokasi.deskripsi AS deskripsi,
+                        lokasi.ctid AS urutan_fisik
+                    FROM public.sr_lokasi AS lokasi
+                ) AS daftar
+                ORDER BY kode, urutan_fisik
+            ),
+            sektor_unik AS (
+                SELECT DISTINCT ON (kode) kode, deskripsi
+                FROM (
+                    SELECT
+                        UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorKode} AS TEXT), '')))
+                            AS kode,
+                        sektor.deskripsi AS deskripsi,
+                        sektor.ctid AS urutan_fisik
+                    FROM public.sr_sektor AS sektor
+                ) AS daftar
+                ORDER BY kode, urutan_fisik
+            ),
+            angsuran_bbn AS (
+                SELECT DISTINCT ON (kode) kode, tgl_kuitansi
+                FROM (
+                    SELECT
+                        BTRIM(CAST(angsuran.ppjb_id AS TEXT)) AS kode,
+                        angsuran.tgl_kuitansi AS tgl_kuitansi,
+                        angsuran.ctid AS urutan_fisik
+                    FROM public.sr_angsuran AS angsuran
+                    WHERE UPPER(BTRIM(COALESCE(
+                              CAST(angsuran.kd_transaksi AS TEXT), '')))
+                          = 'BBN'
+                ) AS daftar
+                ORDER BY kode, urutan_fisik
+            )
+
             SELECT
                 UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
                     || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), ''))) AS "BLOK_NOMOR",
@@ -219,7 +336,7 @@ class daftar_akta_jual_beli_m extends Model
                 akta.tgl_notaris AS "TGL_NOTARIS",
                 akta.notaris AS "NOTARIS",
                 akta.no_akta AS "NO_AKTA",
-                tgl_ref.tgl_akta_valid AS "TGL_AKTA",
+                akta.tgl_akta_valid AS "TGL_AKTA",
                 akta.tgl_input AS "TGL_INPUT",
                 akta.ttd_akta AS "TTD_AKTA",
                 akta.tgl_entry AS "TGL_ENTRY",
@@ -244,31 +361,11 @@ class daftar_akta_jual_beli_m extends Model
                 stok.{$stokPerusahaan} AS "KD_PERUSAHAAN",
                 CURRENT_TIMESTAMP AS "TGL_CETAK",
 
-                (
-                    SELECT lokasi.deskripsi
-                    FROM public.sr_lokasi AS lokasi
-                    WHERE UPPER(BTRIM(COALESCE(CAST(lokasi.{$lokasiKode} AS TEXT), '')))
-                        = UPPER(BTRIM(COALESCE(CAST(stok.{$stokLokasi} AS TEXT), '')))
-                    LIMIT 1
-                ) AS "NAMA_LOKASI",
-                (
-                    SELECT sektor.deskripsi
-                    FROM public.sr_sektor AS sektor
-                    WHERE UPPER(BTRIM(COALESCE(CAST(sektor.{$sektorKode} AS TEXT), '')))
-                        = UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
-                    LIMIT 1
-                ) AS "NAMA_SEKTOR",
-                (
-                    SELECT angsuran.tgl_kuitansi
-                    FROM public.sr_angsuran AS angsuran
-                    WHERE BTRIM(CAST(angsuran.ppjb_id AS TEXT))
-                        = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
-                      AND UPPER(BTRIM(COALESCE(CAST(angsuran.kd_transaksi AS TEXT), '')))
-                        = 'BBN'
-                    LIMIT 1
-                ) AS "TGL_KUITANSI_BBN"
+                lokasi_unik.deskripsi AS "NAMA_LOKASI",
+                sektor_unik.deskripsi AS "NAMA_SEKTOR",
+                angsuran_bbn.tgl_kuitansi AS "TGL_KUITANSI_BBN"
 
-            FROM public.sr_akta AS akta
+            FROM akta_terpilih AS akta
 
             INNER JOIN public.sr_ppjb AS ppjb
                 ON BTRIM(CAST(ppjb.ppjb_id AS TEXT))
@@ -287,90 +384,46 @@ class daftar_akta_jual_beli_m extends Model
                 ON BTRIM(CAST(nasabah.nasabah_id AS TEXT))
                  = BTRIM(CAST(pembeli_ppjb.nasabah_id AS TEXT))
 
-            /*
-             * SERTIPIKAT_ID ditulis berbeda di kedua tabel karena migrasi
-             * tidak utuh. sr_sertipikat menyimpan teks berawalan seperti
-             * DBPSA-18784, sedangkan sr_akta terlanjur dibuat bertipe
-             * numeric sehingga awalannya terbuang dan hanya menyisakan
-             * 18784.
-             *
-             * Awalannya tidak boleh sekadar dibuang. Pada database DTSA
-             * ada DUA awalan yang dipakai bersamaan, DBPSA- dan DBPSS-,
-             * dan setiap angka muncul pada keduanya: DBPSA-1 dan DBPSS-1
-             * sama-sama ada. Membuang awalan membuat satu akta menemukan
-             * dua sertipikat sekaligus, sehingga barisnya berganda dan
-             * sebagiannya menunjuk unit yang salah.
-             *
-             * Awalan yang benar diambil dari PPJB_ID pada baris akta itu
-             * sendiri, karena kolom itu selamat sebagai teks lengkap.
-             * Akta dengan PPJB_ID DBPSA-18784 berarti sertipikatnya
-             * DBPSA- ditambah angka pada SERTIPIKAT_ID, bukan DBPSS-.
-             *
-             * Hanya kolom ini yang diperlakukan begitu. PPJB_ID, STOK_ID,
-             * dan NASABAH_ID sudah sama bentuknya di semua tabel, jadi
-             * dibandingkan apa adanya.
-             */
             INNER JOIN public.sr_sertipikat AS sertipikat
                 ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT))
-                 = {$kunciAkta}
+                 = akta.kunci_sertipikat
 
             /*
-             * SERTIPIKAT_ID pada sr_pengambilan juga bertipe numeric dan
-             * kehilangan awalannya, jadi awalan yang sama dipakai lagi.
+             * SERTIPIKAT_ID pada sr_pengambilan juga kehilangan awalannya.
+             * Kedua sisi sama-sama dibuang awalannya di sini, dan hasilnya
+             * sama dengan menyusun ulang awalan seperti pada join di atas,
+             * karena awalan pada sertipikat memang sudah dipastikan benar
+             * oleh join tersebut. Bedanya, bentuk ini hanya menyangkut dua
+             * tabel sehingga PostgreSQL bisa memakai hash join.
              */
             LEFT JOIN public.sr_pengambilan AS pengambilan
-                ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT))
-                 = {$kunciPengambilan}
+                ON REGEXP_REPLACE(
+                       BTRIM(CAST(pengambilan.sertipikat_id AS TEXT)),
+                       '^[^0-9]+', ''
+                   )
+                 = REGEXP_REPLACE(
+                       BTRIM(CAST(sertipikat.sertipikat_id AS TEXT)),
+                       '^[^0-9]+', ''
+                   )
 
-            INNER JOIN public.sr_stok AS stok
-                ON BTRIM(CAST(stok.stok_id AS TEXT))
-                 = BTRIM(CAST(sertipikat.stok_id AS TEXT))
+            INNER JOIN stok_terpilih AS stok
+                ON stok.kunci_stok = BTRIM(CAST(sertipikat.stok_id AS TEXT))
 
-            /*
-             * Pada database legacy kolom tanggal dapat berisi karakter
-             * kosong/tidak valid, sehingga tanggalnya dikonversi secara
-             * aman lebih dulu. Ini padanan OUTER APPLY + ISDATE() desktop.
-             */
-            LEFT JOIN LATERAL (
-                SELECT CASE
-                           WHEN COALESCE(CAST(akta.tgl_akta AS TEXT), '')
-                                ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
-                           THEN CAST(akta.tgl_akta AS TIMESTAMP)
-                       END AS tgl_akta_valid
-            ) AS tgl_ref ON TRUE
+            LEFT JOIN lokasi_unik
+                ON lokasi_unik.kode
+                 = UPPER(BTRIM(COALESCE(CAST(stok.{$stokLokasi} AS TEXT), '')))
 
-            WHERE UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS TEXT), ''))) = 'A'
-              AND UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
-              AND UPPER(BTRIM(COALESCE(CAST(pembeli_ppjb.flag_aktif AS TEXT), ''))) = 'Y'
+            LEFT JOIN sektor_unik
+                ON sektor_unik.kode
+                 = UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
+
+            LEFT JOIN angsuran_bbn
+                ON angsuran_bbn.kode = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
+
+            WHERE UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
+              AND UPPER(BTRIM(COALESCE(CAST(pembeli_ppjb.flag_aktif AS TEXT), '')))
+                    = 'Y'
               AND ppjb.parent_id IS NULL
-              AND (
-                    (
-                        UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
-                        || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')))
-                        BETWEEN :blok_awal_unit AND :blok_akhir_unit
-                    )
-                    OR
-                    (
-                        UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
-                        BETWEEN :blok_awal_blok AND :blok_akhir_blok
-                    )
-                  )
-              AND tgl_ref.tgl_akta_valid >= CAST(:tgl_awal AS DATE)
-              AND tgl_ref.tgl_akta_valid < CAST(:tgl_akhir AS DATE)
-              AND UPPER(BTRIM(COALESCE(CAST(stok.{$stokPerusahaan} AS TEXT), '')))
-                    = :perusahaan
-              AND (
-                    UPPER(BTRIM(COALESCE(CAST(stok.{$stokLokasi} AS TEXT), '')))
-                        = :lokasi_filter
-                    OR :lokasi_semua = '*'
-                  )
-              AND (
-                    UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
-                        = :sektor_filter
-                    OR :sektor_semua = '*'
-                  )
-              AND stok.blok IS NOT NULL
-              AND stok.nomor IS NOT NULL
               AND sertipikat.stok_id IS NOT NULL
 
             ORDER BY
