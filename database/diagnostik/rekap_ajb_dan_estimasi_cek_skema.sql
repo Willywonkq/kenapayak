@@ -297,3 +297,44 @@ WHERE c.table_schema = 'public'
   AND c.table_name = 'sr_biaya_ajb'
   AND c.udt_name IN ('varchar', 'bpchar', 'text')
 ORDER BY 2 DESC, 1;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 7 : sebaran data sr_biaya_ajb                    [JALANKAN INI]
+-- ---------------------------------------------------------------------
+-- Rekap Estimasi Biaya AJB menampilkan "Data tidak ditemukan" untuk
+-- rentang 01-07-2023 s/d 16-09-2026. Kelima contoh baris pada QUERY 6
+-- semuanya bertanggal 2018, jadi besar kemungkinan tabel biayanya memang
+-- hanya berisi tahun-tahun awal dan laporannya benar-benar kosong untuk
+-- rentang itu.
+--
+-- Query pertama: sebaran per tahun.
+SELECT
+    EXTRACT(YEAR FROM CAST(tgl_dokumen AS TIMESTAMP))::int AS tahun,
+    COUNT(*) AS jumlah_dokumen
+FROM public.sr_biaya_ajb
+WHERE COALESCE(CAST(tgl_dokumen AS TEXT), '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+GROUP BY 1
+ORDER BY 1;
+
+-- Query kedua: sebaran per unit, sekaligus tahun paling awal dan paling
+-- akhir. Cari baris unit yang sedang Anda buka.
+SELECT
+    UPPER(BTRIM(COALESCE(CAST(kd_perusahaan AS TEXT), '(kosong)'))) AS kode_unit,
+    COUNT(*) AS jumlah_dokumen,
+    MIN(CAST(tgl_dokumen AS DATE)) AS tanggal_paling_awal,
+    MAX(CAST(tgl_dokumen AS DATE)) AS tanggal_paling_akhir
+FROM public.sr_biaya_ajb
+GROUP BY 1
+ORDER BY 2 DESC;
+
+-- Query ketiga: berapa dokumen yang jatuh di dalam rentang layar Anda.
+-- Kalau nol, laporan kosong itu memang benar dan bukan kesalahan model.
+SELECT
+    COUNT(*) AS dokumen_dalam_rentang,
+    COUNT(*) FILTER (
+        WHERE UPPER(BTRIM(COALESCE(CAST(kd_perusahaan AS TEXT), ''))) = 'SBKS'
+    ) AS dokumen_sbks_dalam_rentang
+FROM public.sr_biaya_ajb
+WHERE CAST(tgl_dokumen AS TIMESTAMP) >= DATE '2023-07-01'
+  AND CAST(tgl_dokumen AS TIMESTAMP) < DATE '2026-09-16' + INTERVAL '1 day';

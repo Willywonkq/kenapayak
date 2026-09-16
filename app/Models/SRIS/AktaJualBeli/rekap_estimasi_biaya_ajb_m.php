@@ -142,7 +142,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            sektor_unik AS (
+            sektor_unik AS MATERIALIZED (
                 SELECT DISTINCT ON (kode) kode, deskripsi
                 FROM (
                     SELECT
@@ -308,7 +308,32 @@ class rekap_estimasi_biaya_ajb_m extends Model
         $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
 
         $sql = <<<SQL
-            WITH biaya_terpilih AS (
+            WITH awalan_unit AS MATERIALIZED (
+                /*
+                 * Awalan kunci yang dipakai tiap unit, dibaca dari STOK_ID
+                 * pada sr_stok. Diukur pada database DTSA: kedua puluh enam
+                 * kode perusahaan masing-masing hanya memakai satu awalan,
+                 * misalnya DTSA dan SBKS memakai DBPSA- sedangkan SSPG dan
+                 * SPCK memakai DBPSS-. DISTINCT ON mengambil yang terbanyak
+                 * supaya tetap satu baris per unit seandainya suatu saat ada
+                 * unit yang datanya bercampur.
+                 */
+                SELECT DISTINCT ON (kode_unit) kode_unit, awalan
+                FROM (
+                    SELECT
+                        UPPER(BTRIM(COALESCE(CAST(kd_perusahaan AS TEXT), '')))
+                            AS kode_unit,
+                        REGEXP_REPLACE(BTRIM(CAST(stok_id AS TEXT)), '[0-9]+$', '')
+                            AS awalan,
+                        COUNT(*) AS jumlah
+                    FROM public.sr_stok
+                    WHERE stok_id IS NOT NULL
+                    GROUP BY 1, 2
+                ) AS daftar
+                WHERE kode_unit <> ''
+                ORDER BY kode_unit, jumlah DESC, awalan
+            ),
+            biaya_terpilih AS MATERIALIZED (
                 /*
                  * Pada database legacy kolom tanggal dapat berisi nilai yang
                  * tidak valid, sehingga tanggal dokumen dikonversi aman dulu
@@ -323,11 +348,20 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 SELECT
                     biaya_ajb.*,
                     CASE
+                        WHEN BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT)) !~ '^[0-9]+$'
+                        THEN BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT))
+                        ELSE awalan_unit.awalan
+                             || BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT))
+                    END AS kunci_ppjb,
+                    CASE
                         WHEN COALESCE(CAST(biaya_ajb.tgl_dokumen AS TEXT), '')
                              ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
                         THEN CAST(biaya_ajb.tgl_dokumen AS TIMESTAMP)
                     END AS tgl_dokumen_valid
                 FROM public.sr_biaya_ajb AS biaya_ajb
+                INNER JOIN awalan_unit
+                    ON awalan_unit.kode_unit
+                     = UPPER(BTRIM(COALESCE(CAST(biaya_ajb.kd_perusahaan AS TEXT), '')))
                 WHERE CASE
                           WHEN COALESCE(CAST(biaya_ajb.tgl_dokumen AS TEXT), '')
                                ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
@@ -339,7 +373,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
                           THEN CAST(biaya_ajb.tgl_dokumen AS TIMESTAMP)
                       END < CAST(:tgl_akhir_eksklusif AS DATE)
             ),
-            stok_terpilih AS (
+            stok_terpilih AS MATERIALIZED (
                 /*
                  * Kunci pada database ini harus dibandingkan lewat BTRIM dan
                  * CAST, dan perbandingan semacam itu tidak bisa memakai
@@ -388,59 +422,54 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            jenis_bgn_ppjb AS (
+            jenis_bgn_unik AS MATERIALIZED (
                 /*
-                 * Pengganti subquery JENIS_BGN. Join implisit pada query asli
-                 * ditulis sebagai JOIN eksplisit, dan hasilnya dikunci per
-                 * PPJB_ID supaya bisa disambung sekali saja.
+                 * Pengganti subquery JENIS_BGN.
+                 *
+                 * Subquery desktop mencari JENIS_BANGUNAN lewat STOK milik
+                 * PPJB yang PPJB_ID-nya sama dengan baris biaya. STOK itu
+                 * sama dengan STOK yang sudah disambung pada query utama,
+                 * jadi hasilnya sama persis bila JENIS_BANGUNAN dicari
+                 * langsung dari kode jenis pada STOK tersebut.
+                 *
+                 * Bentuk lama menyambung sr_jenis_bangunan, sr_stok, dan
+                 * sr_ppjb lebih dulu, yang berarti 62.000 lawan 62.000 baris
+                 * hanya untuk mengambil satu kolom. Sekarang cukup membaca
+                 * sr_jenis_bangunan yang berisi beberapa baris saja.
                  */
                 SELECT DISTINCT ON (kode) kode, flag_laporan
                 FROM (
                     SELECT
-                        BTRIM(CAST(c.ppjb_id AS TEXT)) AS kode,
+                        BTRIM(CAST(a.kd_jenis AS TEXT)) AS kode,
                         a.flag_laporan AS flag_laporan,
                         a.ctid AS urutan_fisik
                     FROM public.sr_jenis_bangunan AS a
-                    INNER JOIN public.sr_stok AS b
-                        ON BTRIM(CAST(b.{$stokJenis} AS TEXT))
-                         = BTRIM(CAST(a.kd_jenis AS TEXT))
-                    INNER JOIN public.sr_ppjb AS c
-                        ON BTRIM(CAST(c.stok_id AS TEXT))
-                         = BTRIM(CAST(b.stok_id AS TEXT))
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            awalan_unit AS (
+            ppjb_unit AS MATERIALIZED (
                 /*
-                 * Awalan kunci yang dipakai tiap unit, dibaca dari STOK_ID
-                 * pada sr_stok. Diukur pada database DTSA: kedua puluh enam
-                 * kode perusahaan masing-masing hanya memakai satu awalan,
-                 * misalnya DTSA dan SBKS memakai DBPSA- sedangkan SSPG dan
-                 * SPCK memakai DBPSS-. DISTINCT ON mengambil yang terbanyak
-                 * supaya tetap satu baris per unit seandainya suatu saat ada
-                 * unit yang datanya bercampur.
+                 * Daftar PPJB milik unit yang sedang dilaporkan. Dipakai
+                 * untuk mempersempit penggabungan nama pembeli. Bentuk
+                 * daftar seperti ini disambung dengan hash join, sedangkan
+                 * EXISTS berkorelasi akan dijalankan ulang untuk setiap
+                 * baris sr_pembeli_ppjb.
                  */
-                SELECT DISTINCT ON (kode_unit) kode_unit, awalan
-                FROM (
-                    SELECT
-                        UPPER(BTRIM(COALESCE(CAST(kd_perusahaan AS TEXT), '')))
-                            AS kode_unit,
-                        REGEXP_REPLACE(BTRIM(CAST(stok_id AS TEXT)), '[0-9]+$', '')
-                            AS awalan,
-                        COUNT(*) AS jumlah
-                    FROM public.sr_stok
-                    WHERE stok_id IS NOT NULL
-                    GROUP BY 1, 2
-                ) AS daftar
-                WHERE kode_unit <> ''
-                ORDER BY kode_unit, jumlah DESC, awalan
+                SELECT DISTINCT BTRIM(CAST(p.ppjb_id AS TEXT)) AS kode
+                FROM public.sr_ppjb AS p
+                INNER JOIN stok_terpilih AS st
+                    ON st.kunci_stok = BTRIM(CAST(p.stok_id AS TEXT))
             ),
-            pembeli_ppjb_nama AS (
+            pembeli_ppjb_nama AS MATERIALIZED (
                 /*
                  * Pengganti F_GET_PEMBELI(PPJB_ID) milik SQL Server. Nama
                  * seluruh pembeli aktif pada satu PPJB digabung, sama seperti
                  * cara model Daftar Penjualan Tanda Jadi Agen mengganti
                  * F_GET_PEMBELI_DP().
+                 *
+                 * Hanya PPJB milik unit yang sedang dilaporkan yang dihitung.
+                 * Tanpa batas itu seluruh 63.000 baris sr_pembeli_ppjb ikut
+                 * digabung padahal yang terpakai hanya sebagian kecil.
                  */
                 SELECT
                     BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT)) AS kode,
@@ -450,6 +479,8 @@ class rekap_estimasi_biaya_ajb_m extends Model
                         ORDER BY UPPER(BTRIM(CAST(nasabah.nama AS TEXT)))
                     ) AS nama_pembeli
                 FROM public.sr_pembeli_ppjb AS pembeli_ppjb
+                INNER JOIN ppjb_unit
+                    ON ppjb_unit.kode = BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT))
                 INNER JOIN public.sr_nasabah AS nasabah
                     ON BTRIM(CAST(nasabah.nasabah_id AS TEXT))
                      = BTRIM(CAST(pembeli_ppjb.nasabah_id AS TEXT))
@@ -509,7 +540,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 tbl_notaris.no_rekening AS "NO_REKENING",
                 tbl_notaris.cabang_bank AS "CABANG_BANK",
 
-                jenis_bgn_ppjb.flag_laporan AS "JENIS_BGN",
+                jenis_bgn_unik.flag_laporan AS "JENIS_BGN",
 
                 stok.{$stokPerusahaan} AS "KD_PERUSAHAAN",
                 CURRENT_TIMESTAMP AS "TGL_CETAK"
@@ -543,18 +574,16 @@ class rekap_estimasi_biaya_ajb_m extends Model
              * sendiri, nilainya dipakai apa adanya, sehingga skema yang
              * kuncinya sudah konsisten tidak ikut berubah.
              */
-            INNER JOIN awalan_unit
-                ON awalan_unit.kode_unit
-                 = UPPER(BTRIM(COALESCE(CAST(biaya_ajb.kd_perusahaan AS TEXT), '')))
-
+            /*
+             * Kunci PPJB yang utuh sudah dihitung di dalam biaya_terpilih,
+             * sekali untuk tiap baris biaya. Menghitungnya di sini membuat
+             * syarat join menyangkut tiga tabel sekaligus, dan PostgreSQL
+             * tidak bisa memakai hash join untuk bentuk seperti itu
+             * sehingga jatuh ke nested loop yang membaca habis sr_ppjb
+             * berulang kali.
+             */
             INNER JOIN public.sr_ppjb AS ppjb
-                ON BTRIM(CAST(ppjb.ppjb_id AS TEXT))
-                 = CASE
-                       WHEN BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT)) !~ '^[0-9]+$'
-                       THEN BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT))
-                       ELSE awalan_unit.awalan
-                            || BTRIM(CAST(biaya_ajb.ppjb_id AS TEXT))
-                   END
+                ON BTRIM(CAST(ppjb.ppjb_id AS TEXT)) = biaya_ajb.kunci_ppjb
                AND UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
 
             INNER JOIN stok_terpilih AS stok
@@ -577,8 +606,9 @@ class rekap_estimasi_biaya_ajb_m extends Model
             LEFT JOIN sektor_unik
                 ON sektor_unik.kode
                  = UPPER(BTRIM(COALESCE(CAST(stok.{$stokSektor} AS TEXT), '')))
-            LEFT JOIN jenis_bgn_ppjb
-                ON jenis_bgn_ppjb.kode = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
+            LEFT JOIN jenis_bgn_unik
+                ON jenis_bgn_unik.kode
+                 = BTRIM(CAST(stok.{$stokJenis} AS TEXT))
             LEFT JOIN pembeli_ppjb_nama
                 ON pembeli_ppjb_nama.kode = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
 

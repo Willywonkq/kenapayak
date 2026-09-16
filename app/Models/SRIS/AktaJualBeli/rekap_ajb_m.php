@@ -216,7 +216,7 @@ class rekap_ajb_m extends Model
         $tabelBantu = $this->cteTabelBantu($lokasiKode);
 
         $sql = <<<SQL
-            WITH akta_terpilih AS (
+            WITH akta_terpilih AS MATERIALIZED (
                 SELECT
                     akta.*,
                     CASE
@@ -550,7 +550,7 @@ class rekap_ajb_m extends Model
         string $stokSektor
     ): string {
         return <<<SQL
-        stok_terpilih AS (
+        stok_terpilih AS MATERIALIZED (
                 SELECT
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
@@ -605,7 +605,7 @@ class rekap_ajb_m extends Model
     private function cteTabelBantu(string $lokasiKode): string
     {
         return <<<SQL
-        sertipikat_unit AS (
+        sertipikat_unit AS MATERIALIZED (
                 SELECT DISTINCT ON (kode)
                     kode, no_sertipikat, tgl_sertipikat, luas_sup
                 FROM (
@@ -619,7 +619,7 @@ class rekap_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            lokasi_unik AS (
+            lokasi_unik AS MATERIALIZED (
                 SELECT DISTINCT ON (kode) kode, deskripsi
                 FROM (
                     SELECT
@@ -631,7 +631,7 @@ class rekap_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            tipe_bayar_unik AS (
+            tipe_bayar_unik AS MATERIALIZED (
                 SELECT DISTINCT ON (kode) kode, nama
                 FROM (
                     SELECT
@@ -642,7 +642,7 @@ class rekap_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            bank_perjanjian AS (
+            bank_perjanjian AS MATERIALIZED (
                 SELECT DISTINCT ON (kode) kode, nama
                 FROM (
                     SELECT
@@ -657,7 +657,7 @@ class rekap_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            agen_unik AS (
+            agen_unik AS MATERIALIZED (
                 SELECT DISTINCT ON (kode) kode, nama_agen
                 FROM (
                     SELECT
@@ -668,7 +668,7 @@ class rekap_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            sales_unik AS (
+            sales_unik AS MATERIALIZED (
                 SELECT DISTINCT ON (kode) kode, deskripsi
                 FROM (
                     SELECT
