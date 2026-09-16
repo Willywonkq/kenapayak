@@ -333,7 +333,17 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 WHERE kode_unit <> ''
                 ORDER BY kode_unit, jumlah DESC, awalan
             ),
-            biaya_terpilih AS MATERIALIZED (
+            biaya_terpilih AS (
+                /*
+                 * Tiga CTE besar di sini sengaja TIDAK ditandai MATERIALIZED.
+                 * MATERIALIZED menyembunyikan jumlah baris dari perencana,
+                 * dan pada percobaan sebelumnya stok_terpilih ditaksir satu
+                 * baris padahal isinya 5.167. Akibatnya PostgreSQL memilih
+                 * nested loop dan membuang 267 juta baris hanya untuk
+                 * mendapat 84 baris hasil. MATERIALIZED hanya dipakai pada
+                 * tabel bantu kecil, yang memang perlu dicegah dihitung
+                 * ulang berkali-kali.
+                 */
                 /*
                  * Pada database legacy kolom tanggal dapat berisi nilai yang
                  * tidak valid, sehingga tanggal dokumen dikonversi aman dulu
@@ -373,7 +383,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
                           THEN CAST(biaya_ajb.tgl_dokumen AS TIMESTAMP)
                       END < CAST(:tgl_akhir_eksklusif AS DATE)
             ),
-            stok_terpilih AS MATERIALIZED (
+            stok_terpilih AS (
                 /*
                  * Kunci pada database ini harus dibandingkan lewat BTRIM dan
                  * CAST, dan perbandingan semacam itu tidak bisa memakai
@@ -447,7 +457,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),
-            ppjb_unit AS MATERIALIZED (
+            ppjb_unit AS (
                 /*
                  * Daftar PPJB milik unit yang sedang dilaporkan. Dipakai
                  * untuk mempersempit penggabungan nama pembeli. Bentuk
