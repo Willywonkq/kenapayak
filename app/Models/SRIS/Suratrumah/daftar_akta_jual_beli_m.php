@@ -406,9 +406,28 @@ class daftar_akta_jual_beli_m extends Model
         }
 
         /*
-         * Satu sisi angka dan sisi lain teks. Teksnya dibersihkan lebih
-         * dulu, lalu dibandingkan sebagai angka bila isinya memang angka.
-         * Perbandingan teks polos dipakai sebagai jalan terakhir.
+         * Satu sisi angka dan sisi lain teks.
+         *
+         * Pada database web_sris keadaan ini muncul karena migrasi yang
+         * tidak utuh. Kunci di sini ditulis berawalan, misalnya
+         * SERTIPIKAT_ID berisi DBPSA-18784. Sebagian tabel ikut memakai
+         * bentuk itu, tetapi SR_AKTA dan SR_PENGAMBILAN terlanjur dibuat
+         * bertipe angka sehingga awalannya terbuang dan hanya menyisakan
+         * 18784. Akibatnya join tidak pernah menemukan pasangan dan
+         * laporan tampil kosong, padahal datanya ada.
+         *
+         * Diagnostik pada database DTSA memastikan hal itu:
+         *
+         *     sr_sertipikat : 50.479 baris, seluruhnya berawalan huruf
+         *     sr_akta       : 17.407 baris, seluruhnya angka telanjang
+         *     cocok apa adanya   : 0
+         *     cocok tanpa awalan : 17.407
+         *
+         * Karena itu awalan pada sisi teks dibuang lebih dulu, lalu
+         * keduanya dibandingkan sebagai angka. Teks yang memang sudah
+         * berupa angka tetap dibandingkan apa adanya. Bentuk lain di luar
+         * kedua pola itu sengaja tidak dipaksakan menjadi angka agar
+         * PostgreSQL tidak menolak dengan invalid input syntax.
          */
         $kiriAngka = in_array($leftType, $angkaTypes, true);
         $kananAngka = in_array($rightType, $angkaTypes, true);
@@ -416,14 +435,22 @@ class daftar_akta_jual_beli_m extends Model
         if ($kiriAngka !== $kananAngka) {
             $teks = $kiriAngka ? $right : $left;
             $angka = $kiriAngka ? $left : $right;
+            $teksBersih = sprintf(
+                'BTRIM(COALESCE(CAST(%s AS TEXT), \'\'))',
+                $teks
+            );
 
             return sprintf(
-                'CASE WHEN BTRIM(COALESCE(CAST(%s AS TEXT), \'\')) '
-                . '~ \'^-{0,1}[0-9]+([.][0-9]+){0,1}$\' '
-                . 'THEN CAST(BTRIM(CAST(%s AS TEXT)) AS NUMERIC) END '
-                . '= CAST(%s AS NUMERIC)',
-                $teks,
-                $teks,
+                'CASE'
+                . ' WHEN %s ~ \'^-{0,1}[0-9]+([.][0-9]+){0,1}$\''
+                . ' THEN CAST(%s AS NUMERIC)'
+                . ' WHEN %s ~ \'^[^0-9]+[0-9]+$\''
+                . ' THEN CAST(REGEXP_REPLACE(%s, \'^[^0-9]+\', \'\') AS NUMERIC)'
+                . ' END = CAST(%s AS NUMERIC)',
+                $teksBersih,
+                $teksBersih,
+                $teksBersih,
+                $teksBersih,
                 $angka
             );
         }

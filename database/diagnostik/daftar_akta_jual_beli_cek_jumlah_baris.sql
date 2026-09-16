@@ -1,41 +1,43 @@
 -- =====================================================================
 -- DIAGNOSTIK DAFTAR AKTA JUAL BELI  (PostgreSQL)
 -- =====================================================================
--- Dipakai ketika desktop menampilkan banyak baris sedangkan web
--- menampilkan "Data tidak ditemukan" untuk rentang tanggal yang sama.
---
 -- Seluruh query di berkas ini HANYA MEMBACA. Tidak ada CREATE, INSERT,
 -- UPDATE, DELETE, DROP, maupun ALTER. Aman dijalankan pada database
 -- produksi.
 --
--- Penyaring yang dipakai di sini disamakan dengan layar Anda:
---   Blok        : A s/d ZZ
---   Tanggal AJB : 01-07-2023 s/d 16-09-2026
---   Unit        : DTSA
---   Lokasi      : semua
---   Sektor      : semua
+-- Penyaring disamakan dengan layar: Blok A s/d ZZ, tanggal AJB
+-- 01-07-2023 s/d 16-09-2026, unit DTSA, lokasi dan sektor semua.
 --
--- CATATAN PERBAIKAN
--- Versi sebelumnya membandingkan kunci dengan CAST(... AS NUMERIC).
--- Itu keliru: kunci pada database ini ternyata berupa teks berawalan,
--- misalnya DBPSA-18784, sehingga PostgreSQL menolak dengan
--- "invalid input syntax for type numeric". Seluruh perbandingan di
--- bawah kini memakai TEKS sehingga tidak mungkin gagal lagi, apa pun
--- isi kolomnya.
+-- ---------------------------------------------------------------------
+-- KESIMPULAN  (sudah terbukti dari hasil QUERY 1 s/d 5 pada web_sris)
+-- ---------------------------------------------------------------------
+-- Migrasi tidak utuh. Kunci pada database ini ditulis berawalan, misalnya
+-- DBPSA-18784. Sebagian tabel ikut memakai bentuk itu, tetapi SR_AKTA dan
+-- SR_PENGAMBILAN terlanjur dibuat bertipe angka sehingga awalannya
+-- terbuang dan hanya menyisakan 18784.
+--
+--     sr_sertipikat.sertipikat_id  varchar        50.479 baris
+--                                                 seluruhnya berawalan
+--     sr_akta.sertipikat_id        numeric(18,0)  17.407 baris
+--                                                 seluruhnya angka telanjang
+--
+--     ppjb_id terisi 16.794, cocok 16.794   -> join PPJB sehat
+--     sertipikat_id terisi 17.407, cocok 0  -> join SERTIPIKAT mati total
+--     cocok setelah awalan dibuang: 17.407  -> seluruh datanya utuh
+--
+-- Model menyambung AKTA ke SERTIPIKAT dengan INNER JOIN, jadi nol
+-- pasangan berarti nol baris. Itulah sebab web menampilkan
+-- "Data tidak ditemukan".
+--
+-- Model sudah diperbaiki: pada join antara kolom angka dan kolom teks,
+-- awalan pada sisi teks dibuang lebih dulu sebelum keduanya dibandingkan
+-- sebagai angka. Tidak ada perubahan apa pun pada database.
 -- =====================================================================
 
 
 -- ---------------------------------------------------------------------
--- QUERY 1 : tipe kolom penghubung          [SUDAH DIJAWAB]
+-- QUERY 1 : tipe kolom penghubung                       [SUDAH DIJAWAB]
 -- ---------------------------------------------------------------------
--- Hasil dari Anda sudah memperlihatkan hal yang menentukan:
---
---   sr_akta.sertipikat_id        numeric(18,0)
---   sr_sertipikat.sertipikat_id  varchar
---
--- Kedua sisi join bertipe berbeda, dan kolom varchar pada database ini
--- berisi teks berawalan seperti DBPSA-123. Angka tidak akan pernah
--- sama dengan teks semacam itu.
 SELECT
     table_name  AS nama_tabel,
     column_name AS nama_kolom,
@@ -53,11 +55,10 @@ ORDER BY column_name, table_name;
 
 
 -- ---------------------------------------------------------------------
--- QUERY 2 : contoh nilai kunci apa adanya           [JALANKAN INI]
+-- QUERY 2 : contoh nilai kunci apa adanya               [SUDAH DIJAWAB]
 -- ---------------------------------------------------------------------
--- Memperlihatkan bagaimana kedua sisi join sertipikat benar-benar
--- tertulis. Perhatikan apakah sisi akta berupa angka polos sedangkan
--- sisi sertipikat berawalan huruf.
+-- Hasil: sisi akta berupa angka telanjang, sisi sertipikat berawalan
+-- DBPSA-. Dua bentuk yang tidak mungkin bertemu.
 SELECT 'sr_akta.sertipikat_id' AS sisi,
        CAST(a.sertipikat_id AS TEXT) AS contoh_nilai
 FROM public.sr_akta AS a
@@ -74,14 +75,11 @@ LIMIT 10;
 
 
 -- ---------------------------------------------------------------------
--- QUERY 3 : apakah kunci penghubung benar-benar ketemu  [JALANKAN INI]
+-- QUERY 3 : apakah kunci penghubung ketemu              [SUDAH DIJAWAB]
 -- ---------------------------------------------------------------------
--- Semua perbandingan memakai TEKS, jadi query ini tidak akan error.
--- Bila angka "cocok" nol sedangkan "terisi" besar, berarti nilainya
--- ada tetapi tidak pernah menemukan pasangan.
+-- Hasil: 17407  16794  16794  17407  0
 SELECT
     (SELECT COUNT(*) FROM public.sr_akta) AS baris_akta,
-
     (SELECT COUNT(*) FROM public.sr_akta a WHERE a.ppjb_id IS NOT NULL)
         AS ppjb_id_terisi,
     (SELECT COUNT(*) FROM public.sr_akta a
@@ -89,7 +87,6 @@ SELECT
                      WHERE BTRIM(CAST(p.ppjb_id AS TEXT))
                          = BTRIM(CAST(a.ppjb_id AS TEXT))))
         AS ppjb_id_cocok,
-
     (SELECT COUNT(*) FROM public.sr_akta a WHERE a.sertipikat_id IS NOT NULL)
         AS sertipikat_id_terisi,
     (SELECT COUNT(*) FROM public.sr_akta a
@@ -100,11 +97,10 @@ SELECT
 
 
 -- ---------------------------------------------------------------------
--- QUERY 4 : bentuk nilai pada kolom sertipikat_id       [JALANKAN INI]
+-- QUERY 4 : bentuk nilai pada sertipikat_id             [SUDAH DIJAWAB]
 -- ---------------------------------------------------------------------
--- Menghitung berapa nilai yang berupa angka polos dan berapa yang
--- berawalan huruf. Kalau sisi sertipikat seluruhnya berawalan huruf
--- sedangkan sisi akta seluruhnya angka, join memang mustahil terjadi.
+-- Hasil: sr_sertipikat 50479 baris seluruhnya berawalan huruf,
+--        sr_akta       17407 baris seluruhnya angka polos.
 SELECT 'sr_sertipikat' AS tabel,
        COUNT(*) AS jumlah,
        COUNT(*) FILTER (WHERE sertipikat_id IS NULL) AS kosong,
@@ -131,14 +127,10 @@ FROM public.sr_akta;
 
 
 -- ---------------------------------------------------------------------
--- QUERY 5 : uji dugaan awalan yang hilang               [JALANKAN INI]
+-- QUERY 5 : uji dugaan awalan yang hilang               [SUDAH DIJAWAB]
 -- ---------------------------------------------------------------------
--- Dugaan: saat migrasi, sr_akta.sertipikat_id dibuat bertipe angka
--- sehingga awalan DBPSA- terbuang, sedangkan sr_sertipikat.sertipikat_id
--- tetap menyimpan teks lengkapnya. Bila dugaan itu benar, membuang
--- awalan dari sisi sertipikat akan membuat keduanya bertemu.
---
--- Bandingkan "cocok_apa_adanya" dengan "cocok_tanpa_awalan".
+-- Hasil: cocok_apa_adanya 0, cocok_tanpa_awalan 17407.
+-- Seluruh akta menemukan sertipikatnya begitu awalan dibuang.
 SELECT
     (SELECT COUNT(*) FROM public.sr_akta a
       WHERE a.sertipikat_id IS NOT NULL
@@ -158,12 +150,41 @@ SELECT
 
 
 -- ---------------------------------------------------------------------
--- QUERY 6 : corong jumlah baris, tahap demi tahap       [JALANKAN INI]
+-- QUERY 6 : apakah membuang awalan aman                  [JALANKAN INI]
 -- ---------------------------------------------------------------------
--- Urutannya persis mengikuti syarat pada model, tetapi seluruh
--- perbandingan kunci memakai TEKS sehingga tidak akan error lagi.
--- Perhatikan tahap mana yang pertama kali jatuh menjadi nol; di situlah
--- penyebabnya.
+-- Membuang awalan hanya aman bila hasilnya tetap unik. Kalau di dalam
+-- sr_sertipikat ada dua ID berawalan berbeda yang menyisakan angka sama,
+-- misalnya DBPSA-123 dan ABC-123, satu akta akan menemukan dua pasangan
+-- dan barisnya tampil berganda.
+--
+-- "awalan_berbeda" harus 1 dan "angka_kembar" harus 0.
+SELECT
+    COUNT(DISTINCT REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)),
+                                  '[0-9]+$', '')) AS awalan_berbeda,
+    COUNT(*) FILTER (WHERE TRUE) AS jumlah_baris,
+    COUNT(DISTINCT REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)),
+                                  '^[^0-9]+', '')) AS angka_unik
+FROM public.sr_sertipikat
+WHERE sertipikat_id IS NOT NULL;
+
+-- Daftar angka yang kembar, kalau memang ada. Kosong berarti aman.
+SELECT REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)), '^[^0-9]+', '')
+           AS angka,
+       COUNT(*) AS jumlah,
+       STRING_AGG(BTRIM(CAST(sertipikat_id AS TEXT)), ', ') AS nilai_asli
+FROM public.sr_sertipikat
+WHERE sertipikat_id IS NOT NULL
+GROUP BY 1
+HAVING COUNT(*) > 1
+LIMIT 20;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 7 : corong jumlah baris, tahap demi tahap        [JALANKAN INI]
+-- ---------------------------------------------------------------------
+-- Memakai cara penyambungan yang sama dengan model setelah diperbaiki,
+-- yaitu awalan pada sisi teks dibuang lebih dulu. Hasil t7 adalah jumlah
+-- baris yang akan muncul di web sekarang.
 WITH
 t1_rentang AS (
     SELECT a.*
@@ -200,7 +221,8 @@ t4_sertipikat AS (
     SELECT t3_pembeli.*, s.stok_id AS s_stok_id
     FROM t3_pembeli
     INNER JOIN public.sr_sertipikat AS s
-        ON BTRIM(CAST(s.sertipikat_id AS TEXT))
+        ON REGEXP_REPLACE(BTRIM(CAST(s.sertipikat_id AS TEXT)),
+                          '^[^0-9]+', '')
          = BTRIM(CAST(t3_pembeli.sertipikat_id AS TEXT))
     WHERE s.stok_id IS NOT NULL
 ),
@@ -244,13 +266,12 @@ SELECT
     (SELECT COUNT(*) FROM t5_stok)        AS t5_stok_aktif,
     (SELECT COUNT(*) FROM t6_unit)        AS t6_unit_dtsa,
     (SELECT COUNT(*) FROM t7_blok)        AS t7_rentang_blok;
--- t7 adalah jumlah baris yang seharusnya tampil di web.
 
 
 -- ---------------------------------------------------------------------
--- QUERY 7 : tanggal akta yang tidak terbaca     [SUDAH DIJAWAB, AMAN]
+-- QUERY 8 : tanggal akta yang tidak terbaca             [SUDAH DIJAWAB]
 -- ---------------------------------------------------------------------
--- Hasil Anda: 17.407 akta, 17.357 tanggal terbaca, 50 kosong, 0 rusak.
+-- Hasil: 17.407 akta, 17.357 tanggal terbaca, 50 kosong, 0 rusak.
 -- Tanggal bukan penyebabnya.
 SELECT
     COUNT(*) AS jumlah_akta,
@@ -270,11 +291,10 @@ FROM public.sr_akta;
 
 
 -- ---------------------------------------------------------------------
--- QUERY 8 : nilai penanda aktif                 [SUDAH DIJAWAB, AMAN]
+-- QUERY 9 : nilai penanda aktif                         [SUDAH DIJAWAB]
 -- ---------------------------------------------------------------------
--- Hasil Anda: sr_ppjb memakai A dan T, sr_pembeli_ppjb memakai Y dan T,
--- sr_stok memakai A dan T. Semuanya sesuai dengan yang disaring model.
--- Penanda aktif bukan penyebabnya.
+-- Hasil: sr_ppjb memakai A dan T, sr_pembeli_ppjb memakai Y dan T,
+-- sr_stok memakai A dan T. Sesuai dengan yang disaring model.
 SELECT 'sr_ppjb' AS tabel,
        UPPER(BTRIM(COALESCE(CAST(flag_aktif AS TEXT), '(null)'))) AS nilai,
        COUNT(*) AS jumlah
@@ -291,11 +311,12 @@ ORDER BY 1, 3 DESC;
 
 
 -- ---------------------------------------------------------------------
--- QUERY 9 : sebaran akta per tahun              [SUDAH DIJAWAB, AMAN]
+-- QUERY 10 : sebaran akta per tahun                     [SUDAH DIJAWAB]
 -- ---------------------------------------------------------------------
--- Hasil Anda berhenti di 2024 dengan 54 akta, ditambah 1.052 akta pada
--- 2023 dan satu baris tahun 2203 yang jelas salah ketik. Jadi rentang
--- 01-07-2023 s/d 16-09-2026 memang masih berisi data.
+-- Hasil berhenti di 2024 dengan 54 akta. Tidak ada satu pun akta
+-- bertahun 2025 atau 2026. Ini persoalan terpisah: migrasi sr_akta
+-- tampaknya tertinggal, jadi meskipun join sudah diperbaiki, akta
+-- 2025 dan 2026 tetap tidak akan muncul karena memang belum ada.
 SELECT
     EXTRACT(YEAR FROM CAST(a.tgl_akta AS TIMESTAMP))::int AS tahun,
     COUNT(*) AS jumlah_akta
