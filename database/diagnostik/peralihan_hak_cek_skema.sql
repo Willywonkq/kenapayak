@@ -494,3 +494,46 @@ WHERE jml_kuitansi IS NOT NULL
    OR NULLIF(BTRIM(COALESCE(CAST(no_kuitansi AS TEXT), '')), '') IS NOT NULL
 ORDER BY tgl_peralihan DESC NULLS LAST
 LIMIT 10;
+
+
+-- =====================================================================
+-- HASIL QUERY 10 PADA DATABASE DTSA  -  SUDAH TERJAWAB
+-- =====================================================================
+-- Bagian 1, seluruh tabel (3.069 baris):
+--
+--     no_kuitansi terisi        53
+--     tgl_kuitansi terisi       69
+--     jml_kuitansi terisi      454   (seluruhnya bukan nol)
+--     harga_pasar terisi     1.116
+--
+-- Jadi kolomnya memang ada isinya, hanya jarang. Kosong adalah keadaan
+-- yang biasa pada tabel ini, bukan kelainan.
+--
+-- Bagian 2, per tahun, jml_kuitansi terisi dibanding harga_pasar terisi:
+--
+--     2017   146 dari 213      2021    22 dari 205
+--     2018   153 dari 198      2022    34 dari 248
+--     2019    46 dari 181      2023    22 dari 222
+--     2020    25 dari 185      2024     4 dari  13
+--
+-- Sebelum 2016 hampir tidak pernah terisi sama sekali.
+--
+-- Bagian 3, khusus SBKS pada rentang 01-07-2023 s/d 16-09-2026:
+--
+--     84 baris, no_kuitansi 0, tgl_kuitansi 0, jml_kuitansi 0,
+--     harga_pasar 82
+--
+-- Inilah sebabnya bagian KUITANSI tampil kosong di layar sedangkan
+-- Harga Pasar terisi. Dari 84 baris milik SBKS pada rentang itu, tidak
+-- satu pun yang kolom kuitansinya berisi.
+--
+-- Bagian 4 membuktikan modelnya benar: baris yang kolom kuitansinya
+-- memang terisi ada, misalnya peralihan 3134 dengan no_kuitansi
+-- 13/I/U/2024 dan jml_kuitansi 2.205.129, serta peralihan 3112 dengan
+-- 01/XII/PHS/2023 dan 3.708.856. Baris seperti itu akan tampil isinya.
+--
+-- Kesimpulan: tidak ada yang perlu diperbaiki pada model. Bila desktop
+-- menampilkan nilai kuitansi untuk kedelapan puluh empat baris SBKS
+-- tersebut, berarti kolomnya tertinggal saat migrasi dan perlu dibawa ke
+-- yang menangani migrasi.
+-- =====================================================================
