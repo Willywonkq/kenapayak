@@ -1,20 +1,20 @@
 <?php
 
-// CONTROLLER VERSION SQLSERVER-V1-20260904
+// CONTROLLER VERSION POSTGRES-V1-20260916
 
 namespace App\Http\Controllers\SRIS\Suratrumah;
 
 use App\Http\Controllers\Controller;
-use App\Models\SRIS\Suratrumah\rekap_peralihan_hak_m;
+use App\Models\SRIS\PeralihanHak\dftr_peralihan_hak_m;
 use Illuminate\Http\Request;
 
 class rekap_peralihan_hak_c extends Controller
 {
-    protected rekap_peralihan_hak_m $model;
+    protected dftr_peralihan_hak_m $model;
 
     public function __construct()
     {
-        $this->model = new rekap_peralihan_hak_m();
+        $this->model = new dftr_peralihan_hak_m();
     }
 
     public function viewRekapPeralihanHak()
