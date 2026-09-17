@@ -172,3 +172,55 @@ WHERE COALESCE(CAST(tgl_berlaku AS TEXT), '')
 GROUP BY 1, 2
 
 ORDER BY 1, 2;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 6 : memastikan pasangan kolom sektor sudah benar
+-- ---------------------------------------------------------------------
+-- Ternyata sr_sektor tidak punya kolom kd_sektor, hanya kd_proyek dan
+-- kd_cluster, sedangkan sr_stok punya kd_sektor. Nama sektor karena itu
+-- dicari dengan mencocokkan stok.kd_sektor ke sektor.kd_proyek.
+--
+-- Pilihan itu dibuat otomatis oleh helper kolomKode() dan dipakai juga
+-- oleh kelima fitur yang sudah dimigrasi sebelumnya, tetapi belum pernah
+-- benar-benar dibuktikan. Query ini membuktikannya.
+--
+-- Cara membacanya: kolom "ketemu" dibandingkan dengan "kode_unik_stok".
+--   ketemu mendekati kode_unik_stok -> pasangannya benar
+--   ketemu jauh lebih kecil atau 0  -> pasangannya salah, tolong beri
+--                                      tahu saya, helper-nya harus
+--                                      disesuaikan untuk semua fitur
+--
+-- Baris kedua menguji kd_cluster sebagai pembanding. Yang benar adalah
+-- yang angkanya jauh lebih tinggi.
+WITH kode_stok AS (
+    SELECT DISTINCT
+        UPPER(BTRIM(COALESCE(CAST(kd_sektor AS TEXT), ''))) AS kode
+    FROM public.sr_stok
+    WHERE NULLIF(BTRIM(COALESCE(CAST(kd_sektor AS TEXT), '')), '') IS NOT NULL
+)
+SELECT
+    'sektor.kd_proyek' AS kolom_diuji,
+    (SELECT COUNT(*) FROM kode_stok) AS kode_unik_stok,
+    COUNT(*) FILTER (
+        WHERE EXISTS (
+            SELECT 1 FROM public.sr_sektor AS s
+            WHERE UPPER(BTRIM(COALESCE(CAST(s.kd_proyek AS TEXT), '')))
+                = kode_stok.kode
+        )
+    ) AS ketemu
+FROM kode_stok
+
+UNION ALL
+
+SELECT
+    'sektor.kd_cluster' AS kolom_diuji,
+    (SELECT COUNT(*) FROM kode_stok) AS kode_unik_stok,
+    COUNT(*) FILTER (
+        WHERE EXISTS (
+            SELECT 1 FROM public.sr_sektor AS s
+            WHERE UPPER(BTRIM(COALESCE(CAST(s.kd_cluster AS TEXT), '')))
+                = kode_stok.kode
+        )
+    ) AS ketemu
+FROM kode_stok;
