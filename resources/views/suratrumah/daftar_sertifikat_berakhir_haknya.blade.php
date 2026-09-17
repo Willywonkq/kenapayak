@@ -291,10 +291,18 @@
     .report-scroll {
         width: 100%;
         max-width: 100%;
+        /*
+         * Tinggi kotaknya dibatasi supaya halaman tidak memanjang ke bawah
+         * ketika barisnya banyak. Kelebihannya di-scroll di dalam kotak,
+         * sama seperti Daftar Sertipikat Pecahan.
+         */
+        max-height: calc(100vh - 285px);
+        min-height: 320px;
         overflow-x: auto;
-        overflow-y: visible;
+        overflow-y: auto;
         border: 1px solid #2f3b49;
         -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
     }
 
     .report-table {
@@ -338,6 +346,52 @@
 
     .report-table thead tr:first-child th {
         border-bottom: 1px solid #344252;
+    }
+
+    /*
+     * Header dibuat menempel supaya tetap terlihat saat isinya di-scroll.
+     *
+     * Kelas head-sticky baru dipasang oleh JavaScript setelah tabelnya
+     * jadi, karena posisi menempel baris kedua harus sama persis dengan
+     * tinggi baris pertama, dan tinggi itu tidak bisa dikunci dari CSS:
+     * browser tetap memakai tinggi isinya. Diukur pada contoh nyata,
+     * baris pertama 57px padahal CSS meminta 36px, sehingga kalau
+     * angkanya ditebak header baris kedua naik terlalu tinggi dan data di
+     * belakangnya tembus.
+     *
+     * Tanpa JavaScript, tabelnya tampil persis seperti sebelumnya, hanya
+     * tanpa header menempel. Pembatasan tinggi kotaknya tetap jalan.
+     *
+     * Tabel ini memakai border-collapse: collapse, dan garis pada sel yang
+     * menempel tidak ikut terbawa. Garisnya karena itu digambar ulang
+     * memakai inset box-shadow supaya tampilannya tetap sama.
+     */
+    /*
+     * Saat header menempel, garis tabel harus digambar oleh selnya sendiri.
+     * Dengan border-collapse: collapse, garis dan latar digambar oleh tabel
+     * pada posisi aslinya, sehingga ada sisa tipis di bawah header tempat
+     * data di belakangnya tembus. Terbukti pada percobaan di browser: dengan
+     * collapse datanya terlihat menembus header, dengan separate tidak.
+     * Cara ini sama dengan yang dipakai Daftar Sertipikat Pecahan.
+     */
+    .report-table.head-sticky {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .report-table.head-sticky thead th {
+        position: sticky;
+        z-index: 2;
+        box-shadow: inset -1px 0 0 #52606d, inset 0 -1px 0 #52606d;
+    }
+
+    .report-table.head-sticky thead th:last-child {
+        box-shadow: inset 0 -1px 0 #52606d;
+    }
+
+    .report-table.head-sticky thead tr:first-child th {
+        top: 0;
+        z-index: 3;
     }
 
     .report-table tbody tr:nth-child(even) td {
@@ -949,9 +1003,22 @@
          * Border luar berasal langsung dari table agar tidak terjadi
          * double-line / garis terputus di PDF viewer.
          */
+        /* Saat dicetak, header tidak boleh menempel. */
+        .report-table.head-sticky {
+            border-collapse: collapse !important;
+        }
+
+        .report-table.head-sticky thead th {
+            position: static !important;
+            top: auto !important;
+            box-shadow: none !important;
+        }
+
         .report-scroll {
             width: 100% !important;
             max-width: 100% !important;
+            max-height: none !important;
+            min-height: 0 !important;
             overflow: visible !important;
             border: 0 !important;
             border-radius: 0 !important;
@@ -2149,8 +2216,46 @@
         html += '</div></div>';
 
         $('#mainDisplay').html(html);
+        pasangHeaderMenempel();
         $('#printButton').prop('disabled', false);
     }
+
+    /*
+     * Menempelkan header tabel pada kotak yang di-scroll.
+     *
+     * Posisi baris kedua diambil dari tinggi baris pertama yang benar-benar
+     * dirender, bukan dari angka tetap, karena tinggi itu berubah mengikuti
+     * isi kolom, ukuran font, dan tingkat zoom. Dipanggil ulang saat ukuran
+     * jendela berubah supaya tetap pas.
+     */
+    function pasangHeaderMenempel() {
+        var tabel = document.querySelector('#mainDisplay .report-table');
+
+        if (!tabel) {
+            return;
+        }
+
+        var baris = tabel.querySelectorAll('thead tr');
+
+        if (baris.length < 2) {
+            return;
+        }
+
+        tabel.classList.add('head-sticky');
+
+        var tinggiBarisPertama = baris[0].getBoundingClientRect().height;
+        var selBarisKedua = baris[1].querySelectorAll('th');
+
+        for (var i = 0; i < selBarisKedua.length; i++) {
+            selBarisKedua[i].style.position = 'sticky';
+            selBarisKedua[i].style.top = tinggiBarisPertama + 'px';
+            selBarisKedua[i].style.zIndex = '2';
+        }
+    }
+
+    $(window).on('resize', function () {
+        pasangHeaderMenempel();
+    });
 
     function buildColgroup(showGabungan) {
         var html = '<colgroup>';
