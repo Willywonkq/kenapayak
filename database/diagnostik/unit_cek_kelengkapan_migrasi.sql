@@ -139,3 +139,85 @@ FROM public.sr_stok AS stok
 WHERE UPPER(BTRIM(COALESCE(CAST(stok.kd_perusahaan AS TEXT), ''))) = 'DTSA'
 ORDER BY BTRIM(CAST(stok.stok_id AS TEXT))
 LIMIT 20;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 4 : rantai data DTSA, dilacak langkah demi langkah
+-- ---------------------------------------------------------------------
+-- Pada aplikasi desktop, DTSA jelas punya data Daftar Sertipikat
+-- Pemisahan. Query ini mencari di langkah mana rantainya putus pada
+-- PostgreSQL.
+--
+-- Cara membacanya, dari atas ke bawah:
+--   stok jadi 0            -> unitnya sendiri belum termigrasi
+--   stok_aktif jadi 0      -> datanya ADA, hanya tidak bertanda aktif;
+--                             ini bisa diperbaiki di kode
+--   sertipikat jadi 0      -> tabel sertipikatnya belum termigrasi
+--   idk_dbpsa jadi 0       -> sertipikat induknya belum termigrasi
+--
+-- Kolom yang berakhiran _aktif memakai syarat flag_aktif = 'A' seperti
+-- yang dipakai laporannya; yang tanpa akhiran itu tanpa syarat apa pun.
+WITH stok_dtsa AS (
+    SELECT
+        BTRIM(CAST(s.stok_id AS TEXT))                          AS kunci_stok,
+        UPPER(BTRIM(COALESCE(CAST(s.flag_aktif AS TEXT), '')))  AS aktif
+    FROM public.sr_stok AS s
+    WHERE UPPER(BTRIM(COALESCE(CAST(s.kd_perusahaan AS TEXT), ''))) = 'DTSA'
+      AND s.stok_id IS NOT NULL
+),
+ser_dtsa AS (
+    SELECT
+        BTRIM(CAST(x.sertipikat_id AS TEXT)) AS kunci_ser,
+        stok_dtsa.aktif                      AS aktif
+    FROM public.sr_sertipikat AS x
+    INNER JOIN stok_dtsa
+        ON stok_dtsa.kunci_stok = BTRIM(CAST(x.stok_id AS TEXT))
+),
+idk AS (
+    SELECT
+        'DBPSA-' || BTRIM(CAST(i.sertipikat_id AS TEXT)) AS kunci_dbpsa,
+        'DBPSS-' || BTRIM(CAST(i.sertipikat_id AS TEXT)) AS kunci_dbpss
+    FROM public.sr_sertipikat_idk AS i
+    WHERE BTRIM(CAST(i.sertipikat_id AS TEXT)) ~ '^[0-9]+$'
+)
+SELECT
+    (SELECT COUNT(*) FROM stok_dtsa)                              AS stok,
+    (SELECT COUNT(*) FROM stok_dtsa WHERE aktif = 'A')            AS stok_aktif,
+    (SELECT COUNT(*) FROM ser_dtsa)                               AS sertipikat,
+    (SELECT COUNT(*) FROM ser_dtsa WHERE aktif = 'A')             AS sertipikat_aktif,
+    (SELECT COUNT(*) FROM idk
+      INNER JOIN ser_dtsa ON ser_dtsa.kunci_ser = idk.kunci_dbpsa) AS idk_dbpsa,
+    (SELECT COUNT(*) FROM idk
+      INNER JOIN ser_dtsa ON ser_dtsa.kunci_ser = idk.kunci_dbpss) AS idk_dbpss;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 5 : sebaran tanda aktif pada stok, per unit
+-- ---------------------------------------------------------------------
+-- Laporannya hanya menampilkan stok bertanda 'A'. Kalau DTSA memakai
+-- tanda lain, atau kosong, itulah sebabnya tidak muncul apa-apa.
+SELECT
+    UPPER(BTRIM(COALESCE(CAST(kd_perusahaan AS TEXT), '(kosong)'))) AS unit,
+    UPPER(BTRIM(COALESCE(CAST(flag_aktif AS TEXT), '(kosong)')))    AS tanda_aktif,
+    COUNT(*)                                                        AS jumlah
+FROM public.sr_stok
+GROUP BY 1, 2
+ORDER BY 1, 3 DESC;
+
+
+-- ---------------------------------------------------------------------
+-- QUERY 6 : awalan sertipikat milik DTSA
+-- ---------------------------------------------------------------------
+-- Memastikan sertipikat DTSA memang memakai salah satu dari dua awalan
+-- yang sudah dikenal. Kalau muncul awalan ketiga, penyusunan kuncinya
+-- harus disesuaikan.
+SELECT
+    REGEXP_REPLACE(BTRIM(CAST(x.sertipikat_id AS TEXT)), '[0-9]+$', '') AS awalan,
+    COUNT(*)                                                           AS jumlah,
+    MIN(BTRIM(CAST(x.sertipikat_id AS TEXT)))                          AS contoh
+FROM public.sr_sertipikat AS x
+INNER JOIN public.sr_stok AS s
+    ON BTRIM(CAST(s.stok_id AS TEXT)) = BTRIM(CAST(x.stok_id AS TEXT))
+WHERE UPPER(BTRIM(COALESCE(CAST(s.kd_perusahaan AS TEXT), ''))) = 'DTSA'
+GROUP BY 1
+ORDER BY 2 DESC;
