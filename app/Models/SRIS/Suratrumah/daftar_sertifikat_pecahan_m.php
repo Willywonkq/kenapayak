@@ -178,10 +178,12 @@ class daftar_sertifikat_pecahan_m extends Model
         $jenisFilterSql = $this->buildJenisFilterSql($apartemen, $k['stokJenis']);
         $ajbFilterSql = $this->buildAjbFilterSql($statusAjb);
         $bantu = $this->cteBantu($k, true);
+        $kunciIdk = $this->kunciSertipikatIdk();
+        $syaratBlok = $this->syaratBlok('hasil_dasar."BLOK"', 'hasil_dasar."NOMOR"');
 
         $sql = <<<SQL
             WITH {$bantu},
-            hasil_dasar AS (
+            hasil_dasar AS MATERIALIZED (
                 SELECT
                     UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
                         || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')))
@@ -239,7 +241,7 @@ class daftar_sertifikat_pecahan_m extends Model
                 FROM public.sr_sertipikat_idk AS sertipikat_idk
                 INNER JOIN sertipikat_terpilih AS sertipikat
                     ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT))
-                     = BTRIM(CAST(sertipikat_idk.sertipikat_id AS TEXT))
+                     = {$kunciIdk}
                 INNER JOIN stok_terpilih AS stok
                     ON stok.kunci_stok = BTRIM(CAST(sertipikat.stok_id AS TEXT))
 
@@ -274,6 +276,7 @@ class daftar_sertifikat_pecahan_m extends Model
                          - COALESCE(hasil_dasar."LUAS_PPJB", 0)
                 END AS "SELISIH_LUAS"
             FROM hasil_dasar
+            WHERE {$syaratBlok}
             ORDER BY
                 UPPER(BTRIM(COALESCE(CAST(hasil_dasar."BLOK" AS TEXT), ''))) ASC,
                 CASE
@@ -293,6 +296,8 @@ class daftar_sertifikat_pecahan_m extends Model
         SQL;
 
         return DB::connection(self::CONNECTION)->select($sql, [
+            'awalan_idk' => $this->awalanSertipikatIdk(),
+            'perusahaan_langsung' => $perusahaan,
             'tampil_penggabungan' => $tampilPenggabungan,
             'apartemen' => $apartemen,
             'blok_awal_unit' => $blokAwal,
@@ -325,9 +330,12 @@ class daftar_sertifikat_pecahan_m extends Model
         $jenisFilterSql = $this->buildJenisFilterSql($apartemen, $k['stokJenis']);
         $ajbFilterSql = $this->buildAjbFilterSql($statusAjb);
         $bantu = $this->cteBantu($k, false);
+        $kunciIdk = $this->kunciSertipikatIdk();
+        $syaratBlok = $this->syaratBlok('hasil_dasar."BLOK"', 'hasil_dasar."NOMOR"');
 
         $sql = <<<SQL
-            WITH {$bantu}
+            WITH {$bantu},
+            hasil_dasar AS MATERIALIZED (
 
             SELECT
                 UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
@@ -390,7 +398,7 @@ class daftar_sertifikat_pecahan_m extends Model
             FROM public.sr_sertipikat_idk AS sertipikat_idk
             INNER JOIN sertipikat_terpilih AS sertipikat
                 ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT))
-                 = BTRIM(CAST(sertipikat_idk.sertipikat_id AS TEXT))
+                 = {$kunciIdk}
             INNER JOIN stok_terpilih AS stok
                 ON stok.kunci_stok = BTRIM(CAST(sertipikat.stok_id AS TEXT))
 
@@ -406,24 +414,32 @@ class daftar_sertifikat_pecahan_m extends Model
               AND sertipikat.stok_id IS NOT NULL
               {$jenisFilterSql}
               {$ajbFilterSql}
+            )
 
+            SELECT hasil_dasar.*
+            FROM hasil_dasar
+            WHERE {$syaratBlok}
             ORDER BY
-                UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) ASC,
+                UPPER(BTRIM(COALESCE(CAST(hasil_dasar."BLOK" AS TEXT), ''))) ASC,
                 CASE
-                    WHEN BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')) ~ '^[0-9]+$'
+                    WHEN BTRIM(COALESCE(CAST(hasil_dasar."NOMOR" AS TEXT), ''))
+                         ~ '^[0-9]+$'
                     THEN 0
                     ELSE 1
                 END ASC,
                 CASE
-                    WHEN BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')) ~ '^[0-9]+$'
-                    THEN LPAD(BTRIM(CAST(stok.nomor AS TEXT)), 50, '0')
+                    WHEN BTRIM(COALESCE(CAST(hasil_dasar."NOMOR" AS TEXT), ''))
+                         ~ '^[0-9]+$'
+                    THEN LPAD(BTRIM(CAST(hasil_dasar."NOMOR" AS TEXT)), 50, '0')
                     ELSE ''
                 END ASC,
-                stok.nomor ASC,
-                sertipikat.no_sertipikat ASC
+                hasil_dasar."NOMOR" ASC,
+                hasil_dasar."NO_SERTIPIKAT" ASC
         SQL;
 
         return DB::connection(self::CONNECTION)->select($sql, [
+            'awalan_idk' => $this->awalanSertipikatIdk(),
+            'perusahaan_langsung' => $perusahaan,
             'apartemen' => $apartemen,
             'blok_awal_unit' => $blokAwal,
             'blok_akhir_unit' => $blokAkhir,
@@ -454,6 +470,151 @@ class daftar_sertifikat_pecahan_m extends Model
      * karena CTE yang dirujuk berulang otomatis dimaterialisasi PostgreSQL
      * dan jumlah barisnya menjadi tidak terlihat oleh perencana.
      */
+    /**
+     * Menyusun ulang SERTIPIKAT_ID milik sr_sertipikat_idk agar bisa
+     * disamakan dengan sr_sertipikat.sertipikat_id.
+     *
+     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-21857, sedangkan
+     * sr_sertipikat_idk bertipe numeric sehingga awalannya terbuang dan
+     * hanya menyisakan 21857. Tanpa disusun ulang, sambungan kedua tabel
+     * menghasilkan 0 baris dan laporannya selalu kosong.
+     *
+     * Bila nilainya ternyata sudah membawa awalan sendiri, nilainya dipakai
+     * apa adanya, sehingga tetap benar bila kolomnya suatu saat diperbaiki
+     * menjadi teks.
+     */
+    private function kunciSertipikatIdk(): string
+    {
+        return <<<SQL
+            CASE
+                WHEN BTRIM(CAST(sertipikat_idk.sertipikat_id AS TEXT)) !~ '^[0-9]+$'
+                THEN BTRIM(CAST(sertipikat_idk.sertipikat_id AS TEXT))
+                ELSE :awalan_idk
+                     || BTRIM(CAST(sertipikat_idk.sertipikat_id AS TEXT))
+            END
+            SQL;
+    }
+
+    /**
+     * Menentukan awalan sr_sertipikat_idk dari datanya sendiri.
+     *
+     * Awalannya tidak boleh sekadar dibuang dari sisi sr_sertipikat, karena
+     * ada dua awalan yang dipakai bersamaan, DBPSA- dan DBPSS-, dan hampir
+     * seluruh angka muncul pada keduanya. Diukur pada database DTSA, 19.465
+     * dari 23.308 baris idk angkanya ada di kedua keluarga.
+     *
+     * Tiga cara yang dipakai model lain tidak bisa dipakai di sini:
+     * sr_sertipikat_idk tidak membawa KD_PERUSAHAAN seperti sr_biaya_ajb,
+     * kolom SERTIPIKAT_IDK ternyata nomor sertipikat induk dan bukan kunci
+     * berawalan seperti AKTA.PPJB_ID, dan uji kelayakan tanggal memberi
+     * hasil yang sama untuk kedua awalan, 99,0 persen lawan 99,3 persen.
+     *
+     * Penentunya memakai isi datanya sendiri. Kedua tabel menyimpan data
+     * pemisahan yang sama dari dua sisi, sehingga pasangan yang benar isinya
+     * sama dan pasangan yang salah tidak. Diukur pada database DTSA:
+     *
+     *     DBPSA-   23.304 pasangan   13.293 SU_PISAH sama   2.167 beda
+     *     DBPSS-   19.468 pasangan        0 SU_PISAH sama  12.000 beda
+     *
+     * DBPSS- tidak pernah sama sekalipun pada NO_SERTIPIKAT, TGL_SU_PISAH,
+     * TGL_SERTIPIKAT, maupun TGL_INPUT, jadi kecocokan angkanya hanyalah
+     * tabrakan. Dihitung baris per baris, 16.619 baris hanya cocok DBPSA-
+     * dan tidak satu baris pun yang hanya cocok DBPSS-.
+     *
+     * Awalannya tidak ditulis mati di sini, melainkan dihitung dari data
+     * sehingga tetap benar bila suatu saat sumbernya berubah. Hasilnya
+     * diingat supaya query penentu ini hanya jalan sekali.
+     */
+    private function awalanSertipikatIdk(): string
+    {
+        static $awalan = null;
+
+        if ($awalan !== null) {
+            return $awalan;
+        }
+
+        /*
+         * Kedua sisi dibuat berkunci "angka" lebih dulu supaya syarat join
+         * hanya menyangkut dua tabel dan bisa memakai hash join, sama
+         * seperti penentu awalan pada fitur Daftar Peralihan Hak.
+         */
+        $sql = <<<SQL
+            SELECT
+                ser.awalan AS awalan,
+                COUNT(*) AS cocok
+            FROM (
+                SELECT
+                    BTRIM(CAST(i.sertipikat_id AS TEXT)) AS angka,
+                    UPPER(BTRIM(COALESCE(CAST(i.ser_pisah AS TEXT), ''))) AS no_ser,
+                    UPPER(BTRIM(COALESCE(CAST(i.su_pisah AS TEXT), ''))) AS su_pisah
+                FROM public.sr_sertipikat_idk AS i
+                WHERE BTRIM(CAST(i.sertipikat_id AS TEXT)) ~ '^[0-9]+$'
+                  AND (
+                        BTRIM(COALESCE(CAST(i.ser_pisah AS TEXT), '')) <> ''
+                        OR BTRIM(COALESCE(CAST(i.su_pisah AS TEXT), '')) <> ''
+                      )
+            ) AS idk
+            INNER JOIN (
+                SELECT
+                    REGEXP_REPLACE(BTRIM(CAST(s.sertipikat_id AS TEXT)), '[0-9]+$', '')
+                        AS awalan,
+                    REGEXP_REPLACE(BTRIM(CAST(s.sertipikat_id AS TEXT)), '^[^0-9]+', '')
+                        AS angka,
+                    UPPER(BTRIM(COALESCE(CAST(s.no_sertipikat AS TEXT), ''))) AS no_ser,
+                    UPPER(BTRIM(COALESCE(CAST(s.su_pisah AS TEXT), ''))) AS su_pisah
+                FROM public.sr_sertipikat AS s
+                WHERE s.sertipikat_id IS NOT NULL
+            ) AS ser
+                ON ser.angka = idk.angka
+            WHERE (idk.no_ser <> '' AND idk.no_ser = ser.no_ser)
+               OR (idk.su_pisah <> '' AND idk.su_pisah = ser.su_pisah)
+            GROUP BY 1
+            ORDER BY 2 DESC, 1 ASC
+            LIMIT 1
+        SQL;
+
+        $baris = DB::connection(self::CONNECTION)->select($sql);
+        $awalan = $baris ? (string) $baris[0]->awalan : '';
+
+        return $awalan;
+    }
+
+    /**
+     * Syarat rentang blok, dipasang setelah penggabungan tabel.
+     *
+     * Dulu syarat ini berada di dalam stok_terpilih. Bentuknya memakai
+     * UPPER, BTRIM, dan penyambungan teks, sehingga perencana query tidak
+     * punya statistik apa pun untuk menaksirnya dan menduga sr_stok hanya
+     * berisi 1 baris padahal ribuan. Dugaan itu membuat PostgreSQL memilih
+     * nested loop dan membaca sr_sertipikat berulang kali; pada database
+     * uji berisi 6.000 baris, satu laporan memakan 66 detik.
+     *
+     * Hasilnya tidak berubah karena stok disambung dengan INNER JOIN, jadi
+     * menyaring sebelum atau sesudah penggabungan sama saja. Yang berubah
+     * hanya taksiran perencana, dan waktunya turun menjadi di bawah satu
+     * detik.
+     *
+     * Cabang kedua memakai BLOK_AKHIR untuk kedua sisinya, mengikuti query
+     * desktop apa adanya.
+     */
+    private function syaratBlok(string $blok, string $nomor): string
+    {
+        return <<<SQL
+            (
+                (
+                    UPPER(BTRIM(COALESCE(CAST({$blok} AS TEXT), ''))) || '/'
+                    || UPPER(BTRIM(COALESCE(CAST({$nomor} AS TEXT), '')))
+                    BETWEEN :blok_awal_unit AND :blok_akhir_unit
+                )
+                OR
+                (
+                    UPPER(BTRIM(COALESCE(CAST({$blok} AS TEXT), '')))
+                    BETWEEN :blok_awal_blok AND :blok_akhir_blok
+                )
+            )
+            SQL;
+    }
+
     private function cteBantu(array $k, bool $pakaiGabung): string
     {
         $tglSumber = $pakaiGabung
@@ -507,8 +668,23 @@ class daftar_sertifikat_pecahan_m extends Model
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
                 FROM public.sr_stok AS stok
-                WHERE UPPER(BTRIM(COALESCE(CAST(stok.{$k['stokPerusahaan']} AS TEXT), '')))
-                        = :perusahaan
+                /*
+                 * Cabang pertama membandingkan kolomnya apa adanya. Hasilnya
+                 * sama persis dengan cabang kedua, karena parameternya sudah
+                 * dibuat huruf besar tanpa spasi oleh normalizeText, sehingga
+                 * baris yang cocok pada cabang pertama pasti cocok juga pada
+                 * cabang kedua. Gunanya bukan menyaring, melainkan memberi
+                 * perencana query sebuah perbandingan kolom biasa yang ada
+                 * statistiknya. Tanpa itu jumlah baris sr_stok ditaksir 1
+                 * padahal ribuan, dan PostgreSQL memilih nested loop yang
+                 * membaca sr_sertipikat berulang-ulang.
+                 */
+                WHERE (
+                        stok.{$k['stokPerusahaan']} = :perusahaan_langsung
+                        OR UPPER(BTRIM(COALESCE(
+                               CAST(stok.{$k['stokPerusahaan']} AS TEXT), '')))
+                            = :perusahaan
+                      )
                   AND (
                         UPPER(BTRIM(COALESCE(CAST(stok.{$k['stokSektor']} AS TEXT), '')))
                             = :sektor_filter
@@ -516,18 +692,6 @@ class daftar_sertifikat_pecahan_m extends Model
                       )
                   AND stok.blok IS NOT NULL
                   AND stok.nomor IS NOT NULL
-                  AND (
-                        (
-                            UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) || '/'
-                            || UPPER(BTRIM(COALESCE(CAST(stok.nomor AS TEXT), '')))
-                            BETWEEN :blok_awal_unit AND :blok_akhir_unit
-                        )
-                        OR
-                        (
-                            UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
-                            BETWEEN :blok_awal_blok AND :blok_akhir_blok
-                        )
-                      )
             ),
             ppjb_aktif AS MATERIALIZED (
                 SELECT DISTINCT ON (kunci_stok)
