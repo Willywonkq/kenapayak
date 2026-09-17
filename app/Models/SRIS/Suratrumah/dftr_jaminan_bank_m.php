@@ -141,19 +141,25 @@ class dftr_jaminan_bank_m extends Model
          * bentuk kolomnya. Lihat keterangan panjang pada kunciSertipikatJaminan().
          */
         $pakaiUnit = $this->adaKolom('sr_jaminan', 'kd_perusahaan');
+        $awalanTunggal = $pakaiUnit ? '' : $this->awalanJaminanDariYangPasti();
+        $pakaiTunggal = !$pakaiUnit && $awalanTunggal !== '';
+
         $cteAwalanUnit = $pakaiUnit ? $this->cteAwalanUnit() : '';
         $joinAwalanUnit = $pakaiUnit
             ? "INNER JOIN awalan_unit
                     ON awalan_unit.kode_unit = UPPER(BTRIM(COALESCE(
                            CAST(jaminan.kd_perusahaan AS TEXT), '')))"
             : '';
-        $cteSertipikatUnik = $pakaiUnit ? '' : $this->cteSertipikatUnik();
-        $joinSertipikatUnik = $pakaiUnit
-            ? ''
-            : "LEFT JOIN sertipikat_unik
+
+        $pakaiUnik = !$pakaiUnit && !$pakaiTunggal;
+        $cteSertipikatUnik = $pakaiUnik ? $this->cteSertipikatUnik() : '';
+        $joinSertipikatUnik = $pakaiUnik
+            ? "LEFT JOIN sertipikat_unik
                     ON sertipikat_unik.angka
-                     = BTRIM(CAST(jaminan.sertipikat_id AS TEXT))";
-        $kunciJaminan = $this->kunciSertipikatJaminan($pakaiUnit);
+                     = BTRIM(CAST(jaminan.sertipikat_id AS TEXT))"
+            : '';
+
+        $kunciJaminan = $this->kunciSertipikatJaminan($pakaiUnit, $pakaiTunggal);
 
         /*
          * CATATAN PENTING:
@@ -414,6 +420,10 @@ class dftr_jaminan_bank_m extends Model
             'perusahaan_langsung' => $perusahaan,
         ];
 
+        if ($pakaiTunggal) {
+            $bindings['awalan_jaminan'] = $awalanTunggal;
+        }
+
         if ($tglAwalBank !== null && $tglAkhirBank !== null) {
             $bindings['tgl_awal_bank'] = $tglAwalBank;
             $bindings['tgl_akhir_bank'] = $tglAkhirBank;
@@ -457,11 +467,17 @@ class dftr_jaminan_bank_m extends Model
      * Pemeriksaan skema pada berkas diagnostiknya akan menunjukkan cara
      * mana yang sebenarnya berlaku pada database ini.
      */
-    private function kunciSertipikatJaminan(bool $pakaiUnit): string
-    {
-        $awalan = $pakaiUnit
-            ? 'awalan_unit.awalan'
-            : 'sertipikat_unik.awalan';
+    private function kunciSertipikatJaminan(
+        bool $pakaiUnit,
+        bool $pakaiTunggal = false
+    ): string {
+        if ($pakaiUnit) {
+            $awalan = 'awalan_unit.awalan';
+        } elseif ($pakaiTunggal) {
+            $awalan = ':awalan_jaminan';
+        } else {
+            $awalan = 'sertipikat_unik.awalan';
+        }
 
         return <<<SQL
             CASE
@@ -471,6 +487,71 @@ class dftr_jaminan_bank_m extends Model
                      || BTRIM(CAST(jaminan.sertipikat_id AS TEXT))
             END
             SQL;
+    }
+
+    /**
+     * Menentukan satu awalan untuk seluruh sr_jaminan, berdasarkan baris
+     * yang sudah pasti.
+     *
+     * Sebagian kecil angka pada sr_jaminan menunjuk ke TEPAT SATU
+     * sertipikat. Baris-baris itu tidak perlu ditebak, dan awalannya bisa
+     * dibaca langsung. Bila hampir seluruhnya menunjuk ke keluarga yang
+     * sama, wajar disimpulkan seluruh tabelnya memang satu keluarga, dan
+     * awalan itu bisa dipakai untuk semua baris.
+     *
+     * Ambang 95 persen dipasang supaya kesimpulan itu hanya diambil ketika
+     * buktinya memang kuat. Bila buktinya bercampur, method ini
+     * mengembalikan teks kosong dan model kembali memakai cara yang paling
+     * berhati-hati, yaitu hanya memakai angka yang tidak rancu. Lebih baik
+     * kehilangan sebagian baris daripada menempelkan data satu unit ke unit
+     * lain tanpa ketahuan.
+     *
+     * Hasilnya diingat supaya query penentu ini hanya jalan sekali.
+     */
+    private function awalanJaminanDariYangPasti(): string
+    {
+        static $awalan = null;
+
+        if ($awalan !== null) {
+            return $awalan;
+        }
+
+        $sql = <<<SQL
+            WITH pasti AS (
+                SELECT ser.awalan AS awalan, COUNT(*) AS jumlah
+                FROM (
+                    SELECT BTRIM(CAST(j.sertipikat_id AS TEXT)) AS angka
+                    FROM public.sr_jaminan AS j
+                    WHERE BTRIM(CAST(j.sertipikat_id AS TEXT)) ~ '^[0-9]+$'
+                ) AS jm
+                INNER JOIN (
+                    SELECT
+                        REGEXP_REPLACE(
+                            BTRIM(CAST(sertipikat_id AS TEXT)), '^[^0-9]+', ''
+                        ) AS angka,
+                        MIN(REGEXP_REPLACE(
+                            BTRIM(CAST(sertipikat_id AS TEXT)), '[0-9]+$', ''
+                        )) AS awalan,
+                        COUNT(*) AS banyak
+                    FROM public.sr_sertipikat
+                    WHERE sertipikat_id IS NOT NULL
+                    GROUP BY 1
+                ) AS ser
+                    ON ser.angka = jm.angka
+                WHERE ser.banyak = 1
+                GROUP BY 1
+            )
+            SELECT awalan
+            FROM pasti
+            WHERE jumlah >= 0.95 * (SELECT SUM(jumlah) FROM pasti)
+            ORDER BY jumlah DESC
+            LIMIT 1
+        SQL;
+
+        $baris = DB::connection(self::CONNECTION)->select($sql);
+        $awalan = $baris ? (string) $baris[0]->awalan : '';
+
+        return $awalan;
     }
 
     /**
