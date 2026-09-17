@@ -94,3 +94,67 @@ yang membedakan hanya ada atau tidaknya baris pada kedua tabel itu.
 Begitu barisnya dimigrasikan, laporannya akan terisi tanpa perlu mengubah
 kode, karena awalan kuncinya sudah terbukti DBPSA-, sama seperti yang
 disusun oleh model.
+
+---
+
+# Tambahan 17 September 2026: asal-usul awalan DBPSA- dan DBPSS-
+
+Pemeriksaan Rekap Jaminan Bank menemukan hal yang menjelaskan seluruh
+masalah awalan pada catatan di atas.
+
+Pada SQL Server, `JAMINAN.SERTIPIKAT_ID` **tidak memakai awalan sama
+sekali**. Isinya angka polos, 6.544 baris dengan nilai terkecil 16 dan
+terbesar 29041.
+
+Artinya awalan `DBPSA-` dan `DBPSS-` bukan berasal dari data aslinya,
+melainkan **dibuat oleh proses migrasi** untuk membedakan baris yang
+datang dari dua database SQL Server yang berbeda, yaitu SRIS_PUSAT dan
+SRIS_SERPONG, yang digabung menjadi satu database PostgreSQL.
+
+Itu menjelaskan mengapa nomornya tumpang tindih hampir seluruhnya:
+kedua database punya penomoran sendiri yang sama-sama mulai dari 1.
+
+## Akibatnya
+
+Kolom kunci yang dimigrasikan sebagai `numeric` kehilangan penanda asal
+database itu, karena awalan berupa teks tidak muat pada kolom angka.
+Enam tabel terkena:
+
+    sr_akta.sertipikat_id          sr_peralihan.ppjb_id
+    sr_pengambilan.ppjb_id         sr_sertipikat_idk.sertipikat_id
+    sr_biaya_ajb.ppjb_id           sr_jaminan.sertipikat_id
+
+Kolom kunci yang dimigrasikan sebagai `varchar` selamat, misalnya
+`sr_stok.stok_id`, `sr_sertipikat.sertipikat_id`, dan `sr_ppjb.ppjb_id`.
+
+## Saran untuk yang menangani migrasi
+
+Kolom kunci jangan dibuat bertipe angka. Bila tipenya teks, penanda asal
+databasenya ikut terbawa dan seluruh sambungan antar tabel bekerja tanpa
+perlu ditebak.
+
+## Celah baris pada sr_jaminan
+
+Dibandingkan pada baris yang siap tampil, yaitu NO_JAMINAN terisi, belum
+lunas, dan belum batal:
+
+    SQL Server SRIS_PUSAT   4.670 baris
+    PostgreSQL              3.732 baris
+
+Selisihnya paling sedikit 938 baris, dan bisa lebih besar karena
+PostgreSQL semestinya memuat SRIS_PUSAT dan SRIS_SERPONG sekaligus
+sedangkan angka SQL Server di atas hanya dari SRIS_PUSAT. Selisih
+terbesar ada pada baris yang JENIS_JAMINAN-nya kosong, 327 lawan 1.190.
+
+## Catatan JENIS_JAMINAN
+
+Kolomnya varchar(1) berisi kode satu huruf, bukan tulisan seperti pada
+dropdown layar. Sebarannya pada baris siap tampil:
+
+    4 = 2.325    2 = 667    (kosong) = 327    A = 162
+    H = 110      P = 70     3 = 42            5 = 28      T = 1
+
+Kode lama A, H, P, T, dan kosong dipakai pada berkas bertahun 1992
+sampai 1995; kode angka 2 sampai 5 pada berkas 2004 sampai 2013. Tidak
+ada tabel acuan artinya di seluruh schema. Artinya belum ditetapkan dan
+sengaja tidak ditebak.

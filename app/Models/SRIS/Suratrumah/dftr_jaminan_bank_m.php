@@ -63,9 +63,21 @@ class dftr_jaminan_bank_m extends Model
     }
 
     /**
-     * Jenis Jaminan mengikuti pilihan tetap pada aplikasi desktop SRIS.
-     * Urutan dropdown desktop:
-     * Semua, IMB, Akta Jual Beli, Sertipikat, PPJB, Peralihan Hak.
+     * Jenis Jaminan pada dropdown desktop: Semua, IMB, Akta Jual Beli,
+     * Sertipikat, PPJB, Peralihan Hak.
+     *
+     * PERINGATAN, BELUM BISA DIPAKAI MENYARING.
+     * Pada database, JENIS_JAMINAN ternyata varchar(1) berisi KODE satu
+     * huruf, bukan tulisan seperti di dropdown. Diukur pada baris yang
+     * siap tampil: 4 sebanyak 2.325, 2 sebanyak 667, kosong 327, lalu A,
+     * H, P, 3, 5, dan T. Tidak ada satu pun tabel di database yang memuat
+     * arti kode itu; sudah dicari ke seluruh schema.
+     *
+     * Karena itu daftar di bawah dipertahankan hanya supaya nilai lama
+     * dari layar tetap diterima, tetapi kode apa adanya juga diterima,
+     * sehingga fitur ini langsung benar begitu artinya diketahui dan
+     * dropdownnya diisi kode yang sebenarnya. Sementara ini hanya pilihan
+     * Semua yang menghasilkan baris.
      *
      * Nilai "Semua" dikirim sebagai "*" karena query desktop memakai:
      *   (JAMINAN.JENIS_JAMINAN = :jaminan OR :jaminan = '*')
@@ -78,6 +90,36 @@ class dftr_jaminan_bank_m extends Model
         'PPJB',
         'PERALIHAN HAK',
     ];
+
+    /**
+     * Kode Jenis Jaminan yang benar-benar ada pada data, beserta jumlah
+     * barisnya. Dipakai untuk mengisi dropdown dengan nilai yang nyata,
+     * bukan tulisan yang tidak pernah cocok.
+     *
+     * Jumlah barisnya sengaja ikut dikembalikan supaya bisa dibandingkan
+     * dengan jumlah baris yang keluar di aplikasi desktop ketika tiap
+     * pilihan dropdownnya dipakai. Dari perbandingan itu arti tiap kode
+     * bisa dipastikan tanpa menebak.
+     */
+    public function obtainJenisJaminan()
+    {
+        $sql = <<<SQL
+            SELECT
+                UPPER(BTRIM(COALESCE(CAST(jaminan.jenis_jaminan AS TEXT), '')))
+                    AS "KODE",
+                COUNT(*) AS "JUMLAH"
+            FROM public.sr_jaminan AS jaminan
+            WHERE jaminan.no_jaminan IS NOT NULL
+              AND jaminan.no_lunas IS NULL
+              AND jaminan.no_batal IS NULL
+            GROUP BY 1
+            ORDER BY 2 DESC, 1
+        SQL;
+
+        return collect(
+            DB::connection(self::CONNECTION)->select($sql)
+        );
+    }
 
     public function obtainRekapJaminanBank($request): array
     {
@@ -798,9 +840,21 @@ SQL;
             return '*';
         }
 
-        return in_array($normalized, self::JENIS_JAMINAN_VALID, true)
-            ? $normalized
-            : '*';
+        if (in_array($normalized, self::JENIS_JAMINAN_VALID, true)) {
+            return $normalized;
+        }
+
+        /*
+         * Kode apa adanya dari kolom JENIS_JAMINAN yang hanya satu huruf
+         * ikut diterima, supaya fitur ini langsung benar begitu dropdownnya
+         * diisi kode yang sebenarnya. Dibatasi satu huruf atau angka agar
+         * tidak ada teks bebas yang masuk ke query.
+         */
+        if (preg_match('/^[A-Z0-9]$/', $normalized) === 1) {
+            return $normalized;
+        }
+
+        return '*';
     }
 
     private function normalizeAjbStatus($value): string
