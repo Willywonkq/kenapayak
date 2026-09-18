@@ -107,7 +107,7 @@ class dftr_pbb_m extends Model
 
         $sektor = $this->normalizeText($request->sektor ?? '*');
         $blokAwal = $this->normalizeText($request->blok_awal ?? 'A');
-        $blokAkhir = $this->normalizeText($request->blok_akhir ?? 'Z');
+        $blokAkhir = $this->normalizeText($request->blok_akhir ?? 'ZZ');
 
         $tahunAwal = (int) ($request->tahun_awal ?? 2000);
         $tahunAkhir = (int) ($request->tahun_akhir ?? date('Y'));
@@ -136,8 +136,27 @@ class dftr_pbb_m extends Model
             $blokAwal = 'A';
         }
 
-        if ($blokAkhir === '') {
-            $blokAkhir = 'Z';
+        /*
+         * Batas blok Z diperlakukan sebagai ZZ, mengikuti aplikasi desktop.
+         *
+         * Perbandingan blok dilakukan sebagai TEKS, sehingga batas atas Z
+         * membuang seluruh blok yang namanya lebih panjang dan diawali Z,
+         * misalnya ZAC dan ZCL, karena ZAC lebih besar daripada Z. Padahal
+         * unit SBKS banyak memakai blok semacam itu.
+         *
+         * Bahwa desktop memakai ZZ terbukti dari dua hal. Pertama, pada
+         * Daftar IMB header cetak desktop berbunyi "BLOK : A s/d ZZ"
+         * padahal kotak isiannya menampilkan Z. Kedua, pada Daftar PBB
+         * unit SBKS dengan batas A sampai Z desktop menampilkan 1.178
+         * baris, yaitu jumlah SEBELUM saringan blok; dengan batas Z
+         * seharusnya tinggal 309.
+         *
+         * Model Daftar IMB memang sudah memakai aturan ini sejak versi
+         * SQL Servernya. Daftar PBB terlewat, dan itulah sebabnya
+         * hasilnya berbeda jauh.
+         */
+        if ($blokAkhir === '' || $blokAkhir === 'Z') {
+            $blokAkhir = 'ZZ';
         }
 
         if ($belumAdaPbb === 'Y') {
