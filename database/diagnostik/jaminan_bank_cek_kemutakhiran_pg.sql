@@ -149,3 +149,61 @@ WHERE kolom.table_schema = 'public'
   AND kolom.column_name IN ('tgl_entry', 'tgl_update')
   AND nilai.maks IS NOT NULL
 ORDER BY kolom.table_name, kolom.column_name;
+
+
+/* ------------------------------------------------------------
+ * QUERY 6
+ * DAFTAR TABEL YANG TERTINGGAL, diurutkan dari yang PALING LAMA.
+ *
+ * QUERY 4 mengurutkan dari yang terbaru dan dibatasi 60 baris,
+ * sehingga tabel yang tertinggal justru tidak terlihat. Query ini
+ * kebalikannya, dan sekaligus menghitung berapa lama tertinggal.
+ *
+ * Sudah diketahui sr_jaminan, sr_akta, dan sr_peralihan berhenti
+ * pada 26 sampai 27 Februari 2024 sementara tabel lain masih
+ * terbarui sampai September 2026. Query ini memastikan apakah ada
+ * tabel lain yang ikut tertinggal, supaya pemindahan ulangnya
+ * tidak setengah-setengah.
+ *
+ * Kolom tertinggal_hari dihitung terhadap tabel yang paling
+ * mutakhir, bukan terhadap hari ini, supaya jeda yang wajar
+ * antara tabel induk dan tabel rincian tidak ikut terhitung.
+ * ------------------------------------------------------------ */
+WITH terakhir AS (
+    SELECT
+        kolom.table_name AS tabel,
+        nilai.maks       AS perekaman_terakhir
+    FROM information_schema.columns AS kolom
+    CROSS JOIN LATERAL (
+        SELECT (xpath(
+            '/row/m/text()',
+            query_to_xml(
+                format('SELECT MAX(%I)::text AS m FROM public.%I',
+                       kolom.column_name, kolom.table_name),
+                false, true, ''
+            )
+        ))[1]::text AS maks
+    ) AS nilai
+    WHERE kolom.table_schema = 'public'
+      AND kolom.column_name = 'tgl_entry'
+      AND kolom.table_name LIKE 'sr\_%'
+      AND nilai.maks IS NOT NULL
+)
+SELECT
+    tabel,
+    perekaman_terakhir,
+    DATE_TRUNC('day',
+        MAX(CAST(perekaman_terakhir AS TIMESTAMP)) OVER ()
+        - CAST(perekaman_terakhir AS TIMESTAMP)
+    )::text AS tertinggal_dari_tabel_termutakhir,
+    CASE
+        WHEN MAX(CAST(perekaman_terakhir AS TIMESTAMP)) OVER ()
+             - CAST(perekaman_terakhir AS TIMESTAMP) > INTERVAL '365 days'
+        THEN 'TERTINGGAL JAUH, perlu dipindahkan ulang'
+        WHEN MAX(CAST(perekaman_terakhir AS TIMESTAMP)) OVER ()
+             - CAST(perekaman_terakhir AS TIMESTAMP) > INTERVAL '90 days'
+        THEN 'perlu diperiksa'
+        ELSE 'wajar'
+    END AS penilaian
+FROM terakhir
+ORDER BY CAST(perekaman_terakhir AS TIMESTAMP) ASC;

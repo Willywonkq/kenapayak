@@ -148,13 +148,117 @@ terbesar ada pada baris yang JENIS_JAMINAN-nya kosong, 327 lawan 1.190.
 
 ## Catatan JENIS_JAMINAN
 
-Kolomnya varchar(1) berisi kode satu huruf, bukan tulisan seperti pada
+Kolomnya char(1) berisi kode satu karakter, bukan tulisan seperti pada
 dropdown layar. Sebarannya pada baris siap tampil:
 
-    4 = 2.325    2 = 667    (kosong) = 327    A = 162
+    4 = 2.324    2 = 667    (kosong) = 327    A = 162
     H = 110      P = 70     3 = 42            5 = 28      T = 1
 
-Kode lama A, H, P, T, dan kosong dipakai pada berkas bertahun 1992
-sampai 1995; kode angka 2 sampai 5 pada berkas 2004 sampai 2013. Tidak
-ada tabel acuan artinya di seluruh schema. Artinya belum ditetapkan dan
-sengaja tidak ditebak.
+Tidak ada tabel acuan artinya, baik di PostgreSQL maupun di SQL Server
+sumbernya; sudah dicari ke seluruh schema dan ke seluruh isi kolom teks.
+Artinya hanya hidup di dalam kode aplikasi desktop.
+
+Pemetaan 1=IMB, 2=Akta Jual Beli, 3=Sertipikat, 4=PPJB, 5=Peralihan Hak
+akhirnya dipasang berdasarkan perilaku data, bukan tebakan buta. Dasar
+dan tingkat keyakinan tiap kode dicatat pada konstanta JENIS_JAMINAN_KODE
+di `dftr_jaminan_bank_m.php`. Yang perlu diketahui pembaca berkas ini:
+kode 3 hanya disimpulkan lewat eliminasi, dan kode 1 tidak bisa diuji
+karena tidak muncul satu baris pun. Kalau keduanya meleset, yang keliru
+hanya tulisan di dropdown, bukan isi laporannya.
+
+Kode lama A, H, P, T, dan kosong sebanyak 670 baris dipakai pada berkas
+bertahun 1992 sampai 2004, sebelum sistem berganti ke kode angka mulai
+1998. Baris itu hanya keluar pada pilihan Semua, di desktop pun begitu.
+
+
+## Tabel mana yang berhenti dimigrasi, dan kapan
+
+Tanggal pemeriksaan: 18 September 2026
+Query: `jaminan_bank_cek_kemutakhiran_pg.sql` dan
+`sqlserver_jaminan_bank_cek_kemutakhiran.sql`. Keduanya hanya membaca.
+
+Temuan ini MENGUBAH kesimpulan sebelumnya. Semula celah baris pada
+sr_jaminan diduga migrasi sebagian yang acak. Ternyata bukan. Pola
+tanggal perekaman terakhir tiap tabel memperlihatkan sesuatu yang jauh
+lebih jelas.
+
+Sebagian besar tabel masih mutakhir sampai September 2026:
+
+| tabel              | perekaman terakhir  |
+|--------------------|---------------------|
+| sr_undangan_st     | 2026-09-16          |
+| sr_sektor          | 2026-09-15          |
+| sr_sertipikat      | 2026-07-28          |
+| sr_ppjb            | 2026-07-07          |
+| sr_jadwal_angsuran | 2026-07-07          |
+| sr_stok            | 2026-07-02          |
+| sr_nasabah         | 2026-04-17          |
+
+Tetapi TIGA tabel berhenti serentak pada akhir Februari 2024:
+
+| tabel        | tgl_entry terakhir        | tgl_update terakhir       |
+|--------------|---------------------------|---------------------------|
+| sr_jaminan   | 2024-02-27 10:19:05       | 2024-02-27 10:09:33       |
+| sr_peralihan | 2024-02-27 16:30:44       | 2024-02-27 16:47:43       |
+| sr_akta      | 2024-02-26 12:53:06       | 2024-02-15 16:40:18       |
+
+Jadi ini BUKAN salinan lama yang seragam. Sebagian besar tabel terus
+diperbarui, hanya ketiga tabel itu yang tertinggal lebih dari dua tahun
+setengah.
+
+## Hubungannya dengan awalan kunci yang hilang
+
+Ketiga tabel yang berhenti itu ADA DI DALAM daftar tabel yang kolom
+kuncinya dimigrasi sebagai numeric sehingga awalannya terbuang:
+
+    sr_akta.sertipikat_id       sr_peralihan.ppjb_id
+    sr_jaminan.sertipikat_id    sr_pengambilan.ppjb_id
+    sr_biaya_ajb.ppjb_id        sr_sertipikat_idk.sertipikat_id
+
+Dua gejala yang selama ini ditangani terpisah ternyata satu akar: ada
+proses pemindahan tersendiri, dijalankan sekali sekitar 26 sampai 27
+Februari 2024, yang (a) membuang awalan karena kolom kuncinya dijadikan
+angka, dan (b) tidak pernah dijalankan lagi sejak itu. Tabel yang
+ditangani proses lain tetap terbarui dan awalannya tetap utuh.
+
+Karena QUERY 4 dibatasi 60 baris teratas, daftar di atas belum tentu
+lengkap. Tabel lain yang juga tertinggal masih mungkin ada. QUERY 6 pada
+berkas PostgreSQL mendaftarnya dari yang paling tertinggal.
+
+## Akibatnya pada laporan
+
+Diuji pada Daftar Jaminan Bank, unit SBKS, blok A sampai ZZ, TGL BANK
+01-07-2023 sampai 18-09-2026, semua cluster, semua status AJB, semua
+jenis jaminan:
+
+    aplikasi desktop   163 baris
+    aplikasi web         8 baris
+
+Rincian 163 baris itu menurut tahun, diambil dari SQL Server dengan
+filter yang sama persis:
+
+    2023 = 63    2024 = 59    2025 = 39    2026 = 2
+
+Di PostgreSQL yang tersedia hanya 2023 sebanyak 8 dan 2024 sebanyak 1.
+Seluruh 2025 dan 2026 tidak ada sama sekali.
+
+Jumlah keseluruhan tabel jaminan:
+
+    SQL Server SRIS_PUSAT   6.544 baris
+    PostgreSQL sr_jaminan   5.190 baris
+
+Modelnya sendiri sudah diperiksa dan tidak keliru. Pada corong penyusutan
+baris, tahap penyusunan ulang kunci sertipikat tidak menghilangkan satu
+baris pun, 22 lawan 22. Seluruh penyusutan terjadi pada saringan tanggal,
+3.732 menjadi 22, yaitu murni karena barisnya tidak ada.
+
+## Yang perlu dilakukan
+
+1. Jalankan ulang pemindahan untuk sr_jaminan, sr_akta, sr_peralihan,
+   dan tabel lain yang QUERY 6 tunjukkan ikut tertinggal.
+2. Pindahkan kolom kuncinya sebagai TEKS, bukan angka, supaya penanda
+   asal databasenya ikut terbawa. Ini sekaligus menghapus kebutuhan
+   menebak awalan, yang sekarang membuat 6 dari 8 baris yang tampil
+   berstatus rancu.
+3. Setelah keduanya beres, tidak ada perubahan kode yang diperlukan.
+   Model sudah memakai awalan apa adanya bila kolomnya bertipe teks.
