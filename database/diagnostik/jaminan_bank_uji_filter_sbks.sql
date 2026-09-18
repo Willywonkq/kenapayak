@@ -137,9 +137,14 @@ ORDER BY jumlah DESC;
  * Jumlah baris yang keluar di sini harus sama dengan yang tampil
  * di layar. Kolomnya sengaja diurutkan seperti laporan.
  *
- * Kalau QUERY 1 menunjukkan nama kolom yang berbeda, ganti
- * kd_sektor dan kd_lokasi di bawah dengan nama yang disebut
- * QUERY 1 sebelum dijalankan.
+ * Nama kolom di bawah sudah disesuaikan dengan hasil QUERY 1
+ * pada database ini:
+ *   sr_stok   sektor -> kd_sektor,  lokasi -> kd_lokasi
+ *   sr_lokasi kode   -> kd_lv2
+ *   sr_sektor kode   -> kd_proyek
+ * Perhatikan sr_lokasi dan sr_sektor memakai nama yang berbeda
+ * dari sr_stok. Model memang memilih nama per tabel, bukan satu
+ * nama untuk semuanya.
  * ------------------------------------------------------------ */
 WITH awalan_terpilih AS (
     SELECT awalan
@@ -229,7 +234,7 @@ lokasi_ref AS MATERIALIZED (
     SELECT DISTINCT ON (kode) kode, deskripsi
     FROM (
         SELECT
-            UPPER(BTRIM(COALESCE(CAST(lokasi.kd_lokasi AS TEXT), ''))) AS kode,
+            UPPER(BTRIM(COALESCE(CAST(lokasi.kd_lv2 AS TEXT), ''))) AS kode,
             BTRIM(COALESCE(CAST(lokasi.deskripsi AS TEXT), '')) AS deskripsi,
             lokasi.ctid AS urutan_fisik
         FROM public.sr_lokasi AS lokasi
@@ -240,7 +245,7 @@ sektor_ref AS MATERIALIZED (
     SELECT DISTINCT ON (kode) kode, deskripsi
     FROM (
         SELECT
-            UPPER(BTRIM(COALESCE(CAST(sektor.kd_sektor AS TEXT), ''))) AS kode,
+            UPPER(BTRIM(COALESCE(CAST(sektor.kd_proyek AS TEXT), ''))) AS kode,
             BTRIM(COALESCE(CAST(sektor.deskripsi AS TEXT), '')) AS deskripsi,
             sektor.ctid AS urutan_fisik
         FROM public.sr_sektor AS sektor
