@@ -262,3 +262,89 @@ baris pun, 22 lawan 22. Seluruh penyusutan terjadi pada saringan tanggal,
    berstatus rancu.
 3. Setelah keduanya beres, tidak ada perubahan kode yang diperlukan.
    Model sudah memakai awalan apa adanya bila kolomnya bertipe teks.
+
+
+## Celah pada sr_imb dan sr_pbb, serta akibatnya pada enam unit
+
+Tanggal pemeriksaan: 18 September 2026
+Query: `imb_dan_pbb_cek_skema.sql`, `imb_dan_pbb_cek_asal_database.sql`,
+dan `sqlserver_imb_dan_pbb_cek_asal.sql`. Seluruhnya hanya membaca.
+
+### Temuan 1: hanya SRIS_PUSAT yang terbawa
+
+|          | SRIS_PUSAT | SRIS_SERPONG | PostgreSQL | kurang |
+|----------|------------|--------------|------------|--------|
+| IMB      | 25.784     | 13.381       | 21.998     | 3.786  |
+| PBB      | 19.397     | 20.366       | 15.429     | 3.968  |
+
+Jumlah di PostgreSQL bahkan lebih kecil daripada SRIS_PUSAT saja. Jadi
+kedua tabel tidak memuat satu pun baris SRIS_SERPONG, dan baris
+SRIS_PUSAT-nya pun belum lengkap.
+
+### Temuan 2: penyusunan ulang awalan sudah tepat
+
+Jumlah baris per unit dibandingkan dengan sumbernya, khusus unit
+berawalan DBPSA- yang memang berasal dari SRIS_PUSAT:
+
+|     | jumlah sumber | jumlah hasil susun | selisih | melebihi sumber |
+|-----|---------------|--------------------|---------|-----------------|
+| IMB | 25.780        | 21.994             | 3.786   | tidak ada       |
+| PBB | 19.259        | 15.291             | 3.968   | tidak ada       |
+
+Selisih itu sama persis dengan kekurangan baris pada tabel hasil
+migrasi, 3.786 dan 3.968. Artinya seluruh selisihnya adalah baris yang
+belum termigrasi, bukan baris yang tertukar. Beberapa unit malah cocok
+sampai satuan: pada IMB yaitu WGP, BHMS, MNST, dan pada PBB yaitu GDOR,
+BHMS, MNST, SKPN.
+
+Perlu dicatat, persentase baris "rancu" pada unit-unit itu tinggi, 79
+sampai 99 persen, tetapi jumlahnya tetap cocok. Jadi angka rancu adalah
+ukuran RISIKO, bukan ukuran kesalahan. Risiko itu tidak berbuah karena
+tabel sumbernya kebetulan hanya berisi satu keluarga awalan.
+
+### Temuan 3: enam unit akan menampilkan laporan karangan
+
+Enam unit memakai awalan DBPSS-, yaitu SSPG, SPCK, KSLV, KSVT, KSLL, dan
+SPCH. Karena hampir semua angka dipakai kedua keluarga awalan,
+penyusunan ulang tetap menemukan sertipikat untuk unit itu, padahal
+tabel sumbernya tidak memuat satu pun barisnya.
+
+Bila dibiarkan, yang tampil adalah baris milik unit lain:
+
+    IMB  20.140 baris     PBB  13.331 baris     total 33.471 baris
+
+dan tidak satu pun di antaranya tergolong pasti.
+
+Karena itu model dilengkapi `pastikanKeluargaAda()` yang menghentikan
+laporan dengan pesan, bukan menampilkannya. Keputusannya dibaca dari
+data, memakai baris yang angkanya hanya dipakai satu keluarga awalan
+karena asal-usul baris semacam itu pasti:
+
+    sr_imb   DBPSA- 1.650 baris pasti    DBPSS- 0
+    sr_pbb   DBPSA- 1.947 baris pasti    DBPSS- 0
+
+Penjagaan ini membuka sendiri begitu migrasinya diperbaiki, tanpa perlu
+mengubah kode.
+
+### Ringkasan tabel yang bermasalah sejauh ini
+
+| tabel         | kunci jadi angka | baris kurang | SERPONG terbawa |
+|---------------|------------------|--------------|-----------------|
+| sr_akta       | ya               | ya           | belum diperiksa |
+| sr_peralihan  | ya               | ya           | belum diperiksa |
+| sr_jaminan    | ya               | ya           | belum diperiksa |
+| sr_sertipikat_idk | ya           | ya           | belum diperiksa |
+| sr_imb        | ya               | ya, 3.786    | TIDAK           |
+| sr_pbb        | ya               | ya, 3.968    | TIDAK           |
+
+Karena sr_imb dan sr_pbb ternyata sama sekali tidak memuat SERPONG,
+tabel lain pada daftar itu patut diperiksa dengan cara yang sama
+sebelum laporannya dipercaya untuk unit berawalan DBPSS-.
+
+### Yang perlu dilakukan
+
+1. Pindahkan kolom kunci sebagai TEKS, bukan angka, supaya penanda asal
+   databasenya ikut terbawa. Ini menghapus seluruh kebutuhan menebak.
+2. Sertakan SRIS_SERPONG pada pemindahan sr_imb dan sr_pbb.
+3. Lengkapi baris SRIS_PUSAT yang belum terbawa.
+4. Setelah itu tidak ada perubahan kode yang diperlukan.
