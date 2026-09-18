@@ -71,3 +71,64 @@ WHERE j.NO_JAMINAN IS NOT NULL
   AND j.NO_BATAL IS NULL
 GROUP BY ISNULL(LTRIM(RTRIM(j.JENIS_JAMINAN)), '(kosong)')
 ORDER BY COUNT(*) DESC;
+
+
+/* =====================================================================
+ * QUERY 3 — Cari tabel acuan arti kode JENIS_JAMINAN di sumbernya
+ *
+ * Pencarian di PostgreSQL tidak menemukan tabel acuan apa pun. Tabel itu
+ * mungkin ada di SQL Server tetapi tidak ikut termigrasi, persis seperti
+ * AKTA dan SERTIPIKAT_IDK yang sebagian barisnya tertinggal.
+ *
+ * Yang dicari: tabel bernama mirip jaminan, jenis, kode, atau tabel
+ * acuan, beserta kolomnya.
+ * ===================================================================== */
+SELECT
+    t.TABLE_NAME  AS nama_tabel,
+    c.COLUMN_NAME AS nama_kolom,
+    c.DATA_TYPE   AS tipe,
+    c.CHARACTER_MAXIMUM_LENGTH AS panjang
+FROM INFORMATION_SCHEMA.TABLES t WITH (NOLOCK)
+INNER JOIN INFORMATION_SCHEMA.COLUMNS c WITH (NOLOCK)
+    ON c.TABLE_SCHEMA = t.TABLE_SCHEMA
+   AND c.TABLE_NAME = t.TABLE_NAME
+WHERE t.TABLE_TYPE = 'BASE TABLE'
+  AND (
+        t.TABLE_NAME LIKE '%JAMIN%'
+     OR t.TABLE_NAME LIKE '%JENIS%'
+     OR c.COLUMN_NAME LIKE '%JENIS_JAMINAN%'
+      )
+ORDER BY t.TABLE_NAME, c.ORDINAL_POSITION;
+
+
+/* =====================================================================
+ * QUERY 4 — Perilaku tiap kode, dihitung di sumbernya
+ *
+ * Padanan QUERY 2 pada berkas PostgreSQL, tetapi memakai data SQL Server
+ * yang kuncinya masih utuh sehingga tidak perlu menyusun ulang awalan.
+ * Inilah pembanding yang paling bersih.
+ *
+ * Cara membacanya:
+ *   persen_punya_akta tinggi  -> kode itu berarti Akta Jual Beli
+ *   persen_no_sertipikat tinggi -> kode itu berarti Sertipikat
+ *   persen_punya_akta rendah  -> kode itu berarti PPJB
+ * ===================================================================== */
+SELECT
+    ISNULL(NULLIF(LTRIM(RTRIM(j.JENIS_JAMINAN)), ''), '-') AS kode,
+    COUNT(*)                                               AS baris,
+    CAST(100.0 * SUM(CASE WHEN EXISTS (
+            SELECT 1 FROM AKTA a WITH (NOLOCK)
+            WHERE a.SERTIPIKAT_ID = j.SERTIPIKAT_ID
+              AND a.NO_AKTA IS NOT NULL
+         ) THEN 1 ELSE 0 END) / COUNT(*) AS DECIMAL(5,1))  AS persen_punya_akta,
+    CAST(100.0 * SUM(CASE WHEN EXISTS (
+            SELECT 1 FROM SERTIPIKAT s WITH (NOLOCK)
+            WHERE s.SERTIPIKAT_ID = j.SERTIPIKAT_ID
+              AND LTRIM(RTRIM(ISNULL(s.NO_SERTIPIKAT, ''))) <> ''
+         ) THEN 1 ELSE 0 END) / COUNT(*) AS DECIMAL(5,1))  AS persen_no_sertipikat
+FROM JAMINAN j WITH (NOLOCK)
+WHERE j.NO_JAMINAN IS NOT NULL
+  AND j.NO_LUNAS IS NULL
+  AND j.NO_BATAL IS NULL
+GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(j.JENIS_JAMINAN)), ''), '-')
+ORDER BY COUNT(*) DESC;
