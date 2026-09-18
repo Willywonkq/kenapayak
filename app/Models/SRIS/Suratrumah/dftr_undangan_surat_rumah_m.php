@@ -112,6 +112,9 @@ class dftr_undangan_surat_rumah_m extends Model
         [$stokPerusahaan, $stokSektor, $stokLokasi, $lokasiKode, $sektorKode]
             = $this->namaKolom();
 
+        [$kolomJenisStok, $kolomTipeStok, $adaJenisTipe]
+            = $this->kolomJenisTipe();
+
         $sql = <<<SQL
             WITH lokasi_ref AS MATERIALIZED (
                 SELECT DISTINCT ON (kode) kode, deskripsi
@@ -186,9 +189,9 @@ class dftr_undangan_surat_rumah_m extends Model
                        CAST(stok.{$stokSektor} AS TEXT), '')))
             LEFT JOIN tipe_ref
                 ON tipe_ref.kunci =
-                   UPPER(BTRIM(COALESCE(CAST(stok.kd_jenis AS TEXT), '')))
+                   UPPER(BTRIM(COALESCE(CAST({$kolomJenisStok} AS TEXT), '')))
                    || '|' ||
-                   UPPER(BTRIM(COALESCE(CAST(stok.kd_tipe AS TEXT), '')))
+                   UPPER(BTRIM(COALESCE(CAST({$kolomTipeStok} AS TEXT), '')))
             WHERE (
                     pembeli.flag_aktif = 'Y'
                     OR UPPER(BTRIM(COALESCE(
@@ -294,6 +297,9 @@ class dftr_undangan_surat_rumah_m extends Model
         [$adaSektorUnit, $urutanSektorUnit, $saringSektorUnit]
             = $this->sektorUnit();
 
+        [$kolomJenisStok, $kolomTipeStok, $adaJenisTipe]
+            = $this->kolomJenisTipe();
+
         $sumber = self::SUMBER_JENIS[$jenis];
         $tabel = $sumber['tabel'];
 
@@ -327,6 +333,16 @@ class dftr_undangan_surat_rumah_m extends Model
          */
         if ($jenis === '6' && !$pakaiUnik) {
             $bindings['awalan_sertipikat'] = $awalan;
+        }
+
+        /*
+         * Jenis 1 sampai 5 bertumpu pada PPJB_ID. Syaratnya dibuat persis
+         * sama dengan syarat kunciPpjb() mengeluarkan parameter itu,
+         * supaya tidak pernah ada parameter yang diikat tetapi tidak
+         * dipakai, atau sebaliknya.
+         */
+        if ($jenis !== '6' && $awalan !== '') {
+            $bindings['awalan_ppjb'] = $awalan;
         }
 
         if ($adaSektorUnit) {
@@ -384,7 +400,7 @@ class dftr_undangan_surat_rumah_m extends Model
             surat_terpilih AS (
                 SELECT
                     surat.*,
-                    BTRIM(CAST(surat.ppjb_id AS TEXT)) AS kunci_ppjb
+                    {$this->kunciPpjb('surat', $awalan)} AS kunci_ppjb
                 FROM public.{$tabel} AS surat
                 WHERE surat.tgl_surat >= CAST(:tgl_awal AS TIMESTAMP)
                   AND surat.tgl_surat <  CAST(:tgl_akhir AS TIMESTAMP)
@@ -402,7 +418,9 @@ class dftr_undangan_surat_rumah_m extends Model
             SQL;
         }
 
-        $kolomJenis = $this->kolomKeluaranJenis($jenis);
+        $kolomJenis = $this->kolomKeluaranJenis(
+            $jenis, $kolomJenisStok, $kolomTipeStok
+        );
         $alamat = $this->kolomAlamatSurat();
 
         $sql = <<<SQL
@@ -507,12 +525,12 @@ class dftr_undangan_surat_rumah_m extends Model
                            CAST(stok.{$stokSektor} AS TEXT), '')))
                 LEFT JOIN jenis_ref
                     ON jenis_ref.kode = UPPER(BTRIM(COALESCE(
-                           CAST(stok.kd_jenis AS TEXT), '')))
+                           CAST({$kolomJenisStok} AS TEXT), '')))
                 LEFT JOIN tipe_ref
                     ON tipe_ref.kunci =
-                       UPPER(BTRIM(COALESCE(CAST(stok.kd_jenis AS TEXT), '')))
+                       UPPER(BTRIM(COALESCE(CAST({$kolomJenisStok} AS TEXT), '')))
                        || '|' ||
-                       UPPER(BTRIM(COALESCE(CAST(stok.kd_tipe AS TEXT), '')))
+                       UPPER(BTRIM(COALESCE(CAST({$kolomTipeStok} AS TEXT), '')))
 
                 WHERE stok.blok IS NOT NULL
                   AND stok.nomor IS NOT NULL
@@ -552,6 +570,9 @@ class dftr_undangan_surat_rumah_m extends Model
 
         [$adaSektorUnit, $urutanSektorUnit, $saringSektorUnit]
             = $this->sektorUnit();
+
+        [$kolomJenisStok, $kolomTipeStok, $adaJenisTipe]
+            = $this->kolomJenisTipe();
 
         $sumber = self::SUMBER_JENIS[$jenis];
         $tabel = $sumber['tabel'];
@@ -625,9 +646,13 @@ class dftr_undangan_surat_rumah_m extends Model
                         = :jenis_surat"
                 : '';
 
+            if ($awalan !== '') {
+                $bindings['awalan_ppjb'] = $awalan;
+            }
+
             $sudahDiundang = <<<SQL
             sudah_diundang AS MATERIALIZED (
-                SELECT DISTINCT BTRIM(CAST(surat.ppjb_id AS TEXT)) AS kunci
+                SELECT DISTINCT {$this->kunciPpjb('surat', $awalan)} AS kunci
                 FROM public.{$tabel} AS surat
                 WHERE surat.tgl_surat >= CAST(:tgl_awal AS TIMESTAMP)
                   AND surat.tgl_surat <  CAST(:tgl_akhir AS TIMESTAMP)
@@ -708,9 +733,9 @@ class dftr_undangan_surat_rumah_m extends Model
                                                 AS "KD_PERUSAHAAN",
                     stok.{$stokSektor}          AS "KD_SEKTOR",
                     sektor_ref.deskripsi        AS "NAMA_SEKTOR",
-                    stok.kd_jenis               AS "KD_JENIS",
+                    {$kolomJenisStok}           AS "KD_JENIS",
                     jenis_ref.deskripsi         AS "NAMA_JENIS_BANGUNAN",
-                    stok.kd_tipe                AS "KD_TIPE",
+                    {$kolomTipeStok}            AS "KD_TIPE",
                     tipe_ref.deskripsi          AS "NAMA_TIPE",
                     stok.luas_tanah             AS "LUAS_TANAH",
                     stok.luas_bangunan          AS "LUAS_BANGUNAN",
@@ -742,12 +767,12 @@ class dftr_undangan_surat_rumah_m extends Model
                            CAST(stok.{$stokLokasi} AS TEXT), '')))
                 INNER JOIN jenis_ref
                     ON jenis_ref.kode = UPPER(BTRIM(COALESCE(
-                           CAST(stok.kd_jenis AS TEXT), '')))
+                           CAST({$kolomJenisStok} AS TEXT), '')))
                 INNER JOIN tipe_ref
                     ON tipe_ref.kunci =
-                       UPPER(BTRIM(COALESCE(CAST(stok.kd_jenis AS TEXT), '')))
+                       UPPER(BTRIM(COALESCE(CAST({$kolomJenisStok} AS TEXT), '')))
                        || '|' ||
-                       UPPER(BTRIM(COALESCE(CAST(stok.kd_tipe AS TEXT), '')))
+                       UPPER(BTRIM(COALESCE(CAST({$kolomTipeStok} AS TEXT), '')))
 
                 WHERE NOT EXISTS (
                         SELECT 1 FROM sudah_diundang
@@ -909,8 +934,11 @@ class dftr_undangan_surat_rumah_m extends Model
     /**
      * Kolom keluaran yang berbeda-beda menurut jenis report.
      */
-    private function kolomKeluaranJenis(string $jenis): string
-    {
+    private function kolomKeluaranJenis(
+        string $jenis,
+        string $kolomJenisStok,
+        string $kolomTipeStok
+    ): string {
         $bersama = <<<SQL
         surat.urut        AS "SURAT_KE",
                     surat.urut        AS "URUT",
@@ -946,9 +974,9 @@ class dftr_undangan_surat_rumah_m extends Model
                     ppjb.tgl_ppjb      AS "TGL_PPJB",
                     ppjb.tgl_tanda_tangan AS "TGL_TANDA_TANGAN",
                     ppjb.tgl_ttd_notaris  AS "TGL_TTD_NOTARIS",
-                    stok.kd_jenis      AS "KD_JENIS",
+                    {$kolomJenisStok}  AS "KD_JENIS",
                     jenis_ref.deskripsi AS "NAMA_JENIS_BANGUNAN",
-                    stok.kd_tipe       AS "KD_TIPE",
+                    {$kolomTipeStok}   AS "KD_TIPE",
                     tipe_ref.deskripsi AS "NAMA_TIPE",
                     stok.luas_tanah    AS "LUAS_TANAH",
                     stok.luas_bangunan AS "LUAS_BANGUNAN",
@@ -993,9 +1021,9 @@ class dftr_undangan_surat_rumah_m extends Model
                     ppjb_induk.tgl_ppjb       AS "TGL_PPJB",
                     ppjb_induk.tgl_tanda_tangan AS "TGL_TANDA_TANGAN",
                     ppjb_induk.tgl_ttd_notaris  AS "TGL_TTD_NOTARIS",
-                    stok.kd_jenis      AS "KD_JENIS",
+                    {$kolomJenisStok}  AS "KD_JENIS",
                     jenis_ref.deskripsi AS "NAMA_JENIS_BANGUNAN",
-                    stok.kd_tipe       AS "KD_TIPE",
+                    {$kolomTipeStok}   AS "KD_TIPE",
                     tipe_ref.deskripsi AS "NAMA_TIPE",
                     stok.luas_tanah    AS "LUAS_TANAH",
                     stok.luas_bangunan AS "LUAS_BANGUNAN",
@@ -1035,6 +1063,58 @@ class dftr_undangan_surat_rumah_m extends Model
             $this->kolomKode('sr_sektor', [
                 'kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2',
             ]),
+        ];
+    }
+
+    /**
+     * Kolom jenis bangunan dan tipe pada sr_stok.
+     *
+     * Query desktop memakai STOK.KD_JENIS dan STOK.KD_TIPE untuk
+     * menyambung ke master JENIS_BANGUNAN dan TIPE. Pada hasil migrasi
+     * kedua nama itu TIDAK ADA di sr_stok; namanya berubah menjadi
+     * kd_jenis_bgn dan kd_tipe_bgn.
+     *
+     * Perhatikan master TIPE dan JENIS_BANGUNAN tetap memakai nama lama,
+     * yaitu kd_jenis dan kd_tipe. Jadi yang berubah hanya di sisi stok.
+     *
+     * Karena itu namanya dicari dulu dari beberapa kemungkinan. Bila
+     * benar-benar tidak ada satu pun, kolom keluarannya dikosongkan dan
+     * sambungan ke kedua master dilepas, sehingga laporannya tetap
+     * terbit. Cara ini dipilih karena laporan tanpa kolom tipe masih
+     * berguna, sedangkan query yang gagal jalan tidak berguna sama
+     * sekali. Kolom yang terpengaruh hanya KD_JENIS, KD_TIPE,
+     * NAMA_JENIS_BANGUNAN, NAMA_TIPE, LISTRIK, dan FLAG_LAPORAN.
+     *
+     * Begitu migrasinya membawa kolom itu, model memakainya sendiri
+     * tanpa perlu diubah.
+     */
+    private function kolomJenisTipe(): array
+    {
+        $jenis = null;
+        $tipe = null;
+
+        foreach ([
+            'kd_jenis_bgn', 'kd_jenis', 'kd_jenis_bangunan', 'kd_bangunan',
+        ] as $calon) {
+            if ($this->adaKolom('sr_stok', $calon)) {
+                $jenis = $calon;
+                break;
+            }
+        }
+
+        foreach (['kd_tipe_bgn', 'kd_tipe', 'kd_tipe_bangunan'] as $calon) {
+            if ($this->adaKolom('sr_stok', $calon)) {
+                $tipe = $calon;
+                break;
+            }
+        }
+
+        $ada = $jenis !== null && $tipe !== null;
+
+        return [
+            $ada ? "stok.{$jenis}" : "CAST(NULL AS TEXT)",
+            $ada ? "stok.{$tipe}" : "CAST(NULL AS TEXT)",
+            $ada,
         ];
     }
 
@@ -1448,4 +1528,43 @@ class dftr_undangan_surat_rumah_m extends Model
         );
     }
 
+    /**
+     * Menyusun ulang PPJB_ID pada tabel surat undangan.
+     *
+     * Diukur pada hasil migrasi, keempat tabel surat TIDAK seragam:
+     *
+     *     sr_undangan_ppjb.ppjb_id   varchar, awalan masih utuh
+     *     sr_undangan_st.ppjb_id     varchar, awalan masih utuh
+     *     sr_undangan_ajb.ppjb_id    numeric, AWALAN TERBUANG
+     *     sr_undangan_skb.ppjb_id    numeric, AWALAN TERBUANG
+     *
+     * Kalau nilainya dipakai apa adanya, dua tabel terakhir tidak akan
+     * pernah cocok dengan sr_ppjb.ppjb_id yang berbunyi DBPSA-123,
+     * sehingga Undangan AJB dan Undangan SKB menghasilkan NOL baris
+     * padahal datanya ada.
+     *
+     * Karena itu bentuknya diperiksa dulu. Nilai yang masih berawalan
+     * dipakai apa adanya; nilai yang tinggal angka diberi awalan milik
+     * unit yang diminta, dibaca dari sr_stok lewat awalanUnit().
+     *
+     * Tidak ada jalur cadangan seperti pada sertipikat, dan memang tidak
+     * diperlukan: awalanUnit() hanya mengembalikan teks kosong bila unit
+     * itu tidak ada di sr_stok, dan dalam keadaan itu stok_terpilih juga
+     * kosong sehingga laporannya memang tidak menghasilkan baris.
+     */
+    private function kunciPpjb(string $alias, string $awalan): string
+    {
+        if ($awalan === '') {
+            return "BTRIM(CAST({$alias}.ppjb_id AS TEXT))";
+        }
+
+        return <<<SQL
+        CASE
+                        WHEN BTRIM(CAST({$alias}.ppjb_id AS TEXT)) !~ '^[0-9]+$'
+                        THEN BTRIM(CAST({$alias}.ppjb_id AS TEXT))
+                        ELSE :awalan_ppjb
+                             || BTRIM(CAST({$alias}.ppjb_id AS TEXT))
+                    END
+        SQL;
+    }
 }

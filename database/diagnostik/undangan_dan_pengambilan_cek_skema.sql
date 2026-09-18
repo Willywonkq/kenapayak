@@ -104,8 +104,14 @@ WITH perlu(tabel, kolom) AS (
         ('sr_nasabah','kota_rmh'), ('sr_nasabah','kota_ktr'),
         ('sr_nasabah','kota_srt'), ('sr_nasabah','kode_pos_rmh'),
         ('sr_nasabah','kode_pos_ktr'), ('sr_nasabah','kode_pos_srt'),
-        ('sr_stok','luas_semi_gross'), ('sr_stok','kd_jenis'),
-        ('sr_stok','kd_tipe'), ('sr_stok','kd_mata_uang'),
+        ('sr_stok','luas_semi_gross'),
+        /*
+         * Pada hasil migrasi kolom ini bernama kd_jenis_bgn dan
+         * kd_tipe_bgn, bukan kd_jenis dan kd_tipe seperti di desktop.
+         * Master sr_tipe dan sr_jenis_bangunan tetap memakai nama lama.
+         */
+        ('sr_stok','kd_jenis_bgn'),
+        ('sr_stok','kd_tipe_bgn'), ('sr_stok','kd_mata_uang'),
         ('sr_stok','parent_id'), ('sr_stok','no_virtual_acc'),
         ('sr_ppjb','harga_jual'), ('sr_ppjb','tgl_tanda_tangan'),
         ('sr_ppjb','tgl_ttd_notaris'), ('sr_ppjb','nm_notaris'),
