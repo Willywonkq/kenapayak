@@ -111,11 +111,44 @@ class dftr_jaminan_bank_m extends Model
      */
     private const JENIS_JAMINAN_KODE = [
         'IMB' => '1',
-        'AKTA JUAL BELI' => '2',
-        'SERTIPIKAT' => '3',
+        'Akta Jual Beli' => '2',
+        'Sertipikat' => '3',
         'PPJB' => '4',
-        'PERALIHAN HAK' => '5',
+        'Peralihan Hak' => '5',
     ];
+
+    /**
+     * Daftar nilai Jenis Jaminan yang boleh diterima dari layar.
+     *
+     * Disediakan supaya validasi di controller tidak perlu menyalin
+     * ulang daftarnya. Daftar yang sama pernah ditulis di tiga tempat,
+     * yaitu di layar, di controller, dan di sini; ketika dropdown diubah
+     * mengirim kode, dua tempat lainnya tidak ikut berubah dan laporannya
+     * gagal dengan pesan "The selected jenis jaminan is invalid".
+     *
+     * Dipakai di controller seperti ini:
+     *
+     *   'jenis_jaminan' => [
+     *       'nullable',
+     *       'string',
+     *       Rule::in(dftr_jaminan_bank_m::jenisJaminanDiterima()),
+     *   ],
+     *
+     * Kodenya ikut diterima supaya layar boleh mengirim salah satu di
+     * antara keduanya tanpa perlu mengubah controller lagi.
+     */
+    public static function jenisJaminanDiterima(): array
+    {
+        $nilai = ['*', 'Semua', 'SEMUA'];
+
+        foreach (self::JENIS_JAMINAN_KODE as $tulisan => $kode) {
+            $nilai[] = $tulisan;
+            $nilai[] = strtoupper($tulisan);
+            $nilai[] = $kode;
+        }
+
+        return array_values(array_unique($nilai));
+    }
 
     /**
      * Kode Jenis Jaminan yang benar-benar ada pada data, beserta jumlah
@@ -872,19 +905,28 @@ SQL;
         }
 
         /*
-         * Tulisan dari dropdown diterjemahkan ke kodenya. Jalur ini dipakai
-         * kalau layar mengirim tulisan, misalnya nilai lama yang dipulihkan
-         * browser dari bfcache setelah tombol kembali ditekan.
+         * INI JALUR UTAMANYA. Dropdown mengirim tulisan seperti pada
+         * combobox desktop, lalu di sini diterjemahkan menjadi kode satu
+         * karakter yang benar-benar tersimpan di kolom JENIS_JAMINAN.
+         *
+         * Penerjemahannya sengaja dikerjakan di sini, bukan di layar,
+         * supaya nilai yang dikirim tetap sama seperti sebelum pemetaan
+         * kode ini ada. Dropdown pernah diubah mengirim kodenya langsung,
+         * dan ditolak validasi controller dengan pesan "The selected jenis
+         * jaminan is invalid", karena daftar yang diizinkan di controller
+         * memang berisi tulisan tersebut.
          */
-        if (isset(self::JENIS_JAMINAN_KODE[$normalized])) {
-            return self::JENIS_JAMINAN_KODE[$normalized];
+        foreach (self::JENIS_JAMINAN_KODE as $tulisan => $kode) {
+            if (strtoupper($tulisan) === $normalized) {
+                return $kode;
+            }
         }
 
         /*
-         * Kode apa adanya juga diterima, karena dropdown sekarang memang
-         * mengirim kodenya langsung. Dibatasi satu huruf atau angka agar
-         * tidak ada teks bebas yang masuk ke query, sekaligus supaya kode
-         * lama A, H, P, dan T tetap bisa disaring bila suatu saat dibutuhkan.
+         * Kode apa adanya ikut diterima sebagai cadangan. Dibatasi satu
+         * huruf atau angka agar tidak ada teks bebas yang masuk ke query,
+         * sekaligus supaya kode lama A, H, P, dan T tetap bisa disaring
+         * bila suatu saat dibutuhkan.
          */
         if (preg_match('/^[A-Z0-9]$/', $normalized) === 1) {
             return $normalized;

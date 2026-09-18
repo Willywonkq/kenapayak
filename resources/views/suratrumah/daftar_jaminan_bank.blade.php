@@ -1342,23 +1342,31 @@
             <div class="rjb-field-row">
                 <label class="rjb-label" for="jenis_jaminan">Jenis Jaminan :</label>
                 {{--
-                    Tulisannya mengikuti combobox aplikasi desktop, sedangkan
-                    nilainya adalah kode satu karakter yang benar-benar
-                    tersimpan pada kolom JENIS_JAMINAN. Dasar pemetaan kode
-                    ini ada di dftr_jaminan_bank_m.php pada JENIS_JAMINAN_KODE.
+                    Nilai yang dikirim SENGAJA berupa tulisan, bukan kode.
 
-                    IMB sengaja tetap ditampilkan walaupun kode 1 tidak
+                    Kolom JENIS_JAMINAN di database berisi kode satu
+                    karakter, tetapi penerjemahan tulisan ke kode dikerjakan
+                    di model pada JENIS_JAMINAN_KODE, bukan di layar. Dengan
+                    begitu controller tetap menerima nilai yang sama seperti
+                    sebelumnya dan tidak perlu ikut diubah.
+
+                    Pernah dicoba mengirim kodenya langsung, dan ditolak
+                    validasi controller dengan pesan "The selected jenis
+                    jaminan is invalid", karena daftar yang diizinkan di sana
+                    memang berisi tulisan ini.
+
+                    IMB sengaja tetap ditampilkan walaupun kodenya tidak
                     dipakai satu baris pun pada data, supaya pilihannya sama
                     persis dengan desktop. Sama seperti di desktop, memilih
                     IMB menghasilkan laporan kosong.
                 --}}
                 <select id="jenis_jaminan" class="rjb-select">
                     <option value="*">Semua</option>
-                    <option value="1">IMB</option>
-                    <option value="2">Akta Jual Beli</option>
-                    <option value="3">Sertipikat</option>
-                    <option value="4">PPJB</option>
-                    <option value="5">Peralihan Hak</option>
+                    <option value="IMB">IMB</option>
+                    <option value="Akta Jual Beli">Akta Jual Beli</option>
+                    <option value="Sertipikat">Sertipikat</option>
+                    <option value="PPJB">PPJB</option>
+                    <option value="Peralihan Hak">Peralihan Hak</option>
                 </select>
             </div>
         </div>
@@ -1744,7 +1752,8 @@
      * Jenis Jaminan tidak diambil DISTINCT dari database.
      * Pilihan dibuat tetap agar sama dengan combobox aplikasi desktop:
      * Semua, IMB, Akta Jual Beli, Sertipikat, PPJB, Peralihan Hak.
-     * Yang dikirim ke server adalah kode satu karakternya, bukan tulisannya.
+     * Yang dikirim ke server adalah tulisannya; model yang menerjemahkan
+     * tulisan itu menjadi kode satu karakter di database.
      */
 
     function validateFilter() {
