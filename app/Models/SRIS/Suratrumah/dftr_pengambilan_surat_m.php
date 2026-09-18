@@ -441,32 +441,37 @@ class dftr_pengambilan_surat_m extends Model
             return ['TRUE', []];
         }
 
+        /*
+         * HANYA RENTANG PERTAMA YANG DIPAKAI.
+         *
+         * Rentang itu dicari ke SELURUH enam kolom tanggal dokumen, dan
+         * rentang lain yang ikut diisi DIABAIKAN. Jadi mengisi kotak
+         * kedua tidak mengubah hasilnya sama sekali.
+         *
+         * Aturan ini terdengar aneh, tetapi memang begitu perilaku
+         * aplikasi desktop. Model SQL Server sebelumnya menerapkannya
+         * berbeda: bila lebih dari satu rentang diisi, tiap rentang hanya
+         * dicari ke kolomnya sendiri. Perbedaan itu yang diluruskan di
+         * sini.
+         *
+         * "Pertama" berarti pertama menurut urutan kotaknya di layar,
+         * yaitu IMB, Sertipikat, AJB, SHM, PH, lalu PPJB. Urutan itulah
+         * yang dipakai daftar $kategori di atas.
+         */
         $semuaKolom = array_column($kategori, 0);
         $potongan = [];
-        $bindings = [];
 
-        if (count($terisi) === 1) {
-            $satu = $terisi[0];
-            $bindings['tgl_satu_awal'] = $satu['awal'];
-            $bindings['tgl_satu_akhir'] = $satu['akhir'];
+        $satu = $terisi[0];
+        $bindings = [
+            'tgl_satu_awal' => $satu['awal'],
+            'tgl_satu_akhir' => $satu['akhir'],
+        ];
 
-            foreach ($semuaKolom as $kolom) {
-                $potongan[] = "(pengambilan.{$kolom}"
-                    . " >= CAST(:tgl_satu_awal AS TIMESTAMP)"
-                    . " AND pengambilan.{$kolom}"
-                    . " < CAST(:tgl_satu_akhir AS TIMESTAMP))";
-            }
-        } else {
-            foreach ($terisi as $item) {
-                $kode = $item['kode'];
-                $bindings["tgl_{$kode}_awal"] = $item['awal'];
-                $bindings["tgl_{$kode}_akhir"] = $item['akhir'];
-
-                $potongan[] = "(pengambilan.{$item['kolom']}"
-                    . " >= CAST(:tgl_{$kode}_awal AS TIMESTAMP)"
-                    . " AND pengambilan.{$item['kolom']}"
-                    . " < CAST(:tgl_{$kode}_akhir AS TIMESTAMP))";
-            }
+        foreach ($semuaKolom as $kolom) {
+            $potongan[] = "(pengambilan.{$kolom}"
+                . " >= CAST(:tgl_satu_awal AS TIMESTAMP)"
+                . " AND pengambilan.{$kolom}"
+                . " < CAST(:tgl_satu_akhir AS TIMESTAMP))";
         }
 
         return ['(' . implode(' OR ', $potongan) . ')', $bindings];

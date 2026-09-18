@@ -13,11 +13,14 @@
  *   lima kotak tanggal lainnya dibiarkan KOSONG
  *
  * PENTING, inilah yang membuat query ini kelihatan aneh.
- * Karena HANYA SATU rentang tanggal yang diisi, aplikasi desktop
- * mencari rentang itu ke SELURUH enam kolom tanggal dokumen,
- * bukan hanya ke TGL_INPUT_IMB. Aturan itu ada pada query desktop
- * dan sengaja dipertahankan di model web, jadi pembandingnya pun
- * harus begitu supaya adil.
+ * Aplikasi desktop memakai RENTANG PERTAMA yang terisi sebagai
+ * acuan untuk SELURUH enam kolom tanggal dokumen, bukan hanya
+ * untuk kolom yang kotaknya diisi. Rentang lain yang ikut diisi
+ * diabaikan sama sekali.
+ *
+ * Di sini hanya kotak IMB yang diisi, jadi rentang itulah yang
+ * dicari ke keenam kolom. Aturan yang sama sudah dipakai model
+ * web, jadi pembandingnya pun harus begitu supaya adil.
  *
  * Web menampilkan 602 baris. Bandingkan dengan QUERY 1.
  * ============================================================ */
