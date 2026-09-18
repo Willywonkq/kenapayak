@@ -66,40 +66,66 @@ class dftr_jaminan_bank_m extends Model
      * Jenis Jaminan pada dropdown desktop: Semua, IMB, Akta Jual Beli,
      * Sertipikat, PPJB, Peralihan Hak.
      *
-     * PERINGATAN, BELUM BISA DIPAKAI MENYARING.
-     * Pada database, JENIS_JAMINAN ternyata varchar(1) berisi KODE satu
-     * huruf, bukan tulisan seperti di dropdown. Diukur pada baris yang
-     * siap tampil: 4 sebanyak 2.325, 2 sebanyak 667, kosong 327, lalu A,
-     * H, P, 3, 5, dan T. Tidak ada satu pun tabel di database yang memuat
-     * arti kode itu; sudah dicari ke seluruh schema.
+     * Pada database, JENIS_JAMINAN adalah char(1) berisi KODE satu
+     * karakter, bukan tulisan seperti di dropdown. Arti kodenya tidak
+     * tersimpan di mana pun: tidak ada tabel acuan di PostgreSQL maupun
+     * di SQL Server sumbernya, dan kolom itu tidak menunjuk ke tabel lain.
+     * Artinya hanya hidup di dalam kode aplikasi desktop.
      *
-     * Karena itu daftar di bawah dipertahankan hanya supaya nilai lama
-     * dari layar tetap diterima, tetapi kode apa adanya juga diterima,
-     * sehingga fitur ini langsung benar begitu artinya diketahui dan
-     * dropdownnya diisi kode yang sebenarnya. Sementara ini hanya pilihan
-     * Semua yang menghasilkan baris.
+     * Pemetaan di bawah karena itu disimpulkan dari perilaku datanya,
+     * dengan urutan kode mengikuti urutan dropdown desktop. Diukur pada
+     * baris yang siap tampil:
      *
-     * Nilai "Semua" dikirim sebagai "*" karena query desktop memakai:
+     *   kode  baris  punya akta  punya peralihan
+     *   4     2.324  58,8%        7,9%
+     *   2       667  99,6%       49,9%
+     *   3        42  100%        73,8%
+     *   5        28  75,0%      100%
+     *
+     * Dasar tiap pemetaan, disebut apa adanya termasuk yang lemah:
+     *
+     *   5 = Peralihan Hak. Meyakinkan. Seluruh barisnya punya catatan
+     *       peralihan; kode lain tertinggi hanya 73,8%.
+     *   4 = PPJB. Kuat. Persentase punya-aktanya terendah dan terpaut
+     *       jauh, sekitar 25 poin dari kode mana pun. Masuk akal karena
+     *       jaminan beralaskan PPJB justru yang belum ber-AJB. Sekaligus
+     *       kode terbanyak, wajar untuk jenis yang paling umum.
+     *   2 = Akta Jual Beli. Kuat. 99,6% barisnya punya akta.
+     *   3 = Sertipikat. HANYA LEWAT ELIMINASI. Angkanya tidak
+     *       bertentangan, tetapi juga tidak menunjuk khusus ke sertipikat.
+     *   1 = IMB. TIDAK BISA DIUJI. Kode 1 tidak muncul satu baris pun.
+     *
+     * Kalau pemetaan untuk kode 3 atau 1 ternyata meleset, yang keliru
+     * hanya tulisan di dropdown. Isi laporannya tetap benar, karena yang
+     * dikirim ke query adalah kodenya, bukan tulisannya.
+     *
+     * Masih ada 670 baris berkode A, H, P, T, dan kosong, yaitu 18% data.
+     * Itu kode lama sebelum sistem berganti ke kode angka; kode huruf
+     * berhenti dipakai sekitar 1997 sampai 2004 sedangkan kode angka baru
+     * mulai 1998. Baris itu tidak pernah muncul saat sebuah jenis dipilih,
+     * di aplikasi desktop pun begitu, karena penyaringnya
      *   (JAMINAN.JENIS_JAMINAN = :jaminan OR :jaminan = '*')
+     * Jadi baris tersebut hanya keluar pada pilihan Semua.
+     *
+     * Nilai "Semua" dikirim sebagai "*" mengikuti penyaring di atas.
      */
-    private const JENIS_JAMINAN_VALID = [
-        '*',
-        'IMB',
-        'AKTA JUAL BELI',
-        'SERTIPIKAT',
-        'PPJB',
-        'PERALIHAN HAK',
+    private const JENIS_JAMINAN_KODE = [
+        'IMB' => '1',
+        'AKTA JUAL BELI' => '2',
+        'SERTIPIKAT' => '3',
+        'PPJB' => '4',
+        'PERALIHAN HAK' => '5',
     ];
 
     /**
      * Kode Jenis Jaminan yang benar-benar ada pada data, beserta jumlah
-     * barisnya. Dipakai untuk mengisi dropdown dengan nilai yang nyata,
-     * bukan tulisan yang tidak pernah cocok.
+     * barisnya. Tidak dipakai mengisi dropdown, karena dropdownnya sengaja
+     * dibuat tetap agar sama persis dengan combobox aplikasi desktop.
      *
-     * Jumlah barisnya sengaja ikut dikembalikan supaya bisa dibandingkan
+     * Disediakan sebagai alat pemeriksa. Jumlah barisnya bisa dibandingkan
      * dengan jumlah baris yang keluar di aplikasi desktop ketika tiap
-     * pilihan dropdownnya dipakai. Dari perbandingan itu arti tiap kode
-     * bisa dipastikan tanpa menebak.
+     * pilihan dropdownnya dipakai. Dari perbandingan itu pemetaan kode
+     * pada JENIS_JAMINAN_KODE bisa dipastikan, bukan lagi disimpulkan.
      */
     public function obtainJenisJaminan()
     {
@@ -832,6 +858,11 @@ SQL;
         return strtoupper(trim((string) $value));
     }
 
+    /**
+     * Mengubah pilihan dropdown menjadi kode satu karakter yang benar-benar
+     * tersimpan di kolom JENIS_JAMINAN. Lihat JENIS_JAMINAN_KODE untuk dasar
+     * pemetaannya.
+     */
     private function normalizeJenisJaminan($value): string
     {
         $normalized = $this->normalizeText($value);
@@ -840,15 +871,20 @@ SQL;
             return '*';
         }
 
-        if (in_array($normalized, self::JENIS_JAMINAN_VALID, true)) {
-            return $normalized;
+        /*
+         * Tulisan dari dropdown diterjemahkan ke kodenya. Jalur ini dipakai
+         * kalau layar mengirim tulisan, misalnya nilai lama yang dipulihkan
+         * browser dari bfcache setelah tombol kembali ditekan.
+         */
+        if (isset(self::JENIS_JAMINAN_KODE[$normalized])) {
+            return self::JENIS_JAMINAN_KODE[$normalized];
         }
 
         /*
-         * Kode apa adanya dari kolom JENIS_JAMINAN yang hanya satu huruf
-         * ikut diterima, supaya fitur ini langsung benar begitu dropdownnya
-         * diisi kode yang sebenarnya. Dibatasi satu huruf atau angka agar
-         * tidak ada teks bebas yang masuk ke query.
+         * Kode apa adanya juga diterima, karena dropdown sekarang memang
+         * mengirim kodenya langsung. Dibatasi satu huruf atau angka agar
+         * tidak ada teks bebas yang masuk ke query, sekaligus supaya kode
+         * lama A, H, P, dan T tetap bisa disaring bila suatu saat dibutuhkan.
          */
         if (preg_match('/^[A-Z0-9]$/', $normalized) === 1) {
             return $normalized;
