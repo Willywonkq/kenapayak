@@ -433,6 +433,10 @@ class dftr_pbb_m extends Model
         $awalan = $this->awalanUnit($perusahaan);
         $pakaiUnik = $awalan === '';
 
+        if (!$pakaiUnik) {
+            $this->pastikanKeluargaAda('sr_pbb', $awalan);
+        }
+
         $cteSertipikatUnik = $pakaiUnik ? $this->cteSertipikatUnik() : '';
         $joinSertipikatUnik = $pakaiUnik
             ? "LEFT JOIN sertipikat_unik
@@ -630,6 +634,10 @@ class dftr_pbb_m extends Model
 
         $awalan = $this->awalanUnit($perusahaan);
         $pakaiUnik = $awalan === '';
+
+        if (!$pakaiUnik) {
+            $this->pastikanKeluargaAda('sr_pbb', $awalan);
+        }
 
         $cteSertipikatUnik = $pakaiUnik ? $this->cteSertipikatUnik() : '';
         $joinSertipikatUnik = $pakaiUnik
@@ -1061,5 +1069,114 @@ class dftr_pbb_m extends Model
     private function normalizeText($value): string
     {
         return strtoupper(trim((string) $value));
+    }
+
+    /**
+     * Menolak menampilkan laporan untuk unit yang keluarga awalannya
+     * TIDAK ADA pada tabel sumber.
+     *
+     * Alasannya ditemukan waktu membandingkan hasil migrasi dengan
+     * sumbernya. Karena sertipikat_id kehilangan awalan, angkanya saja
+     * yang tersisa, dan hampir semua angka dipakai kedua keluarga awalan.
+     * Kalau sebuah unit diminta sedangkan tabel sumber tidak memuat satu
+     * pun baris dari keluarga awalan unit itu, penyusunan ulang tetap
+     * "berhasil" menemukan sertipikat, tetapi seluruh barisnya keliru:
+     * baris milik keluarga lain ditarik dan ditampilkan seolah milik unit
+     * yang diminta.
+     *
+     * Itu bukan kemungkinan di atas kertas. Diukur pada sr_imb, keenam
+     * unit berawalan DBPSS- akan menampilkan 20.140 baris yang seluruhnya
+     * tidak ada dasarnya, karena sr_imb ternyata hanya memuat baris dari
+     * SRIS_PUSAT.
+     *
+     * Laporan kosong masih bisa ditelusuri, sedangkan laporan yang salah
+     * tetapi kelihatan wajar tidak. Karena itu di sini dipilih berhenti
+     * dengan pesan, bukan menampilkan apa adanya.
+     *
+     * Pemeriksaannya membaca data, bukan daftar tetap, sehingga begitu
+     * migrasinya diperbaiki penjagaan ini membuka sendiri tanpa perlu
+     * mengubah kode.
+     *
+     * Dasar pemeriksaan: baris yang angkanya hanya dipakai SATU keluarga
+     * awalan. Baris semacam itu asal-usulnya pasti. Kalau keluarga yang
+     * diminta tidak punya satu pun baris pasti sedangkan keluarga lain
+     * punya, berarti keluarga itu memang tidak terwakili.
+     */
+    private function pastikanKeluargaAda(string $tabel, string $awalan): void
+    {
+        static $ingatan = [];
+
+        $kunci = $tabel . '|' . $awalan;
+
+        if (isset($ingatan[$kunci])) {
+            if ($ingatan[$kunci] === false) {
+                $this->tolakKeluargaKosong($tabel, $awalan);
+            }
+
+            return;
+        }
+
+        $sql = <<<SQL
+            WITH angka_sertipikat AS (
+                SELECT
+                    REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)),
+                                   '^[^0-9]+', '') AS angka,
+                    MIN(REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)),
+                                       '[0-9]+$', '')) AS awalan,
+                    COUNT(DISTINCT REGEXP_REPLACE(
+                        BTRIM(CAST(sertipikat_id AS TEXT)), '[0-9]+$', ''))
+                        AS banyak_keluarga
+                FROM public.sr_sertipikat
+                WHERE sertipikat_id IS NOT NULL
+                GROUP BY 1
+            )
+            SELECT angka_sertipikat.awalan AS awalan, COUNT(*) AS jumlah
+            FROM public.{$tabel} AS sumber
+            INNER JOIN angka_sertipikat
+                ON angka_sertipikat.angka
+                 = BTRIM(CAST(sumber.sertipikat_id AS TEXT))
+            WHERE angka_sertipikat.banyak_keluarga = 1
+              AND BTRIM(CAST(sumber.sertipikat_id AS TEXT)) ~ '^[0-9]+$'
+            GROUP BY 1
+        SQL;
+
+        $baris = DB::connection(self::CONNECTION)->select($sql);
+
+        $jumlahPerKeluarga = [];
+
+        foreach ($baris as $item) {
+            $jumlahPerKeluarga[(string) $item->awalan] = (int) $item->jumlah;
+        }
+
+        /*
+         * Tidak ada satu pun baris yang asal-usulnya pasti berarti
+         * pemeriksaan ini tidak punya dasar untuk menyimpulkan apa pun.
+         * Dalam keadaan itu laporan dibiarkan jalan, supaya penjagaan ini
+         * tidak memblokir database yang isinya memang sedikit.
+         */
+        if ($jumlahPerKeluarga === []) {
+            $ingatan[$kunci] = true;
+
+            return;
+        }
+
+        $ada = ($jumlahPerKeluarga[$awalan] ?? 0) > 0;
+        $ingatan[$kunci] = $ada;
+
+        if (!$ada) {
+            $this->tolakKeluargaKosong($tabel, $awalan);
+        }
+    }
+
+    private function tolakKeluargaKosong(string $tabel, string $awalan): void
+    {
+        throw new RuntimeException(
+            'Data ' . strtoupper(str_replace('sr_', '', $tabel))
+            . ' untuk unit ini belum termigrasi. Tabel ' . $tabel
+            . ' tidak memuat satu pun baris berawalan ' . $awalan
+            . ', sehingga laporannya tidak bisa disusun tanpa mengarang.'
+            . ' Laporan sengaja dikosongkan daripada menampilkan baris'
+            . ' milik unit lain. Silakan teruskan ke tim migrasi.'
+        );
     }
 }

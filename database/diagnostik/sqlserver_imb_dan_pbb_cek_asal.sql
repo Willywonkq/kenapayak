@@ -79,3 +79,22 @@ INNER JOIN [SRIS_PUSAT].[dbo].[STOK] AS STOK       WITH (NOLOCK)
     ON STOK.STOK_ID = SERTIPIKAT.STOK_ID
 GROUP BY UPPER(RTRIM(LTRIM(STOK.KD_PERUSAHAAN)))
 ORDER BY BARIS_IMB DESC;
+
+
+/* ------------------------------------------------------------
+ * QUERY 4
+ * Jumlah baris PBB per unit pada SRIS_PUSAT.
+ *
+ * Kebenaran pembanding untuk QUERY 4 sisi PostgreSQL, sama seperti
+ * QUERY 3 dipakai untuk IMB.
+ * ------------------------------------------------------------ */
+SELECT
+    UPPER(RTRIM(LTRIM(STOK.KD_PERUSAHAAN))) AS KODE_UNIT,
+    COUNT(*) AS BARIS_PBB
+FROM [SRIS_PUSAT].[dbo].[PBB]              AS PBB        WITH (NOLOCK)
+INNER JOIN [SRIS_PUSAT].[dbo].[SERTIPIKAT] AS SERTIPIKAT WITH (NOLOCK)
+    ON SERTIPIKAT.SERTIPIKAT_ID = PBB.SERTIPIKAT_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[STOK]       AS STOK       WITH (NOLOCK)
+    ON STOK.STOK_ID = SERTIPIKAT.STOK_ID
+GROUP BY UPPER(RTRIM(LTRIM(STOK.KD_PERUSAHAAN)))
+ORDER BY BARIS_PBB DESC;

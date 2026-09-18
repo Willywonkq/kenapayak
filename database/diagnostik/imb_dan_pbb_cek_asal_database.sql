@@ -160,3 +160,71 @@ SELECT
 FROM tersambung
 GROUP BY kode_unit, awalan
 ORDER BY baris_tampil DESC;
+
+
+/* ------------------------------------------------------------
+ * QUERY 4
+ * Sama seperti QUERY 3, tetapi untuk sr_pbb.
+ *
+ * IMB sudah terbukti hanya memuat baris SRIS_PUSAT, dibuktikan
+ * dengan membandingkan jumlah per unit terhadap sumbernya. PBB
+ * belum. Jalankan query ini lalu bandingkan dengan QUERY 4 pada
+ * sqlserver_imb_dan_pbb_cek_asal.sql.
+ *
+ * Yang dicari: apakah ada unit yang jumlahnya MELEBIHI sumbernya.
+ * Kalau tidak ada satu pun yang melebihi, dan selisih totalnya
+ * sama dengan kekurangan baris hasil migrasi, berarti penyusunan
+ * ulang awalannya tepat dan tidak ada baris karangan.
+ * ------------------------------------------------------------ */
+WITH peta_unit AS (
+    SELECT
+        UPPER(BTRIM(COALESCE(CAST(kd_perusahaan AS TEXT), ''))) AS kode_unit,
+        REGEXP_REPLACE(BTRIM(CAST(stok_id AS TEXT)), '[0-9]+$', '') AS awalan
+    FROM public.sr_stok
+    WHERE stok_id IS NOT NULL
+    GROUP BY 1, 2
+),
+angka_sertipikat AS (
+    SELECT
+        REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)), '^[^0-9]+', '') AS angka,
+        COUNT(DISTINCT REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)), '[0-9]+$', ''))
+            AS banyak_keluarga
+    FROM public.sr_sertipikat
+    WHERE sertipikat_id IS NOT NULL
+    GROUP BY 1
+),
+stok_unit AS (
+    SELECT
+        BTRIM(CAST(stok_id AS TEXT)) AS kunci_stok,
+        UPPER(BTRIM(COALESCE(CAST(kd_perusahaan AS TEXT), ''))) AS kode_unit
+    FROM public.sr_stok
+),
+tersambung AS (
+    SELECT
+        peta_unit.kode_unit,
+        peta_unit.awalan,
+        CASE WHEN COALESCE(angka_sertipikat.banyak_keluarga, 1) = 1
+             THEN 'pasti' ELSE 'rancu' END AS golongan
+    FROM public.sr_pbb AS pbb
+    CROSS JOIN peta_unit
+    INNER JOIN public.sr_sertipikat AS sertipikat
+        ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT))
+         = peta_unit.awalan || BTRIM(CAST(pbb.sertipikat_id AS TEXT))
+    INNER JOIN stok_unit
+        ON stok_unit.kunci_stok = BTRIM(CAST(sertipikat.stok_id AS TEXT))
+       AND stok_unit.kode_unit = peta_unit.kode_unit
+    LEFT JOIN angka_sertipikat
+        ON angka_sertipikat.angka
+         = REGEXP_REPLACE(BTRIM(CAST(pbb.sertipikat_id AS TEXT)), '^[^0-9]+', '')
+    WHERE BTRIM(CAST(pbb.sertipikat_id AS TEXT)) ~ '^[0-9]+$'
+)
+SELECT
+    kode_unit, awalan,
+    COUNT(*) AS baris_tampil,
+    SUM(CASE WHEN golongan = 'pasti' THEN 1 ELSE 0 END) AS pasti,
+    SUM(CASE WHEN golongan = 'rancu' THEN 1 ELSE 0 END) AS rancu,
+    ROUND(100.0 * SUM(CASE WHEN golongan = 'rancu' THEN 1 ELSE 0 END)
+          / NULLIF(COUNT(*), 0), 1) AS persen_rancu
+FROM tersambung
+GROUP BY kode_unit, awalan
+ORDER BY baris_tampil DESC;
