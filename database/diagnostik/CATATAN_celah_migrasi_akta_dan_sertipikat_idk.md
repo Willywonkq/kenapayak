@@ -348,3 +348,81 @@ sebelum laporannya dipercaya untuk unit berawalan DBPSS-.
 2. Sertakan SRIS_SERPONG pada pemindahan sr_imb dan sr_pbb.
 3. Lengkapi baris SRIS_PUSAT yang belum terbawa.
 4. Setelah itu tidak ada perubahan kode yang diperlukan.
+
+
+## sr_nasabah tidak lengkap, dan ini berdampak ke BANYAK laporan
+
+Tanggal pemeriksaan: 18 September 2026
+Query: `imb_bandingkan_tahap_sbks.sql`, `sqlserver_imb_bandingkan_tahap_sbks.sql`,
+`nasabah_cek_kelengkapan.sql`. Seluruhnya hanya membaca.
+
+Temuan ini yang paling luas akibatnya sejauh ini, dan ditemukan tanpa
+sengaja ketika menelusuri selisih baris pada Daftar IMB.
+
+### Bagaimana ketahuannya
+
+Corong tujuh tahap dijalankan berdampingan di kedua basis data, dengan
+filter yang sama persis: unit SBKS, blok A sampai ZZ, TGL INPUT
+01-01-2020 sampai 31-12-2023.
+
+| tahap                        | PostgreSQL | SQL Server | selisih |
+|------------------------------|-----------:|-----------:|--------:|
+| sr_imb dalam rentang tanggal |      8.789 |      8.994 |     205 |
+| + ketemu sertipikatnya       |      8.788 |      8.994 |     206 |
+| + stok SBKS aktif            |      6.064 |      6.178 |     114 |
+| + PPJB aktif bukan turunan   |      6.028 |      6.143 |     115 |
+| + pembeli aktif              |      6.029 |      6.144 |     115 |
+| + nasabahnya ketemu          |      5.596 |      6.144 | **548** |
+| + saringan blok, yang tampil |      5.596 |      6.144 |     548 |
+
+Selisihnya bertahan di angka 115 sampai tahap pembeli, lalu melompat ke
+548 pada tahap nasabah. Jadi 433 baris hilang HANYA karena nasabahnya
+tidak ada di hasil migrasi.
+
+Tahap PPJB terbukti sehat: PostgreSQL kehilangan 36 stok, SQL Server 35,
+praktis setara.
+
+### Ukuran celahnya
+
+    baris pembeli aktif                  62.326
+    di antaranya nasabahnya ketemu       34.077   (54,7 %)
+    nasabahnya TIDAK ADA                 28.249   (45,3 %)
+
+    sr_nasabah di PostgreSQL             42.464 baris
+
+Sudah dipastikan ini BUKAN soal bentuk nilai seperti awalan yang
+terbuang pada kolom kunci lain. Perbandingan sebagai teks dan sebagai
+angka sama-sama menghasilkan 34.077, jadi barisnya memang tidak ada.
+
+### Kenapa ini penting
+
+sr_nasabah dipakai hampir SEMUA laporan yang menampilkan nama pembeli,
+bukan Daftar IMB saja. Daftar Jaminan Bank, Daftar Sertipikat Pecahan,
+Pengajuan Balik Nama, Sertipikat Balik Nama, Berakhir Haknya, dan PBB
+semuanya menyambung lewat sr_pembeli_ppjb ke sr_nasabah dengan INNER
+JOIN, persis seperti query desktopnya.
+
+Artinya kekurangan baris pada laporan-laporan itu sebagian mungkin
+berasal dari sini, bukan dari tabel utamanya masing-masing. Ketika
+sr_nasabah dilengkapi, laporan-laporan itu akan ikut bertambah barisnya
+tanpa perlu mengubah kode sama sekali.
+
+### Yang perlu dilakukan
+
+1. Pindahkan ulang NASABAH dari kedua database sumber.
+2. Periksa juga apakah NASABAH_ID ikut kehilangan penandanya, sama
+   seperti kolom kunci lain, karena dua database sumber sama-sama
+   menomori dari satu.
+
+### Ringkasan celah Daftar IMB unit SBKS
+
+Dari 548 baris selisih, seluruhnya kini terjelaskan dan tidak satu pun
+berasal dari kesalahan model:
+
+    114 baris  sr_imb belum termigrasi pada rentang itu
+    433 baris  nasabahnya tidak ada di sr_nasabah
+      1 baris  sertipikatnya tidak ketemu
+
+Untuk rentang 2020 sampai 2023 kekurangan sr_imb tergolong kecil, 205
+baris untuk seluruh unit. Yang hilang besar adalah tahun 2024 ke atas,
+3.538 baris, karena sr_imb berhenti pada 28 Desember 2023.
