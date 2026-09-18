@@ -104,31 +104,78 @@ ORDER BY t.TABLE_NAME, c.ORDINAL_POSITION;
 /* =====================================================================
  * QUERY 4 — Perilaku tiap kode, dihitung di sumbernya
  *
+ * Bentuk sebelumnya ditolak SQL Server dengan galat 130, karena subquery
+ * tidak boleh berada di dalam fungsi agregat. Pemeriksaannya dipindah ke
+ * CROSS APPLY supaya SUM hanya menjumlah angka biasa. Ini kesalahan yang
+ * sama dengan QUERY 1 pada berkas unit_cek_kelengkapan.
+ *
  * Padanan QUERY 2 pada berkas PostgreSQL, tetapi memakai data SQL Server
  * yang kuncinya masih utuh sehingga tidak perlu menyusun ulang awalan.
- * Inilah pembanding yang paling bersih.
  *
  * Cara membacanya:
- *   persen_punya_akta tinggi  -> kode itu berarti Akta Jual Beli
- *   persen_no_sertipikat tinggi -> kode itu berarti Sertipikat
- *   persen_punya_akta rendah  -> kode itu berarti PPJB
+ *   persen_punya_akta tertinggi -> kode itu berarti Akta Jual Beli
+ *   persen_punya_akta terendah  -> kode itu berarti PPJB
  * ===================================================================== */
 SELECT
     ISNULL(NULLIF(LTRIM(RTRIM(j.JENIS_JAMINAN)), ''), '-') AS kode,
     COUNT(*)                                               AS baris,
-    CAST(100.0 * SUM(CASE WHEN EXISTS (
-            SELECT 1 FROM AKTA a WITH (NOLOCK)
-            WHERE a.SERTIPIKAT_ID = j.SERTIPIKAT_ID
-              AND a.NO_AKTA IS NOT NULL
-         ) THEN 1 ELSE 0 END) / COUNT(*) AS DECIMAL(5,1))  AS persen_punya_akta,
-    CAST(100.0 * SUM(CASE WHEN EXISTS (
-            SELECT 1 FROM SERTIPIKAT s WITH (NOLOCK)
-            WHERE s.SERTIPIKAT_ID = j.SERTIPIKAT_ID
-              AND LTRIM(RTRIM(ISNULL(s.NO_SERTIPIKAT, ''))) <> ''
-         ) THEN 1 ELSE 0 END) / COUNT(*) AS DECIMAL(5,1))  AS persen_no_sertipikat
+    CAST(100.0 * SUM(d.punya_akta) / COUNT(*) AS DECIMAL(5,1))
+                                                           AS persen_punya_akta,
+    CAST(100.0 * SUM(d.punya_no_sertipikat) / COUNT(*) AS DECIMAL(5,1))
+                                                           AS persen_no_sertipikat
 FROM JAMINAN j WITH (NOLOCK)
+CROSS APPLY (
+    SELECT
+        CASE WHEN EXISTS (
+                 SELECT 1 FROM AKTA a WITH (NOLOCK)
+                 WHERE a.SERTIPIKAT_ID = j.SERTIPIKAT_ID
+                   AND a.NO_AKTA IS NOT NULL
+             ) THEN 1 ELSE 0 END AS punya_akta,
+        CASE WHEN EXISTS (
+                 SELECT 1 FROM SERTIPIKAT s WITH (NOLOCK)
+                 WHERE s.SERTIPIKAT_ID = j.SERTIPIKAT_ID
+                   AND LTRIM(RTRIM(ISNULL(s.NO_SERTIPIKAT, ''))) <> ''
+             ) THEN 1 ELSE 0 END AS punya_no_sertipikat
+) AS d
 WHERE j.NO_JAMINAN IS NOT NULL
   AND j.NO_LUNAS IS NULL
   AND j.NO_BATAL IS NULL
 GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(j.JENIS_JAMINAN)), ''), '-')
 ORDER BY COUNT(*) DESC;
+
+
+/* =====================================================================
+ * QUERY 5 — Cari tabel acuan berkode satu huruf
+ *
+ * Pencarian nama tabel pada QUERY 3 tidak menemukan apa pun. Tabel
+ * acuannya mungkin bernama sama sekali lain. Query ini mencari tabel mana
+ * pun yang punya kolom kode sepanjang satu huruf sekaligus kolom yang
+ * berisi keterangan, yaitu bentuk khas tabel acuan.
+ * ===================================================================== */
+SELECT
+    c.TABLE_NAME AS nama_tabel,
+    MAX(CASE
+            WHEN c.DATA_TYPE IN ('char', 'nchar', 'varchar', 'nvarchar')
+             AND c.CHARACTER_MAXIMUM_LENGTH = 1
+            THEN c.COLUMN_NAME
+        END) AS kolom_kode,
+    MAX(CASE
+            WHEN c.COLUMN_NAME LIKE '%DESKRIPSI%'
+              OR c.COLUMN_NAME LIKE '%KETERANGAN%'
+              OR c.COLUMN_NAME LIKE '%NAMA%'
+            THEN c.COLUMN_NAME
+        END) AS kolom_arti
+FROM INFORMATION_SCHEMA.COLUMNS c WITH (NOLOCK)
+GROUP BY c.TABLE_NAME
+HAVING MAX(CASE
+               WHEN c.DATA_TYPE IN ('char', 'nchar', 'varchar', 'nvarchar')
+                AND c.CHARACTER_MAXIMUM_LENGTH = 1
+               THEN c.COLUMN_NAME
+           END) IS NOT NULL
+   AND MAX(CASE
+               WHEN c.COLUMN_NAME LIKE '%DESKRIPSI%'
+                 OR c.COLUMN_NAME LIKE '%KETERANGAN%'
+                 OR c.COLUMN_NAME LIKE '%NAMA%'
+               THEN c.COLUMN_NAME
+           END) IS NOT NULL
+ORDER BY c.TABLE_NAME;

@@ -32,13 +32,18 @@
 -- Bila ada barisnya, tabel acuan itu ketemu dan artinya bisa dibaca
 -- langsung. Bila kosong, artinya memang tidak tersimpan di database ini.
 WITH tabel_kecil AS (
+    /*
+     * PERBAIKAN. Penyaring sebelumnya memakai c.reltuples >= 0, padahal
+     * tabel yang belum pernah di-ANALYZE nilainya -1, sehingga tabel
+     * seperti itu terlewat seluruhnya. Ukurannya kini dibaca dari besar
+     * berkasnya, yang selalu benar tanpa bergantung pada ANALYZE.
+     */
     SELECT c.relname AS nama_tabel
     FROM pg_class AS c
     INNER JOIN pg_namespace AS n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
       AND c.relkind = 'r'
-      AND c.reltuples >= 0
-      AND c.reltuples <= 5000
+      AND pg_total_relation_size(c.oid) <= 10 * 1024 * 1024
 ),
 kolom_teks AS (
     SELECT col.table_name AS nama_tabel, col.column_name AS nama_kolom
