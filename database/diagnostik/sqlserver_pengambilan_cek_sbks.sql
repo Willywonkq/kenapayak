@@ -1,0 +1,212 @@
+/* ============================================================
+ * PEMBANDING DAFTAR PENGAMBILAN SURAT, UNIT SBKS
+ *
+ * BERKAS INI HANYA MEMBACA. Memakai WITH (NOLOCK) seperti query
+ * aplikasi desktop, dan tidak memuat subquery di dalam agregat
+ * sehingga aman dari Error 130.
+ *
+ * Filter yang ditiru, sama seperti di layar:
+ *   UNIT             : SBKS
+ *   BLOK             : A s/d ZZ
+ *   SEKTOR/CLUSTER   : Semua
+ *   Tgl. Terima IMB  : 01-07-2023 s/d 18-09-2026
+ *   lima kotak tanggal lainnya dibiarkan KOSONG
+ *
+ * PENTING, inilah yang membuat query ini kelihatan aneh.
+ * Karena HANYA SATU rentang tanggal yang diisi, aplikasi desktop
+ * mencari rentang itu ke SELURUH enam kolom tanggal dokumen,
+ * bukan hanya ke TGL_INPUT_IMB. Aturan itu ada pada query desktop
+ * dan sengaja dipertahankan di model web, jadi pembandingnya pun
+ * harus begitu supaya adil.
+ *
+ * Web menampilkan 602 baris. Bandingkan dengan QUERY 1.
+ * ============================================================ */
+
+
+/* ------------------------------------------------------------
+ * QUERY 1
+ * JUMLAH BARIS. Inilah angka pembanding utamanya.
+ * ------------------------------------------------------------ */
+SELECT COUNT(*) AS JUMLAH_BARIS
+FROM [SRIS_PUSAT].[dbo].[PENGAMBILAN]      AS PENGAMBILAN  WITH (NOLOCK)
+INNER JOIN [SRIS_PUSAT].[dbo].[SERTIPIKAT] AS SERTIPIKAT   WITH (NOLOCK)
+    ON SERTIPIKAT.SERTIPIKAT_ID = PENGAMBILAN.SERTIPIKAT_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[STOK]       AS STOK         WITH (NOLOCK)
+    ON STOK.STOK_ID = SERTIPIKAT.STOK_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[PPJB]       AS PPJB         WITH (NOLOCK)
+    ON PPJB.STOK_ID = STOK.STOK_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[PEMBELI_PPJB] AS PEMBELI_PPJB WITH (NOLOCK)
+    ON PEMBELI_PPJB.PPJB_ID = PPJB.PPJB_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[NASABAH]    AS NASABAH      WITH (NOLOCK)
+    ON NASABAH.NASABAH_ID = PEMBELI_PPJB.NASABAH_ID
+WHERE STOK.FLAG_AKTIF = 'A'
+  AND PPJB.FLAG_AKTIF = 'A'
+  AND PEMBELI_PPJB.FLAG_AKTIF = 'Y'
+  AND PPJB.PARENT_ID IS NULL
+  AND STOK.BLOK IS NOT NULL
+  AND STOK.NOMOR IS NOT NULL
+  AND SERTIPIKAT.STOK_ID IS NOT NULL
+  AND (
+        ((RTRIM(STOK.BLOK) + '/' + RTRIM(STOK.NOMOR)) >= 'A'
+         AND (RTRIM(STOK.BLOK) + '/' + RTRIM(STOK.NOMOR)) <= 'ZZ')
+        OR (STOK.BLOK >= 'A' AND STOK.BLOK <= 'ZZ')
+      )
+  AND UPPER(RTRIM(LTRIM(STOK.KD_PERUSAHAAN))) = 'SBKS'
+  /* Satu rentang diisi, jadi dicari ke seluruh kolom tanggal. */
+  AND (
+        (PENGAMBILAN.TGL_INPUT_IMB  >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_IMB  < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_SER  >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_SER  < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_AKTA >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_AKTA < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_SHM  >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_SHM  < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_PH   >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_PH   < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_PPJB >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_PPJB < CONVERT(DATETIME, '20260919', 112))
+      );
+
+
+/* ------------------------------------------------------------
+ * QUERY 2
+ * Jumlah kolom per jenis dokumen, untuk dibandingkan dengan baris
+ * TOTAL DATA di kaki laporan web.
+ *
+ * Di layar tertulis:
+ *   IMB 175, Sert. HGB 532, AJB 532, SHM 0, PH 2, PPJB 0
+ *
+ * Kalau jumlah barisnya sama tetapi salah satu kolom ini berbeda,
+ * berarti bukan penyaringnya yang keliru melainkan pengambilan
+ * nilainya. Itu dua persoalan yang berbeda.
+ * ------------------------------------------------------------ */
+SELECT
+    COUNT(*)                            AS TOTAL_DATA,
+    COUNT(PENGAMBILAN.TGL_INPUT_IMB)    AS TERIMA_IMB,
+    COUNT(PENGAMBILAN.TGL_INPUT_SER)    AS TERIMA_SERT_HGB,
+    COUNT(PENGAMBILAN.TGL_INPUT_AKTA)   AS TERIMA_AJB,
+    COUNT(PENGAMBILAN.TGL_INPUT_SHM)    AS TERIMA_SHM,
+    COUNT(PENGAMBILAN.TGL_INPUT_PH)     AS TERIMA_PH,
+    COUNT(PENGAMBILAN.TGL_INPUT_PPJB)   AS TERIMA_PPJB,
+    COUNT(PENGAMBILAN.TGL_AMBIL_IMB)    AS AMBIL_IMB,
+    COUNT(PENGAMBILAN.TGL_AMBIL_SER)    AS AMBIL_SERT_HGB,
+    COUNT(PENGAMBILAN.TGL_AMBIL_AKTA)   AS AMBIL_AJB,
+    COUNT(PENGAMBILAN.TGL_AMBIL_SHM)    AS AMBIL_SHM,
+    COUNT(PENGAMBILAN.TGL_AMBIL_PH)     AS AMBIL_PH,
+    COUNT(PENGAMBILAN.TGL_AMBIL_PPJB)   AS AMBIL_PPJB
+FROM [SRIS_PUSAT].[dbo].[PENGAMBILAN]      AS PENGAMBILAN  WITH (NOLOCK)
+INNER JOIN [SRIS_PUSAT].[dbo].[SERTIPIKAT] AS SERTIPIKAT   WITH (NOLOCK)
+    ON SERTIPIKAT.SERTIPIKAT_ID = PENGAMBILAN.SERTIPIKAT_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[STOK]       AS STOK         WITH (NOLOCK)
+    ON STOK.STOK_ID = SERTIPIKAT.STOK_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[PPJB]       AS PPJB         WITH (NOLOCK)
+    ON PPJB.STOK_ID = STOK.STOK_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[PEMBELI_PPJB] AS PEMBELI_PPJB WITH (NOLOCK)
+    ON PEMBELI_PPJB.PPJB_ID = PPJB.PPJB_ID
+INNER JOIN [SRIS_PUSAT].[dbo].[NASABAH]    AS NASABAH      WITH (NOLOCK)
+    ON NASABAH.NASABAH_ID = PEMBELI_PPJB.NASABAH_ID
+WHERE STOK.FLAG_AKTIF = 'A'
+  AND PPJB.FLAG_AKTIF = 'A'
+  AND PEMBELI_PPJB.FLAG_AKTIF = 'Y'
+  AND PPJB.PARENT_ID IS NULL
+  AND STOK.BLOK IS NOT NULL
+  AND STOK.NOMOR IS NOT NULL
+  AND SERTIPIKAT.STOK_ID IS NOT NULL
+  AND (
+        ((RTRIM(STOK.BLOK) + '/' + RTRIM(STOK.NOMOR)) >= 'A'
+         AND (RTRIM(STOK.BLOK) + '/' + RTRIM(STOK.NOMOR)) <= 'ZZ')
+        OR (STOK.BLOK >= 'A' AND STOK.BLOK <= 'ZZ')
+      )
+  AND UPPER(RTRIM(LTRIM(STOK.KD_PERUSAHAAN))) = 'SBKS'
+  AND (
+        (PENGAMBILAN.TGL_INPUT_IMB  >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_IMB  < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_SER  >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_SER  < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_AKTA >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_AKTA < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_SHM  >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_SHM  < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_PH   >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_PH   < CONVERT(DATETIME, '20260919', 112))
+     OR (PENGAMBILAN.TGL_INPUT_PPJB >= CONVERT(DATETIME, '20230701', 112)
+         AND PENGAMBILAN.TGL_INPUT_PPJB < CONVERT(DATETIME, '20260919', 112))
+      );
+
+
+/* ------------------------------------------------------------
+ * QUERY 3
+ * CORONG PENYUSUTAN BARIS.
+ *
+ * Hanya perlu dijalankan kalau QUERY 1 berbeda dari 602. Corong
+ * ini menunjukkan tahap mana yang berbeda, supaya tidak perlu
+ * menebak apakah persoalannya di kelengkapan data atau di model.
+ * ------------------------------------------------------------ */
+WITH t1 AS (
+    SELECT SERTIPIKAT_ID, TGL_INPUT_IMB, TGL_INPUT_SER, TGL_INPUT_AKTA,
+           TGL_INPUT_SHM, TGL_INPUT_PH, TGL_INPUT_PPJB
+    FROM [SRIS_PUSAT].[dbo].[PENGAMBILAN] WITH (NOLOCK)
+),
+t2 AS (
+    SELECT * FROM t1
+    WHERE (TGL_INPUT_IMB  >= CONVERT(DATETIME, '20230701', 112) AND TGL_INPUT_IMB  < CONVERT(DATETIME, '20260919', 112))
+       OR (TGL_INPUT_SER  >= CONVERT(DATETIME, '20230701', 112) AND TGL_INPUT_SER  < CONVERT(DATETIME, '20260919', 112))
+       OR (TGL_INPUT_AKTA >= CONVERT(DATETIME, '20230701', 112) AND TGL_INPUT_AKTA < CONVERT(DATETIME, '20260919', 112))
+       OR (TGL_INPUT_SHM  >= CONVERT(DATETIME, '20230701', 112) AND TGL_INPUT_SHM  < CONVERT(DATETIME, '20260919', 112))
+       OR (TGL_INPUT_PH   >= CONVERT(DATETIME, '20230701', 112) AND TGL_INPUT_PH   < CONVERT(DATETIME, '20260919', 112))
+       OR (TGL_INPUT_PPJB >= CONVERT(DATETIME, '20230701', 112) AND TGL_INPUT_PPJB < CONVERT(DATETIME, '20260919', 112))
+),
+t3 AS (
+    SELECT SERTIPIKAT.STOK_ID
+    FROM t2
+    INNER JOIN [SRIS_PUSAT].[dbo].[SERTIPIKAT] AS SERTIPIKAT WITH (NOLOCK)
+        ON SERTIPIKAT.SERTIPIKAT_ID = t2.SERTIPIKAT_ID
+    WHERE SERTIPIKAT.STOK_ID IS NOT NULL
+),
+t4 AS (
+    SELECT STOK.STOK_ID, STOK.BLOK, STOK.NOMOR
+    FROM t3
+    INNER JOIN [SRIS_PUSAT].[dbo].[STOK] AS STOK WITH (NOLOCK)
+        ON STOK.STOK_ID = t3.STOK_ID
+    WHERE UPPER(RTRIM(LTRIM(STOK.KD_PERUSAHAAN))) = 'SBKS'
+      AND STOK.FLAG_AKTIF = 'A'
+      AND STOK.BLOK IS NOT NULL
+      AND STOK.NOMOR IS NOT NULL
+),
+t5 AS (
+    SELECT t4.BLOK, t4.NOMOR, PPJB.PPJB_ID
+    FROM t4
+    INNER JOIN [SRIS_PUSAT].[dbo].[PPJB] AS PPJB WITH (NOLOCK)
+        ON PPJB.STOK_ID = t4.STOK_ID
+       AND PPJB.FLAG_AKTIF = 'A'
+       AND PPJB.PARENT_ID IS NULL
+),
+t6 AS (
+    SELECT t5.BLOK, t5.NOMOR, PEMBELI_PPJB.NASABAH_ID
+    FROM t5
+    INNER JOIN [SRIS_PUSAT].[dbo].[PEMBELI_PPJB] AS PEMBELI_PPJB WITH (NOLOCK)
+        ON PEMBELI_PPJB.PPJB_ID = t5.PPJB_ID
+       AND PEMBELI_PPJB.FLAG_AKTIF = 'Y'
+),
+t7 AS (
+    SELECT t6.BLOK, t6.NOMOR
+    FROM t6
+    INNER JOIN [SRIS_PUSAT].[dbo].[NASABAH] AS NASABAH WITH (NOLOCK)
+        ON NASABAH.NASABAH_ID = t6.NASABAH_ID
+),
+t8 AS (
+    SELECT * FROM t7
+    WHERE ((RTRIM(BLOK) + '/' + RTRIM(NOMOR)) >= 'A'
+           AND (RTRIM(BLOK) + '/' + RTRIM(NOMOR)) <= 'ZZ')
+       OR (BLOK >= 'A' AND BLOK <= 'ZZ')
+)
+SELECT 1 AS URUT, 'Tahap 1  seluruh PENGAMBILAN'            AS TAHAP, COUNT(*) AS BARIS FROM t1
+UNION ALL SELECT 2, 'Tahap 2  + rentang tanggal (semua kolom)', COUNT(*) FROM t2
+UNION ALL SELECT 3, 'Tahap 3  + ketemu sertipikatnya',          COUNT(*) FROM t3
+UNION ALL SELECT 4, 'Tahap 4  + stok SBKS aktif',               COUNT(*) FROM t4
+UNION ALL SELECT 5, 'Tahap 5  + PPJB aktif bukan turunan',      COUNT(*) FROM t5
+UNION ALL SELECT 6, 'Tahap 6  + pembeli aktif',                 COUNT(*) FROM t6
+UNION ALL SELECT 7, 'Tahap 7  + nasabahnya ketemu',             COUNT(*) FROM t7
+UNION ALL SELECT 8, 'Tahap 8  + saringan blok = YANG TAMPIL',   COUNT(*) FROM t8
+ORDER BY URUT;
