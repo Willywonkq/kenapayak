@@ -161,20 +161,11 @@ class dftr_imb_m extends Model
         $kunciImb = $this->kunciSertipikat('imb', $pakaiUnik);
 
         /*
-         * Join STOK.BLOK = SERTIPIKAT.BLOK dan STOK.NOMOR = SERTIPIKAT.NOMOR
-         * hanya dipasang bila kolomnya memang ada pada hasil migrasi.
-         * Kalau tidak ada, sambungan lewat stok_id saja sudah cukup dan
-         * laporannya tetap jalan, hanya kehilangan satu lapis pemeriksaan.
+         * Syarat STOK.BLOK = SERTIPIKAT.BLOK dan STOK.NOMOR =
+         * SERTIPIKAT.NOMOR. Lihat keterangan panjang pada
+         * syaratBlokNomor().
          */
-        $joinBlokNomor = (
-            $this->adaKolom('sr_sertipikat', 'blok')
-            && $this->adaKolom('sr_sertipikat', 'nomor')
-        )
-            ? "AND BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))
-                 = BTRIM(COALESCE(CAST(sertipikat.blok AS TEXT), ''))
-               AND BTRIM(COALESCE(CAST(stok.nomor AS TEXT), ''))
-                 = BTRIM(COALESCE(CAST(sertipikat.nomor AS TEXT), ''))"
-            : '';
+        $joinBlokNomor = $this->syaratBlokNomor();
 
         /*
          * Master sektor pada sebagian hasil migrasi tidak membawa
@@ -818,5 +809,113 @@ class dftr_imb_m extends Model
             . ' Laporan sengaja dikosongkan daripada menampilkan baris'
             . ' milik unit lain. Silakan teruskan ke tim migrasi.'
         );
+    }
+
+    /**
+     * Syarat tambahan STOK.BLOK = SERTIPIKAT.BLOK dan
+     * STOK.NOMOR = SERTIPIKAT.NOMOR milik query desktop.
+     *
+     * Syarat ini SEBENARNYA BERLEBIH. Pasangan stok dan sertipikat sudah
+     * ditentukan sepenuhnya oleh STOK_ID, jadi syarat blok dan nomor
+     * hanya lapis pemeriksaan tambahan. Karena itu ia hanya bisa
+     * MEMBUANG baris, tidak pernah bisa menambah baris yang keliru.
+     *
+     * Pada hasil migrasi syarat itu berbahaya. Kolom nomor bisa berubah
+     * bentuk saat dipindahkan, misalnya 053 menjadi 53 kalau sempat
+     * dijadikan angka, persis jenis kerusakan yang sudah terbukti
+     * menimpa kolom kunci lain. Kalau itu terjadi, syarat ini
+     * menghabiskan SELURUH baris dan laporannya kosong sama sekali,
+     * padahal datanya ada.
+     *
+     * Jadi ada dua lapis penyesuaian:
+     *
+     * 1. Perbandingan nomor dibuat tahan beda bentuk. Kalau kedua sisi
+     *    seluruhnya angka, dibandingkan sebagai angka sehingga 053 dan
+     *    53 dianggap sama. Ini memulihkan pasangan yang memang sama di
+     *    sumbernya, bukan mengarang pasangan baru.
+     *
+     * 2. Kalau ternyata masih banyak yang tidak cocok juga, syaratnya
+     *    dilepas sama sekali dan penyambungan cukup memakai STOK_ID.
+     *    Membuang syarat yang berlebih tidak bisa memasukkan baris yang
+     *    salah, sedangkan mempertahankannya membuat laporan kosong.
+     *
+     * Ambangnya diukur dari data, bukan ditulis tetap, sehingga
+     * penyesuaian ini mengikuti sendiri keadaan database.
+     */
+    private function syaratBlokNomor(): string
+    {
+        static $hasil = null;
+
+        if ($hasil !== null) {
+            return $hasil;
+        }
+
+        if (
+            !$this->adaKolom('sr_sertipikat', 'blok')
+            || !$this->adaKolom('sr_sertipikat', 'nomor')
+        ) {
+            return $hasil = '';
+        }
+
+        $syarat = <<<SQL
+        AND UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
+                     = UPPER(BTRIM(COALESCE(CAST(sertipikat.blok AS TEXT), '')))
+                   AND (
+                        BTRIM(COALESCE(CAST(stok.nomor AS TEXT), ''))
+                            = BTRIM(COALESCE(CAST(sertipikat.nomor AS TEXT), ''))
+                        OR (
+                             BTRIM(CAST(stok.nomor AS TEXT)) ~ '^[0-9]+$'
+                             AND BTRIM(CAST(sertipikat.nomor AS TEXT)) ~ '^[0-9]+$'
+                             AND BTRIM(CAST(stok.nomor AS TEXT))::numeric
+                               = BTRIM(CAST(sertipikat.nomor AS TEXT))::numeric
+                           )
+                       )
+        SQL;
+
+        /*
+         * Diukur pada contoh secukupnya, bukan seluruh tabel, supaya
+         * pemeriksaan ini tidak ikut membebani setiap permintaan laporan.
+         */
+        $sql = <<<SQL
+            SELECT
+                COUNT(*) AS jumlah,
+                SUM(CASE WHEN cocok THEN 1 ELSE 0 END) AS cocok
+            FROM (
+                SELECT
+                    UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
+                        = UPPER(BTRIM(COALESCE(CAST(sertipikat.blok AS TEXT), '')))
+                    AND (
+                        BTRIM(COALESCE(CAST(stok.nomor AS TEXT), ''))
+                            = BTRIM(COALESCE(CAST(sertipikat.nomor AS TEXT), ''))
+                        OR (
+                             BTRIM(CAST(stok.nomor AS TEXT)) ~ '^[0-9]+$'
+                             AND BTRIM(CAST(sertipikat.nomor AS TEXT)) ~ '^[0-9]+$'
+                             AND BTRIM(CAST(stok.nomor AS TEXT))::numeric
+                               = BTRIM(CAST(sertipikat.nomor AS TEXT))::numeric
+                           )
+                       ) AS cocok
+                FROM public.sr_sertipikat AS sertipikat
+                INNER JOIN public.sr_stok AS stok
+                    ON BTRIM(CAST(stok.stok_id AS TEXT))
+                     = BTRIM(CAST(sertipikat.stok_id AS TEXT))
+                WHERE sertipikat.stok_id IS NOT NULL
+                LIMIT 20000
+            ) AS contoh
+        SQL;
+
+        $baris = DB::connection(self::CONNECTION)->select($sql);
+        $jumlah = $baris ? (int) $baris[0]->jumlah : 0;
+        $cocok = $baris ? (int) $baris[0]->cocok : 0;
+
+        /*
+         * Tidak ada contoh sama sekali berarti tidak ada dasar untuk
+         * menilai. Dalam keadaan itu syaratnya dipakai apa adanya,
+         * mengikuti query desktop.
+         */
+        if ($jumlah === 0) {
+            return $hasil = $syarat;
+        }
+
+        return $hasil = ($cocok >= 0.5 * $jumlah) ? $syarat : '';
     }
 }
