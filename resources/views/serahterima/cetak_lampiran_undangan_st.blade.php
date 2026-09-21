@@ -109,11 +109,26 @@
         white-space: nowrap;
     }
 
+    /*
+     * Dulu tiga kotak berjajar dan tingginya dipaksa sama. Akibatnya kotak
+     * Pilih dan Email, yang isinya hanya dua tombol, menyisakan ruang kosong
+     * sekitar dua pertiga tingginya, sementara kotak penyaring justru sesak.
+     *
+     * Sekarang keduanya ditumpuk dalam satu kolom di kanan, dan tingginya
+     * mengikuti isinya sendiri.
+     */
     .lampiran-st-formrow {
         display: grid;
-        grid-template-columns: minmax(650px, 1fr) minmax(155px, 0.22fr) minmax(165px, 0.24fr);
+        grid-template-columns: minmax(650px, 1fr) minmax(236px, 0.3fr);
         gap: 12px;
-        align-items: stretch;
+        align-items: start;
+    }
+
+    .lampiran-st-sidecol {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 12px;
     }
 
     .lampiran-st-box,
@@ -386,7 +401,6 @@
 
     .lampiran-st-emailbox {
         display: flex;
-        min-height: 138px;
         flex-direction: column;
         justify-content: flex-start;
         gap: 9px;
@@ -400,17 +414,34 @@
 
     .lampiran-st-choicebox {
         width: auto;
-        min-height: 138px;
         padding: 15px;
+    }
+
+    /*
+     * Keduanya dijadikan sepasang berdampingan supaya terbaca sebagai satu
+     * pilihan, bukan dua baris yang tidak berhubungan.
+     *
+     * Bentuk aslinya tetap tombol radio, tidak diganti tombol biasa, karena
+     * dua alasan. Pertama, getLampiranData() mengembalikannya ke Uncheck All
+     * lewat pemilih input[name="check_mode"], jadi menggantinya akan
+     * memutus pemulihan itu tanpa ada yang menyadari. Kedua, titik radionya
+     * masih berguna sebagai penanda mana yang terakhir dipakai.
+     */
+    .lampiran-st-choicebox .lampiran-st-choicerow {
+        display: flex;
+        gap: 8px;
     }
 
     .lampiran-st-choicebox label {
         display: flex;
         min-height: 38px;
+        flex: 1 1 0;
+        min-width: 0;
         align-items: center;
-        gap: 8px;
-        margin: 0 0 8px;
-        padding: 8px 10px;
+        justify-content: center;
+        gap: 7px;
+        margin: 0;
+        padding: 8px 9px;
         border: 1px solid #e5eaf2;
         border-radius: 9px;
         background: #fafbfc;
@@ -419,10 +450,6 @@
         font-size: 11.5px;
         font-weight: 650;
         white-space: nowrap;
-    }
-
-    .lampiran-st-choicebox label:last-child {
-        margin-bottom: 0;
     }
 
     .lampiran-st-choicebox label:hover {
@@ -1008,7 +1035,7 @@
 
     @media (max-width: 1180px) {
         .lampiran-st-formrow {
-            grid-template-columns: minmax(560px, 1fr) minmax(150px, 0.28fr) minmax(160px, 0.3fr);
+            grid-template-columns: minmax(560px, 1fr) minmax(224px, 0.32fr);
         }
     }
 
@@ -1018,11 +1045,20 @@
         }
 
         .lampiran-st-formrow {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
         }
 
-        .lampiran-st-fields {
-            grid-column: 1 / -1;
+        /*
+         * Sempit ke bawah, kolom kanan justru dibentangkan menyamping supaya
+         * kedua kotaknya tidak memanjang sendiri-sendiri di bawah penyaring.
+         */
+        .lampiran-st-sidecol {
+            flex-direction: row;
+        }
+
+        .lampiran-st-sidecol > * {
+            flex: 1 1 0;
+            min-width: 0;
         }
     }
 
@@ -1042,6 +1078,10 @@
 
         .lampiran-st-formrow {
             grid-template-columns: 1fr;
+        }
+
+        .lampiran-st-sidecol {
+            flex-direction: column;
         }
 
         .lampiran-st-filter-head {
@@ -1399,17 +1439,18 @@
     }
 
     /* --- Parameter jadi mini-card --- */
+    /*
+     * Empat angka kecil ini sebelumnya masing-masing dibungkus kotak
+     * bergaris. Bobot rupanya jadi jauh lebih besar daripada bobot isinya,
+     * dan barisnya terlihat lebih ramai daripada baris Cluster dan Blok di
+     * atasnya, padahal kepentingannya tidak lebih besar. Kotaknya dilepas,
+     * tulisan kecilnya saja yang menjadi pengelompok.
+     */
     .lampiran-st-page .lampiran-st-parameter-item {
-        padding: 8px 10px 9px;
-        border: 1px solid #e6ecf5;
-        border-radius: 10px;
-        background: linear-gradient(180deg, #fbfdff, #f5f9ff);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .lampiran-st-page .lampiran-st-parameter-item:focus-within {
-        border-color: #bfdbfe;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.10);
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: none;
     }
 
     .lampiran-st-page .lampiran-st-parameter-item .lampiran-st-small-label {
@@ -2034,7 +2075,7 @@
                     <div class="lampiran-st-filter-head">
                         <div class="lampiran-st-section-label">
                             <i class="fas fa-filter"></i>
-                            <span>Pilih Unit</span>
+                            <span>Filter Lampiran</span>
                         </div>
                         <div class="lampiran-st-filter-actions">
                             <button type="button" id="btn-load-data" class="lampiran-st-button lampiran-st-button--primary" onclick="getLampiranData()" title="OK">
@@ -2093,19 +2134,22 @@
                 </div>
 
 
-                <div class="lampiran-st-choicebox">
+                <div class="lampiran-st-sidecol">
+                    <div class="lampiran-st-choicebox">
                     <div class="lampiran-st-section-label">
                         <i class="fas fa-check-square"></i>
                         <span>Pilih</span>
                     </div>
-                    <label title="Check All">
-                        <input type="radio" name="check_mode" value="all" onclick="setAllRows(true)">
-                        <span>Check All</span>
-                    </label>
-                    <label title="Uncheck All">
-                        <input type="radio" name="check_mode" value="none" checked onclick="setAllRows(false)">
-                        <span>Uncheck All</span>
-                    </label>
+                    <div class="lampiran-st-choicerow">
+                        <label title="Check All">
+                            <input type="radio" name="check_mode" value="all" onclick="setAllRows(true)">
+                            <span>Check All</span>
+                        </label>
+                        <label title="Uncheck All">
+                            <input type="radio" name="check_mode" value="none" checked onclick="setAllRows(false)">
+                            <span>Uncheck All</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="lampiran-st-emailbox">
@@ -2121,6 +2165,7 @@
                         <i class="fas fa-list-ul"></i>
                         <span>Lihat Antrian Email</span>
                     </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2164,7 +2209,7 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td colspan="15" class="empty-row"><div class="lampiran-st-empty"><span class="lampiran-st-empty-icon"><i class="fas fa-table"></i></span><strong>Belum ada data</strong></div></td>
+                            <td colspan="15" class="empty-row"><div class="lampiran-st-empty"><span class="lampiran-st-empty-icon"><i class="fas fa-table"></i></span><strong>Belum ada data</strong><span>Isi Cluster lalu tekan OK untuk menampilkan lampiran.</span></div></td>
                         </tr>
                     </tbody>
                 </table>
@@ -2263,7 +2308,7 @@
         html += '<th>User Cetak</th>';
         html += '</tr></thead><tbody>';
         html += '<tr>';
-        html += '<td colspan="15" class="empty-row"><div class="lampiran-st-empty"><span class="lampiran-st-empty-icon"><i class="fas fa-table"></i></span><strong>Belum ada data</strong></div></td>';
+        html += '<td colspan="15" class="empty-row"><div class="lampiran-st-empty"><span class="lampiran-st-empty-icon"><i class="fas fa-table"></i></span><strong>Belum ada data</strong><span>Isi Cluster lalu tekan OK untuk menampilkan lampiran.</span></div></td>';
         html += '</tr>';
         html += '</tbody></table>';
 
