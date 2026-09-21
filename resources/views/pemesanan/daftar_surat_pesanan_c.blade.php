@@ -1457,72 +1457,59 @@
         border-radius: 10px !important;
     }
 
-    /*
-     * Tombol View dan Print menempel ke tepi kanan kartu filter, meniru
-     * Daftar Undangan Surat Rumah. Sudut kirinya membulat, sudut kanannya
-     * rata dengan garis tepi kartu, sehingga terlihat seperti tanda
-     * pembatas buku yang menyembul dari halaman.
-     *
-     * Perataannya tidak dihitung dari lebar kolom, melainkan dari padding
-     * kartunya. Kolom Bootstrap sudah rata dengan kotak isi kartu karena
-     * margin negatif barisnya sama besar dengan padding kolomnya, jadi
-     * margin kanan negatif sebesar padding kartu, 20px, menempatkan tepi
-     * kanan tombol persis di garis tepi kartu. Cara ini tetap benar
-     * walaupun ukuran gutter Bootstrap berubah.
-     */
-    .surat-pesanan-content .filter-panel {
-        position: relative;
-        overflow: hidden;
-    }
-
     .surat-pesanan-content .action-buttons {
-        position: relative;
-        display: block;
-        width: 104px;
-        height: 91px;
-        margin-top: 16px;
-        margin-left: auto;
-        margin-right: -20px;
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-top: 14px;
     }
 
     .surat-pesanan-content .action-btn {
-        position: absolute;
-        right: 0;
-        width: 104px;
         min-width: 104px;
-        height: 40px;
-        min-height: 40px;
-        padding: 0;
+        width: 104px;
+        height: 36px;
+        min-height: 36px;
+        padding: 6px 14px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border: 0 !important;
-        border-radius: 13px 0 0 13px !important;
-        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
-        font-size: 12px;
-        font-weight: 900;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        gap: 7px;
+        border: 1px solid transparent !important;
+        border-radius: 8px !important;
+        font-size: 13px;
+        font-weight: 600;
         line-height: 1;
         cursor: pointer;
         transition:
-            transform 0.18s ease,
-            box-shadow 0.18s ease,
-            background 0.18s ease;
+            transform 0.15s ease,
+            box-shadow 0.15s ease,
+            background-color 0.15s ease;
+    }
+
+    .surat-pesanan-content .action-btn svg {
+        width: 17px;
+        height: 17px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
     }
 
     .surat-pesanan-content .action-btn-view {
-        top: 0;
         color: #ffffff !important;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.24);
+        background: var(--dsp-primary) !important;
+        box-shadow: 0 5px 12px rgba(37, 99, 235, 0.22);
     }
 
     .surat-pesanan-content .action-btn-excel {
-        top: 51px;
-        color: #ffffff !important;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-        box-shadow: 0 8px 18px rgba(5, 150, 105, 0.22);
+        color: var(--dsp-success) !important;
+        border-color: #bbdec8 !important;
+        background: #f2fbf5 !important;
+        box-shadow: none;
     }
 
     .surat-pesanan-content .action-btn:hover {
@@ -1533,15 +1520,14 @@
     .surat-pesanan-content .action-btn-view:hover,
     .surat-pesanan-content .action-btn-view:focus {
         color: #ffffff !important;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.30);
+        background: #1d4ed8 !important;
     }
 
     .surat-pesanan-content .action-btn-excel:hover,
     .surat-pesanan-content .action-btn-excel:focus {
-        color: #ffffff !important;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-        box-shadow: 0 12px 24px rgba(5, 150, 105, 0.28);
+        color: var(--dsp-success) !important;
+        border-color: #86c99d !important;
+        background: #e7f7ec !important;
     }
 
     .surat-pesanan-content .action-btn:active {
@@ -1601,29 +1587,6 @@
             width: 100% !important;
             min-width: 0 !important;
             max-width: none !important;
-        }
-
-        /*
-         * Di layar sempit bentuk tanda pembatas itu tidak menolong,
-         * malah menyisakan kolom kosong di sebelah kirinya. Jadi di sini
-         * tombolnya dikembalikan menjadi tombol biasa yang melebar.
-         */
-        .surat-pesanan-content .action-buttons {
-            position: static;
-            display: flex;
-            flex-direction: column;
-            gap: 9px;
-            width: auto;
-            height: auto;
-            margin-left: 0;
-            margin-right: 0;
-        }
-
-        .surat-pesanan-content .action-btn {
-            position: static;
-            width: 100%;
-            min-width: 0;
-            border-radius: 10px !important;
         }
     }
 
@@ -2376,20 +2339,21 @@
             </div>
 
             <div class="action-buttons">
-                <button
-                    type="button"
-                    class="btn action-btn action-btn-view"
-                    onclick="getSummary()"
-                >
-                    View
+                <button type="button" class="btn action-btn action-btn-view" onclick="getSummary()">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"></path>
+                        <circle cx="12" cy="12" r="2.5"></circle>
+                    </svg>
+                    <span>View</span>
                 </button>
 
-                <button
-                    type="button"
-                    class="btn action-btn action-btn-excel"
-                    onclick="printSuratPesananReport()"
-                >
-                    Print
+                <button type="button" class="btn action-btn action-btn-excel" onclick="printSuratPesananReport()">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 9V3h12v6"></path>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <path d="M6 14h12v7H6z"></path>
+                    </svg>
+                    <span>Print</span>
                 </button>
             </div>
 
