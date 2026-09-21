@@ -371,6 +371,16 @@ class dftr_undangan_surat_rumah_m extends Model
                     = :jenis_surat"
             : '';
 
+        [$saringUnit, $cteUnitLain] = $this->saringUnitDiNomor(
+            $jenis === '6' ? 'sertipikat_id' : 'ppjb_id',
+            $awalan
+        );
+
+        if ($saringUnit !== '') {
+            $bindings['unit_sendiri'] = strtoupper($perusahaan);
+            $bindings['unit_di_nomor'] = strtoupper($perusahaan);
+        }
+
         /*
          * Jenis 6 bertumpu pada sertipikat, bukan pada PPJB. Karena
          * sr_perpanjangan_sertipikat menyimpan SERTIPIKAT_ID yang mungkin
@@ -394,6 +404,7 @@ class dftr_undangan_surat_rumah_m extends Model
                 {$joinUnik}
                 WHERE surat.tgl_surat >= CAST(:tgl_awal AS TIMESTAMP)
                   AND surat.tgl_surat <  CAST(:tgl_akhir AS TIMESTAMP)
+                  {$saringUnit}
             ),
             SQL;
 
@@ -421,6 +432,7 @@ class dftr_undangan_surat_rumah_m extends Model
                 WHERE surat.tgl_surat >= CAST(:tgl_awal AS TIMESTAMP)
                   AND surat.tgl_surat <  CAST(:tgl_akhir AS TIMESTAMP)
                   {$syaratJenisSurat}
+                  {$saringUnit}
             ),
             SQL;
 
@@ -441,7 +453,7 @@ class dftr_undangan_surat_rumah_m extends Model
         $syaratPpjbAktif = $this->syaratPpjbAktif($jenis);
 
         $sql = <<<SQL
-            WITH {$cteUnik}stok_terpilih AS (
+            WITH {$cteUnitLain}{$cteUnik}stok_terpilih AS (
                 SELECT
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
@@ -1595,6 +1607,80 @@ class dftr_undangan_surat_rumah_m extends Model
                              || BTRIM(CAST({$alias}.ppjb_id AS TEXT))
                     END
         SQL;
+    }
+
+    /**
+     * Penjaga terhadap baris milik unit lain yang ikut terbawa karena
+     * awalan kuncinya ditebak.
+     *
+     * Duduk perkaranya: pada sr_undangan_ajb, sr_undangan_skb, dan
+     * sr_perpanjangan_sertipikat, kunci penyambungnya termigrasi sebagai
+     * angka sehingga awalannya terbuang. Model menempelkan kembali awalan
+     * milik unit yang sedang diminta. Kalau angka yang sama ternyata juga
+     * dipakai keluarga lain, penempelan itu adalah TEBAKAN, dan tebakan
+     * yang meleset akan memunculkan baris milik unit lain di laporan ini.
+     *
+     * Pada unit SBKS periode 01-07-2023 sampai 21-09-2026, 1.801 dari
+     * 2.001 baris laporan AJB kuncinya memang hasil tebakan. Sebanyak itu
+     * yang tidak bisa dibuktikan model dengan caranya sendiri.
+     *
+     * Untungnya ada bukti lain yang tidak ikut ditebak: KODE UNIT TERTULIS
+     * DI NOMOR SURATNYA, misalnya 0022/SBKS-LK/03/2024. Nomor surat milik
+     * barisnya sendiri, tidak disusun ulang, tidak bergantung awalan.
+     *
+     * Aturannya sengaja dibuat hanya bisa MEMBUANG yang terbukti asing,
+     * tidak pernah menambah dan tidak pernah membuang yang meragukan:
+     *
+     *   nomornya memuat kode unit ini          -> diterima
+     *   nomornya tidak memuat kode unit mana pun -> diterima
+     *   nomornya memuat kode unit lain SAJA    -> dibuang
+     *
+     * Baris yang kuncinya tidak ditebak, yaitu yang awalannya masih utuh,
+     * tidak diperiksa sama sekali.
+     *
+     * Pada data sekarang aturan ini membuang NOL baris, sudah diukur.
+     * Jadi ia tidak mengubah laporan hari ini. Gunanya untuk nanti:
+     * risiko tebakan sekarang kecil justru karena data SERPONG pun banyak
+     * yang belum termigrasi. Begitu migrasinya diperbaiki, jumlah angka
+     * yang dipakai dua keluarga akan bertambah, dan penjagaan ini yang
+     * menahan akibatnya.
+     *
+     * Perlu ditegaskan, ini hanya penambal. Perbaikan sebenarnya ada di
+     * migrasi: kunci itu seharusnya termigrasi utuh berikut awalannya,
+     * seperti sr_undangan_ppjb dan sr_undangan_st.
+     */
+    private function saringUnitDiNomor(string $kolomKunci, string $awalan): array
+    {
+        if ($awalan === '' || !$this->adaKolom('sr_stok', 'kd_perusahaan')) {
+            return ['', ''];
+        }
+
+        $cte = <<<SQL
+        unit_lain AS MATERIALIZED (
+                SELECT DISTINCT
+                    UPPER(BTRIM(CAST(kd_perusahaan AS TEXT))) AS kode
+                FROM public.sr_stok
+                WHERE kd_perusahaan IS NOT NULL
+                  AND BTRIM(CAST(kd_perusahaan AS TEXT)) <> ''
+                  AND UPPER(BTRIM(CAST(kd_perusahaan AS TEXT)))
+                        <> :unit_sendiri
+            ),
+        SQL;
+
+        $saring = <<<SQL
+        AND (
+                        BTRIM(CAST(surat.{$kolomKunci} AS TEXT)) !~ '^[0-9]+\$'
+                        OR POSITION(:unit_di_nomor IN UPPER(COALESCE(
+                               CAST(surat.no_surat AS TEXT), ''))) > 0
+                        OR NOT EXISTS (
+                            SELECT 1 FROM unit_lain
+                            WHERE POSITION(unit_lain.kode IN UPPER(COALESCE(
+                                      CAST(surat.no_surat AS TEXT), ''))) > 0
+                        )
+                      )
+        SQL;
+
+        return [$saring, $cte . "\n            "];
     }
 
     /**
