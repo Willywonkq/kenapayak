@@ -269,6 +269,7 @@
         display: flex;
         min-width: 0;
         align-items: stretch;
+        gap: 8px;
     }
 
     .lookup-display {
@@ -277,31 +278,47 @@
         flex: 1;
         align-items: center;
         overflow: hidden;
-        border-radius: 9px 0 0 9px;
+        border-radius: 9px;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
+    /*
+     * Tombol teropong. Ukuran, warna, sudut, dan gerak angkatnya mengikuti
+     * .undangan-lookup-button pada Daftar Undangan Surat Rumah, yang
+     * dipakai sebagai acuan bersama semua halaman.
+     */
     .lookup-button {
         display: inline-flex;
-        width: 48px;
-        min-width: 48px;
+        width: 42px;
+        min-width: 42px;
+        height: 42px;
         min-height: 42px;
         align-items: center;
         justify-content: center;
         padding: 0;
-        border: 1px solid #d8dde6;
-        border-left: 0;
-        border-radius: 0 9px 9px 0;
-        background: #ffffff;
-        color: var(--st-navy);
+        border: 1px solid #bfdbfe;
+        border-radius: 13px;
+        background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+        color: #1d4ed8;
         cursor: pointer;
-        transition: color 0.18s ease, background 0.18s ease;
+        font-size: 16px;
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            background 0.18s ease;
     }
 
     .lookup-button:hover {
-        color: var(--st-orange-dark);
-        background: #fff8f1;
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12);
+    }
+
+    .lookup-button:active {
+        transform: translateY(0);
     }
 
     .choice-group {
@@ -830,18 +847,18 @@
     }
 
     .serah-st-page .lookup-button {
-        color: #2563eb;
-        border-color: #d1d5db;
-        background: #f8fafc;
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+        background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
     }
 
     .serah-st-page .lookup-button:hover,
     .serah-st-page .lookup-button:focus {
         color: #1d4ed8;
-        border-color: #2563eb;
-        background: #dbeafe;
+        border-color: #93c5fd;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
         outline: 0;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
     }
 
     .serah-st-page .choice-pill input[type="radio"]:checked {
@@ -1479,7 +1496,7 @@
                         <input type="hidden" id="sektor" value="*">
                         <div id="sektorentry" class="lookup-display">Semua Sektor</div>
                         <button type="button" class="lookup-button" onclick="getSektorModal()" aria-label="Cari sektor atau cluster">
-                            <i class="fas fa-search"></i>
+                            <i class="fas fa-binoculars"></i>
                         </button>
                     </div>
                 </div>

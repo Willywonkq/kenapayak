@@ -180,14 +180,13 @@
 
     .dst-lookup-control {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 42px;
+        grid-template-columns: minmax(0, 1fr) 36px;
+        gap: 8px;
         width: 100%;
     }
 
     .dst-lookup-display {
         overflow: hidden;
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
         background: #fff;
         text-align: left;
         text-overflow: ellipsis;
@@ -200,42 +199,68 @@
         z-index: 1;
     }
 
+    /*
+     * Tombol teropong. Warna, garis tepi, dan gerak angkatnya mengikuti
+     * .undangan-lookup-button pada Daftar Undangan Surat Rumah.
+     *
+     * Ukurannya sengaja 36, bukan 42 seperti halaman lain, karena seluruh
+     * isian di halaman ini setinggi 36. Memaksa 42 akan membuat tombolnya
+     * menjulang di atas kotak isian dan justru terlihat tidak seragam.
+     * Sudutnya pun diturunkan seimbang, dari 13 menjadi 11.
+     */
     .dst-lookup-button {
         display: inline-flex;
-        width: 42px;
+        width: 36px;
         height: 36px;
         align-items: center;
         justify-content: center;
-        border: 1px solid #cfd8e5;
-        border-left: 0;
-        border-radius: 0 8px 8px 0;
-        background: #f8fafc;
-        color: var(--dst-primary);
+        border: 1px solid #bfdbfe;
+        border-radius: 11px;
+        background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+        color: #1d4ed8;
         cursor: pointer;
-        transition: border-color .18s ease, background .18s ease, color .18s ease;
+        font-size: 13px;
+        transition:
+            transform .18s ease,
+            box-shadow .18s ease,
+            background .18s ease;
     }
 
     .dst-lookup-button:hover {
-        border-color: var(--dst-primary);
-        background: var(--dst-primary-soft);
-        color: var(--dst-primary-dark);
+        border-color: #bfdbfe;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1d4ed8;
+        transform: translateY(-1px);
+        box-shadow: 0 7px 15px rgba(37, 99, 235, .12);
     }
 
     .dst-lookup-button:focus {
         position: relative;
         z-index: 1;
-        border-color: var(--dst-primary);
+        border-color: #93c5fd;
         outline: 0;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .13);
+    }
+
+    .dst-lookup-button:active {
+        transform: translateY(0);
     }
 
     .dst-lookup-button:disabled {
         color: #98a2b3;
         cursor: wait;
         opacity: .7;
+        transform: none;
     }
 
-    .dst-lookup-button.is-loading svg {
+    /*
+     * Ikonnya sekarang huruf ikon, bukan gambar SVG, jadi aturan berputar
+     * saat memuat ikut diarahkan ke sana. Kalau ini terlewat, tanda sedang
+     * memuat akan diam saja tanpa ada yang menyadari.
+     */
+    .dst-lookup-button.is-loading svg,
+    .dst-lookup-button.is-loading i {
         animation: dst-spin .7s linear infinite;
     }
 
@@ -1475,10 +1500,7 @@
                             aria-haspopup="dialog"
                             aria-controls="sektor-modal"
                         >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="11" cy="11" r="7"></circle>
-                                <path d="m20 20-4-4"></path>
-                            </svg>
+                            <i class="fas fa-binoculars" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>

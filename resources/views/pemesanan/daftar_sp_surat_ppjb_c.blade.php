@@ -95,7 +95,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) 42px;
         flex-grow: 1;
-        gap: 0;
+        gap: 8px;
         width: 100%;
     }
 
@@ -137,52 +137,55 @@
         text-overflow: ellipsis;
         color: var(--sp-text);
         padding: 0 14px;
-        border-top-right-radius: 0 !important;
-        border-bottom-right-radius: 0 !important;
         cursor: pointer;
     }
 
+    /*
+     * Tombol teropong. Ukuran, warna, sudut, dan gerak angkatnya mengikuti
+     * .undangan-lookup-button pada Daftar Undangan Surat Rumah, yang
+     * dipakai sebagai acuan bersama semua halaman.
+     */
     .lookup-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         width: 42px;
         min-width: 42px;
-        height: 44px;
-        min-height: 44px;
+        height: 42px;
+        min-height: 42px;
         padding: 0 !important;
-        color: var(--sp-primary) !important;
-        border: 1px solid var(--sp-border-strong) !important;
-        border-left: 0 !important;
-        border-radius: 0 12px 12px 0 !important;
-        background: #f8fafc !important;
+        color: #1d4ed8 !important;
+        border: 1px solid #bfdbfe !important;
+        border-radius: 13px !important;
+        background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%) !important;
         box-shadow: none !important;
+        font-size: 16px;
         transition:
-            border-color 0.18s ease,
-            background-color 0.18s ease,
-            color 0.18s ease;
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            background 0.18s ease;
     }
 
-    .lookup-button:hover,
+    .lookup-button:hover {
+        color: #1d4ed8 !important;
+        border-color: #bfdbfe !important;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12) !important;
+    }
+
     .lookup-button:focus {
         position: relative;
         z-index: 1;
         color: #1d4ed8 !important;
-        border-color: var(--sp-primary) !important;
+        border-color: #93c5fd !important;
         outline: 0;
-        background: var(--sp-primary-soft) !important;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
-        transform: none;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%) !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13) !important;
     }
 
-    .lookup-button svg {
-        width: 18px;
-        height: 18px;
-        fill: none;
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-width: 2;
+    .lookup-button:active {
+        transform: translateY(0);
     }
 
     .action-buttons {
@@ -1037,10 +1040,7 @@
                         title="Cari Sektor"
                         aria-label="Cari Sektor"
                     >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="m20 20-4-4"></path>
-                        </svg>
+                        <i class="fas fa-binoculars" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>

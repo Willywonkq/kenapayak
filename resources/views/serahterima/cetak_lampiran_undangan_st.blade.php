@@ -291,6 +291,15 @@
         white-space: nowrap;
     }
 
+    /*
+     * Tombol teropong. Warna, garis tepi, dan gerak angkatnya mengikuti
+     * .undangan-lookup-button pada Daftar Undangan Surat Rumah.
+     *
+     * Ukurannya tetap 36, bukan 42 seperti halaman lain, karena seluruh
+     * isian di halaman ini setinggi 36. Memaksa 42 akan membuat tombolnya
+     * menjulang di atas kotak isian dan justru terlihat tidak seragam.
+     * Sudutnya diturunkan seimbang, dari 13 menjadi 11.
+     */
     .lampiran-st-lookup {
         display: inline-flex;
         width: 36px;
@@ -300,17 +309,27 @@
         justify-content: center;
         padding: 0;
         border: 1px solid #bfdbfe;
-        border-radius: 8px;
-        background: var(--ls-primary-soft);
-        color: var(--ls-primary-dark);
+        border-radius: 11px;
+        background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+        color: #1d4ed8;
         cursor: pointer;
         font-size: 13px;
-        transition: transform 0.15s ease, background 0.15s ease;
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            background 0.18s ease;
     }
 
     .lampiran-st-lookup:hover {
-        background: #dbeafe;
+        border-color: #bfdbfe;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1d4ed8;
         transform: translateY(-1px);
+        box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12);
+    }
+
+    .lampiran-st-lookup:active {
+        transform: translateY(0);
     }
 
     .lampiran-st-button {
@@ -1365,18 +1384,18 @@
     }
 
     .lampiran-st-page .lampiran-st-lookup {
-        border-color: #cfe0fb;
-        border-radius: 9px;
-        background: linear-gradient(180deg, #eff6ff, #dbeafe);
+        border-color: #bfdbfe;
+        border-radius: 11px;
+        background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
         color: #1d4ed8;
-        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.10);
+        box-shadow: none;
     }
 
     .lampiran-st-page .lampiran-st-lookup:hover {
-        border-color: #2563eb;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: #ffffff;
-        box-shadow: 0 6px 14px rgba(37, 99, 235, 0.26);
+        border-color: #bfdbfe;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1d4ed8;
+        box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12);
     }
 
     /* --- Parameter jadi mini-card --- */
@@ -2034,7 +2053,7 @@
                         <input type="hidden" id="sektor" value="">
                         <input type="text" id="clusterentry" class="lampiran-st-input" style="width:130px;" value="" readonly autocomplete="off" placeholder="Cluster">
                         <button type="button" class="lampiran-st-lookup" onclick="getSektorModal()" title="Cari Cluster" aria-label="Cari Cluster">
-                            <i class="fas fa-search"></i>
+                            <i class="fas fa-binoculars"></i>
                         </button>
                         <span id="cluster-description" class="lampiran-st-required" aria-live="polite">*) Harus diisi</span>
                     </div>
@@ -2043,12 +2062,12 @@
                         <label class="lampiran-st-label" for="blok_awal">Blok</label>
                         <input type="text" id="blok_awal" class="lampiran-st-input" style="width:112px;" maxlength="40" autocomplete="off" placeholder="Blok awal">
                         <button type="button" class="lampiran-st-lookup" data-blok-lookup="1" onclick="getBlokModal('awal')" title="Cari Blok awal" aria-label="Cari Blok awal">
-                            <i class="fas fa-search"></i>
+                            <i class="fas fa-binoculars"></i>
                         </button>
                         <span class="lampiran-st-small-label">s.d.</span>
                         <input type="text" id="blok_akhir" class="lampiran-st-input" style="width:112px;" maxlength="40" autocomplete="off" placeholder="Blok akhir">
                         <button type="button" class="lampiran-st-lookup" data-blok-lookup="1" onclick="getBlokModal('akhir')" title="Cari Blok akhir" aria-label="Cari Blok akhir">
-                            <i class="fas fa-search"></i>
+                            <i class="fas fa-binoculars"></i>
                         </button>
                     </div>
 

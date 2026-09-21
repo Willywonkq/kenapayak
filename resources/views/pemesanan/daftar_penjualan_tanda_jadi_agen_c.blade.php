@@ -279,7 +279,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) 42px;
         width: 100%;
-        gap: 0;
+        gap: 8px;
     }
 
     .penjualan-tanda-jadi-content .lookup-display {
@@ -288,53 +288,56 @@
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
         cursor: pointer;
     }
 
+    /*
+     * Tombol teropong. Ukuran, warna, sudut, dan gerak angkatnya mengikuti
+     * .undangan-lookup-button pada Daftar Undangan Surat Rumah, yang
+     * dipakai sebagai acuan bersama semua halaman.
+     */
     .penjualan-tanda-jadi-content .lookup-button {
+        display: inline-flex;
         width: 42px;
         min-width: 42px;
-        height: 44px;
-        min-height: 44px;
-        padding: 0;
-        display: inline-flex;
+        height: 42px;
+        min-height: 42px;
         align-items: center;
         justify-content: center;
-        color: var(--ptj-primary);
-        border: 1px solid var(--ptj-border-strong);
-        border-left: 0;
-        border-radius: 0 12px 12px 0;
-        background: #f8fafc;
+        padding: 0;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        border-radius: 13px;
+        background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
         box-shadow: none;
+        cursor: pointer;
+        font-size: 16px;
         transition:
-            border-color 0.18s ease,
-            background-color 0.18s ease,
-            color 0.18s ease;
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            background 0.18s ease;
     }
 
-    .penjualan-tanda-jadi-content .lookup-button:hover,
+    .penjualan-tanda-jadi-content .lookup-button:hover {
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12);
+    }
+
     .penjualan-tanda-jadi-content .lookup-button:focus {
         position: relative;
         z-index: 1;
         color: #1d4ed8;
-        border-color: var(--ptj-primary);
+        border-color: #93c5fd;
         outline: 0;
-        background: var(--ptj-primary-soft);
-        transform: none;
-        filter: none;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
     }
 
-    .penjualan-tanda-jadi-content .lookup-button svg {
-        width: 18px;
-        height: 18px;
-        fill: none;
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-width: 2;
+    .penjualan-tanda-jadi-content .lookup-button:active {
+        transform: translateY(0);
     }
 
     .penjualan-tanda-jadi-content .action-buttons {
@@ -1493,10 +1496,7 @@
                             title="Cari Agen"
                             aria-label="Cari Agen"
                         >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="11" cy="11" r="7"></circle>
-                                <path d="m20 20-4-4"></path>
-                            </svg>
+                            <i class="fas fa-binoculars" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -1590,10 +1590,7 @@
                             title="Cari Sektor/Cluster"
                             aria-label="Cari Sektor/Cluster"
                         >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="11" cy="11" r="7"></circle>
-                                <path d="m20 20-4-4"></path>
-                            </svg>
+                            <i class="fas fa-binoculars" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
