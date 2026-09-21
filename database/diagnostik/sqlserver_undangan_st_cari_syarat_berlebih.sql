@@ -1,9 +1,8 @@
 /* ============================================================
  * MENCARI SYARAT YANG BERLEBIH PADA UNDANGAN SERAH TERIMA
  *
- * BERKAS INI HANYA MEMBACA. Memakai WITH (NOLOCK), dan seluruh
- * hitungan bersarang dikerjakan lewat CROSS APPLY di bagian
- * FROM, bukan di dalam agregat, sehingga aman dari Error 130.
+ * BERKAS INI HANYA MEMBACA. Memakai WITH (NOLOCK), dan tidak
+ * ada subquery di dalam agregat sehingga aman dari Error 130.
  *
  * Kenapa berkas ini ada:
  *
@@ -11,20 +10,54 @@
  *   Corong sisi SQL Server keluar  1.268 baris.
  *
  * Selisih 25 baris. Kecil, tetapi tidak boleh dibiarkan. Pada
- * jenis Undangan PPJB kemarin angkanya cocok persis, 294 lawan
- * 294, jadi kalau di sini meleset berarti ada satu syarat yang
- * saya pasang tetapi desktop tidak memasangnya, khusus jenis
- * ini. Itu kesalahan model, bukan soal data.
+ * jenis Undangan PPJB angkanya cocok persis, 294 lawan 294,
+ * jadi kalau di sini meleset berarti ada satu syarat yang saya
+ * pasang tetapi desktop tidak memasangnya, khusus jenis ini.
+ * Itu kesalahan model, bukan soal data.
  *
- * Berkas ini melepas syarat-syarat itu satu per satu dan
+ * Berkas ini melepas syarat-syarat itu satu per satu lalu
  * menghitung ulang. Varian yang keluar 1.293 itulah yang
  * dipakai desktop.
  *
  * Filter tetap sama: UNIT SBKS, PERIODE 01-07-2023 s/d
  * 21-09-2026, tanpa penyaring blok dan sektor.
- * ============================================================ */
+ *
+ * ------------------------------------------------------------
+ * CATATAN KECEPATAN
+ *
+ * Tulisan pertama berkas ini berat sekali dan harus dibatalkan.
+ * Dua sebabnya, dan keduanya kesalahan saya:
+ *
+ *   1. Kunci penyambungnya saya bungkus RTRIM di KEDUA sisi.
+ *      Begitu dibungkus fungsi, SQL Server tidak bisa memakai
+ *      index dan terpaksa menyisir seluruh tabel. Padahal RTRIM
+ *      di situ memang tidak perlu: pada SQL Server, spasi di
+ *      belakang diabaikan saat membandingkan, jadi 'A' dan 'A '
+ *      sudah dianggap sama tanpa dibantu.
+ *
+ *   2. Ada tiga CROSS APPLY yang masing-masing menyisir tabel
+ *      pembeli dan nasabah, berulang untuk setiap baris.
+ *
+ * Sekarang pembeli dan nasabah diringkas SEKALI SAJA di depan,
+ * lalu disambungkan biasa. Satu kali baca, bukan ribuan kali.
+ * ------------------------------------------------------------ */
 
-WITH SURAT AS (
+WITH PEMBELI_RINGKAS AS (
+    SELECT
+        PB.PPJB_ID,
+        SUM(CASE WHEN UPPER(LTRIM(ISNULL(PB.FLAG_AKTIF, ''))) = 'Y'
+                  AND NS.NASABAH_ID IS NOT NULL
+                 THEN 1 ELSE 0 END) AS N_AKTIF_BERNASABAH,
+        SUM(CASE WHEN NS.NASABAH_ID IS NOT NULL
+                 THEN 1 ELSE 0 END) AS N_SEMUA_BERNASABAH,
+        SUM(CASE WHEN UPPER(LTRIM(ISNULL(PB.FLAG_AKTIF, ''))) = 'Y'
+                 THEN 1 ELSE 0 END) AS N_AKTIF_SAJA
+    FROM [SRIS_PUSAT].[dbo].[PEMBELI_PPJB] AS PB WITH (NOLOCK)
+    LEFT JOIN [SRIS_PUSAT].[dbo].[NASABAH] AS NS WITH (NOLOCK)
+        ON NS.NASABAH_ID = PB.NASABAH_ID
+    GROUP BY PB.PPJB_ID
+),
+SURAT AS (
     SELECT U.PPJB_ID
     FROM [SRIS_PUSAT].[dbo].[UNDANGAN_ST] AS U WITH (NOLOCK)
     WHERE U.TGL_SURAT >= CONVERT(DATETIME, '20230701', 112)
@@ -32,42 +65,23 @@ WITH SURAT AS (
 ),
 DASAR AS (
     SELECT
-        UPPER(RTRIM(LTRIM(ISNULL(PPJB.FLAG_AKTIF, '')))) AS PPJB_AKTIF,
-        PPJB.PARENT_ID                                   AS PPJB_PARENT,
-        UPPER(RTRIM(LTRIM(ISNULL(STOK.FLAG_AKTIF, 'T')))) AS STOK_AKTIF,
-        STOK.PARENT_ID                                   AS STOK_PARENT,
+        UPPER(LTRIM(ISNULL(PPJB.FLAG_AKTIF, '')))  AS PPJB_AKTIF,
+        PPJB.PARENT_ID                             AS PPJB_PARENT,
+        UPPER(LTRIM(ISNULL(STOK.FLAG_AKTIF, 'T'))) AS STOK_AKTIF,
+        STOK.PARENT_ID                             AS STOK_PARENT,
         STOK.BLOK,
         STOK.NOMOR,
-        PN.N AS N_AKTIF_BERNASABAH,
-        PS.N AS N_SEMUA_BERNASABAH,
-        PA.N AS N_AKTIF_SAJA
+        ISNULL(P.N_AKTIF_BERNASABAH, 0) AS N_AKTIF_BERNASABAH,
+        ISNULL(P.N_SEMUA_BERNASABAH, 0) AS N_SEMUA_BERNASABAH,
+        ISNULL(P.N_AKTIF_SAJA, 0)       AS N_AKTIF_SAJA
     FROM SURAT
     INNER JOIN [SRIS_PUSAT].[dbo].[PPJB] AS PPJB WITH (NOLOCK)
-        ON RTRIM(PPJB.PPJB_ID) = RTRIM(SURAT.PPJB_ID)
+        ON PPJB.PPJB_ID = SURAT.PPJB_ID
     INNER JOIN [SRIS_PUSAT].[dbo].[STOK] AS STOK WITH (NOLOCK)
-        ON RTRIM(STOK.STOK_ID) = RTRIM(PPJB.STOK_ID)
-       AND UPPER(RTRIM(LTRIM(ISNULL(STOK.KD_PERUSAHAAN, '')))) = 'SBKS'
-    CROSS APPLY (
-        SELECT COUNT(*) AS N
-        FROM [SRIS_PUSAT].[dbo].[PEMBELI_PPJB] AS PB WITH (NOLOCK)
-        INNER JOIN [SRIS_PUSAT].[dbo].[NASABAH] AS NS WITH (NOLOCK)
-            ON RTRIM(NS.NASABAH_ID) = RTRIM(PB.NASABAH_ID)
-        WHERE RTRIM(PB.PPJB_ID) = RTRIM(PPJB.PPJB_ID)
-          AND UPPER(RTRIM(LTRIM(ISNULL(PB.FLAG_AKTIF, '')))) = 'Y'
-    ) AS PN
-    CROSS APPLY (
-        SELECT COUNT(*) AS N
-        FROM [SRIS_PUSAT].[dbo].[PEMBELI_PPJB] AS PB WITH (NOLOCK)
-        INNER JOIN [SRIS_PUSAT].[dbo].[NASABAH] AS NS WITH (NOLOCK)
-            ON RTRIM(NS.NASABAH_ID) = RTRIM(PB.NASABAH_ID)
-        WHERE RTRIM(PB.PPJB_ID) = RTRIM(PPJB.PPJB_ID)
-    ) AS PS
-    CROSS APPLY (
-        SELECT COUNT(*) AS N
-        FROM [SRIS_PUSAT].[dbo].[PEMBELI_PPJB] AS PB WITH (NOLOCK)
-        WHERE RTRIM(PB.PPJB_ID) = RTRIM(PPJB.PPJB_ID)
-          AND UPPER(RTRIM(LTRIM(ISNULL(PB.FLAG_AKTIF, '')))) = 'Y'
-    ) AS PA
+        ON STOK.STOK_ID = PPJB.STOK_ID
+    LEFT JOIN PEMBELI_RINGKAS AS P
+        ON P.PPJB_ID = PPJB.PPJB_ID
+    WHERE UPPER(LTRIM(ISNULL(STOK.KD_PERUSAHAAN, ''))) = 'SBKS'
 )
             SELECT 1 AS URUT,
                    'A  seperti corong sekarang'                       AS VARIAN,
