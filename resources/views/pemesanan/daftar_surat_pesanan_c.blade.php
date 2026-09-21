@@ -1369,67 +1369,69 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) 42px;
         width: 100%;
-        gap: 0 !important;
+        gap: 8px !important;
     }
 
     .surat-pesanan-content .filter-panel .lookup-display {
         display: flex;
         align-items: center;
         overflow: hidden;
-        border-top-right-radius: 0 !important;
-        border-bottom-right-radius: 0 !important;
         white-space: nowrap;
         text-overflow: ellipsis;
         cursor: pointer;
     }
 
+    /*
+     * Tombol teropong. Ukuran, warna, sudut, dan gerak angkatnya disalin
+     * dari .undangan-lookup-button pada Daftar Undangan Surat Rumah,
+     * supaya kedua halaman terasa satu keluarga.
+     *
+     * Bentuknya sengaja berdiri sendiri, terpisah 8px dari kotak isian,
+     * bukan menempel seperti sebelumnya. Itu juga mengikuti halaman yang
+     * ditiru, dan membuat teropongnya terbaca sebagai tombol, bukan
+     * sebagai hiasan di ujung kotak.
+     */
     .surat-pesanan-content .filter-panel .lookup-button {
         display: inline-flex;
         min-width: 42px !important;
         width: 42px;
-        height: 44px !important;
-        min-height: 44px !important;
+        height: 42px !important;
+        min-height: 42px !important;
         align-items: center;
         justify-content: center;
         padding: 0 !important;
-        color: var(--dsp-primary) !important;
-        border: 1px solid var(--dsp-border-strong) !important;
-        border-left: 0 !important;
-        border-radius: 0 12px 12px 0 !important;
-        background: #f8fafc !important;
+        color: #1d4ed8 !important;
+        border: 1px solid #bfdbfe !important;
+        border-radius: 13px !important;
+        background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%) !important;
         box-shadow: none !important;
+        font-size: 16px;
         transition:
-            border-color 0.18s ease,
-            background-color 0.18s ease,
-            color 0.18s ease;
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            background 0.18s ease;
     }
 
     .surat-pesanan-content .filter-panel .lookup-button:hover {
         color: #1d4ed8 !important;
-        border-color: var(--dsp-primary) !important;
-        background: var(--dsp-primary-soft) !important;
-        transform: none;
-        box-shadow: none !important;
+        border-color: #bfdbfe !important;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12) !important;
     }
 
     .surat-pesanan-content .filter-panel .lookup-button:focus {
         position: relative;
         z-index: 1;
         color: #1d4ed8 !important;
-        border-color: var(--dsp-primary) !important;
+        border-color: #93c5fd !important;
         outline: 0;
-        background: var(--dsp-primary-soft) !important;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+        background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%) !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13) !important;
     }
 
-    .surat-pesanan-content .filter-panel .lookup-button svg {
-        width: 18px;
-        height: 18px;
-        fill: none;
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-width: 2;
+    .surat-pesanan-content .filter-panel .lookup-button:active {
+        transform: translateY(0);
     }
 
     
@@ -2179,10 +2181,7 @@
                         title="Cari Sektor"
                         aria-label="Cari Sektor"
                     >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="m20 20-4-4"></path>
-                        </svg>
+                        <i class="fas fa-binoculars" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -2287,10 +2286,7 @@
                         title="Cari Agen"
                         aria-label="Cari Agen"
                     >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="m20 20-4-4"></path>
-                        </svg>
+                        <i class="fas fa-binoculars" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -2314,10 +2310,7 @@
                         title="Cari Sales"
                         aria-label="Cari Sales"
                     >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="m20 20-4-4"></path>
-                        </svg>
+                        <i class="fas fa-binoculars" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
