@@ -540,11 +540,7 @@ class dftr_undangan_surat_rumah_m extends Model
             FROM hasil_dasar
             {$this->syaratBlok()}
             ORDER BY
-                hasil_dasar."NAMA_SEKTOR" ASC NULLS FIRST,
-                hasil_dasar."BLOK" ASC,
-                {$this->urutanNomor('hasil_dasar."NOMOR"')},
-                hasil_dasar."NOMOR" ASC,
-                hasil_dasar."URUT" ASC
+                {$this->urutanKeluaran($jenis)}
         SQL;
 
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
@@ -1565,6 +1561,50 @@ class dftr_undangan_surat_rumah_m extends Model
                         ELSE :awalan_ppjb
                              || BTRIM(CAST({$alias}.ppjb_id AS TEXT))
                     END
+        SQL;
+    }
+
+    /**
+     * Urutan keluaran, berbeda menurut jenis report.
+     *
+     * Query desktop TIDAK seragam, dan perbedaannya bukan sekadar gaya:
+     *
+     *   jenis 1 dan 2 : urut menurut KD_SEKTOR, yaitu KODENYA
+     *   jenis 3 dan 6 : urut menurut SEKTOR.DESKRIPSI, yaitu NAMANYA
+     *   jenis 4 dan 5 : urut menurut NAMA_SEKTOR, juga namanya
+     *
+     * Kode dan nama sektor tidak selalu berurutan sama, sehingga laporan
+     * bisa tampil dengan pengelompokan yang berbeda urutannya kalau
+     * disamakan. Karena itu dibedakan seperti aslinya.
+     *
+     * Bedanya juga ada pada nomor rumah. Jenis 1 dan 2 memakai pengurutan
+     * angka pada desktop, sehingga 9 mendahului 10. Jenis 3 sampai 6
+     * memakai urutan teks apa adanya, sehingga 10 mendahului 9. Itu
+     * terlihat janggal, tetapi memang begitu di desktop dan sengaja
+     * tidak diperbaiki agar hasilnya sama.
+     *
+     * NULLS FIRST dipasang pada nama sektor karena SQL Server menaruh
+     * NULL paling awal pada urutan menaik, sedangkan PostgreSQL
+     * menaruhnya paling akhir.
+     */
+    private function urutanKeluaran(string $jenis): string
+    {
+        if ($jenis === '1' || $jenis === '2') {
+            return <<<SQL
+            hasil_dasar."KD_SEKTOR" ASC NULLS FIRST,
+                hasil_dasar."BLOK" ASC,
+                {$this->urutanNomor('hasil_dasar."NOMOR"')},
+                hasil_dasar."NOMOR" ASC,
+                hasil_dasar."URUT" ASC,
+                hasil_dasar."TGL_SURAT" ASC
+            SQL;
+        }
+
+        return <<<SQL
+        hasil_dasar."NAMA_SEKTOR" ASC NULLS FIRST,
+                hasil_dasar."BLOK" ASC,
+                hasil_dasar."NOMOR" ASC,
+                hasil_dasar."URUT" ASC
         SQL;
     }
 }
