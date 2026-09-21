@@ -35,6 +35,14 @@ class dftr_undangan_surat_rumah_m extends Model
      * Dikumpulkan di satu tempat supaya keenam jenisnya tidak perlu
      * ditulis berulang di banyak method.
      */
+    /**
+     * Jenis report yang query desktopnya TIDAK menyaring
+     * PPJB.FLAG_AKTIF.
+     *
+     * Lihat keterangan pada syaratPpjbAktif().
+     */
+    private const JENIS_TANPA_SYARAT_PPJB_AKTIF = ['3'];
+
     private const SUMBER_JENIS = [
         '1' => ['tabel' => 'sr_undangan_ppjb', 'pakai_jenis_surat' => true],
         '2' => ['tabel' => 'sr_undangan_ppjb', 'pakai_jenis_surat' => true],
@@ -422,6 +430,7 @@ class dftr_undangan_surat_rumah_m extends Model
             $jenis, $kolomJenisStok, $kolomTipeStok
         );
         $alamat = $this->kolomAlamatSurat();
+        $syaratPpjbAktif = $this->syaratPpjbAktif($jenis);
 
         $sql = <<<SQL
             WITH {$cteUnik}stok_terpilih AS (
@@ -454,12 +463,7 @@ class dftr_undangan_surat_rumah_m extends Model
                     ppjb.no_ppjb, ppjb.tgl_ppjb, ppjb.harga_jual,
                     ppjb.tgl_tanda_tangan, ppjb.tgl_ttd_notaris
                 FROM public.sr_ppjb AS ppjb
-                WHERE (
-                        ppjb.flag_aktif = 'A'
-                        OR UPPER(BTRIM(COALESCE(
-                               CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
-                      )
-                  AND ppjb.parent_id IS NULL
+                WHERE {$syaratPpjbAktif}ppjb.parent_id IS NULL
             ),
             ppjb_induk AS MATERIALIZED (
                 SELECT DISTINCT ON (kunci_stok)
@@ -1561,6 +1565,47 @@ class dftr_undangan_surat_rumah_m extends Model
                         ELSE :awalan_ppjb
                              || BTRIM(CAST({$alias}.ppjb_id AS TEXT))
                     END
+        SQL;
+    }
+
+    /**
+     * Syarat PPJB aktif, yang ternyata tidak dipakai semua jenis.
+     *
+     * Query desktop TIDAK seragam soal ini, sama seperti urutan
+     * keluarannya. Untuk jenis Undangan Serah Terima, desktop sama
+     * sekali tidak menyaring PPJB.FLAG_AKTIF.
+     *
+     * Ini bukan tebakan. Pada unit SBKS periode 01-07-2023 sampai
+     * 21-09-2026, jumlah baris di layar desktop 1.293 sedangkan
+     * dengan syarat itu dipasang hanya keluar 1.268. Seluruh syarat
+     * lain dilepas satu per satu dan tidak ada yang menjelaskan
+     * selisihnya; hanya melepas syarat inilah yang menghasilkan
+     * 1.293 tepat.
+     *
+     * Artinya ada 25 PPJB yang flag aktifnya bukan A tetapi surat
+     * serah terimanya tetap ditampilkan desktop. Masuk akal, sebab
+     * serah terima terjadi jauh setelah PPJB dan keadaan PPJB-nya
+     * bisa sudah berubah. Tetapi alasan itu tidak dipakai untuk
+     * memutuskan; angkanya yang dipakai.
+     *
+     * Syarat parent_id tetap dipasang untuk semua jenis, karena
+     * melepasnya tidak mengubah apa pun pada pemeriksaan tadi, dan
+     * melepas syarat yang tidak terbukti mengganggu hanya menambah
+     * risiko tanpa menambah kebenaran.
+     */
+    private function syaratPpjbAktif(string $jenis): string
+    {
+        if (in_array($jenis, self::JENIS_TANPA_SYARAT_PPJB_AKTIF, true)) {
+            return '';
+        }
+
+        return <<<SQL
+        (
+                        ppjb.flag_aktif = 'A'
+                        OR UPPER(BTRIM(COALESCE(
+                               CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
+                      )
+                  AND 
         SQL;
     }
 
