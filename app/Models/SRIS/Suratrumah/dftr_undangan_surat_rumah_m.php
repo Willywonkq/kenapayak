@@ -314,6 +314,14 @@ class dftr_undangan_surat_rumah_m extends Model
         $awalan = $this->awalanUnit($perusahaan);
         $pakaiUnik = $awalan === '';
 
+        if (!$pakaiUnik) {
+            $this->pastikanKeluargaAda(
+                $tabel,
+                $jenis === '6' ? 'sertipikat_id' : 'ppjb_id',
+                $awalan
+            );
+        }
+
         $bindings = [
             'perusahaan' => $perusahaan,
             'perusahaan_langsung' => $perusahaan,
@@ -579,6 +587,14 @@ class dftr_undangan_surat_rumah_m extends Model
 
         $awalan = $this->awalanUnit($perusahaan);
         $pakaiUnik = $awalan === '';
+
+        if (!$pakaiUnik) {
+            $this->pastikanKeluargaAda(
+                $tabel,
+                $jenis === '6' ? 'sertipikat_id' : 'ppjb_id',
+                $awalan
+            );
+        }
 
         $bindings = [
             'perusahaan' => $perusahaan,
@@ -1450,11 +1466,24 @@ class dftr_undangan_surat_rumah_m extends Model
      * diminta tidak punya satu pun baris pasti sedangkan keluarga lain
      * punya, berarti keluarga itu memang tidak terwakili.
      */
-    private function pastikanKeluargaAda(string $tabel, string $awalan): void
-    {
+    private function pastikanKeluargaAda(
+        string $tabel,
+        string $kolom,
+        string $awalan
+    ): void {
         static $ingatan = [];
 
-        $kunci = $tabel . '|' . $awalan;
+        /*
+         * Tabel rujukannya ditentukan oleh kolom kuncinya sendiri, bukan
+         * oleh pemanggilnya, supaya keduanya tidak bisa berbeda tanpa
+         * sengaja. Kunci PPJB dibandingkan dengan sr_ppjb, kunci
+         * sertipikat dengan sr_sertipikat.
+         */
+        $rujukan = $kolom === 'sertipikat_id'
+            ? 'sr_sertipikat'
+            : 'sr_ppjb';
+
+        $kunci = $tabel . '|' . $kolom . '|' . $awalan;
 
         if (isset($ingatan[$kunci])) {
             if ($ingatan[$kunci] === false) {
@@ -1465,26 +1494,26 @@ class dftr_undangan_surat_rumah_m extends Model
         }
 
         $sql = <<<SQL
-            WITH angka_sertipikat AS (
+            WITH angka_rujukan AS (
                 SELECT
-                    REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)),
+                    REGEXP_REPLACE(BTRIM(CAST({$kolom} AS TEXT)),
                                    '^[^0-9]+', '') AS angka,
-                    MIN(REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)),
+                    MIN(REGEXP_REPLACE(BTRIM(CAST({$kolom} AS TEXT)),
                                        '[0-9]+$', '')) AS awalan,
                     COUNT(DISTINCT REGEXP_REPLACE(
-                        BTRIM(CAST(sertipikat_id AS TEXT)), '[0-9]+$', ''))
+                        BTRIM(CAST({$kolom} AS TEXT)), '[0-9]+$', ''))
                         AS banyak_keluarga
-                FROM public.sr_sertipikat
-                WHERE sertipikat_id IS NOT NULL
+                FROM public.{$rujukan}
+                WHERE {$kolom} IS NOT NULL
                 GROUP BY 1
             )
-            SELECT angka_sertipikat.awalan AS awalan, COUNT(*) AS jumlah
+            SELECT angka_rujukan.awalan AS awalan, COUNT(*) AS jumlah
             FROM public.{$tabel} AS sumber
-            INNER JOIN angka_sertipikat
-                ON angka_sertipikat.angka
-                 = BTRIM(CAST(sumber.sertipikat_id AS TEXT))
-            WHERE angka_sertipikat.banyak_keluarga = 1
-              AND BTRIM(CAST(sumber.sertipikat_id AS TEXT)) ~ '^[0-9]+$'
+            INNER JOIN angka_rujukan
+                ON angka_rujukan.angka
+                 = BTRIM(CAST(sumber.{$kolom} AS TEXT))
+            WHERE angka_rujukan.banyak_keluarga = 1
+              AND BTRIM(CAST(sumber.{$kolom} AS TEXT)) ~ '^[0-9]+$'
             GROUP BY 1
         SQL;
 
