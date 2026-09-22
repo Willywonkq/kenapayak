@@ -111,7 +111,6 @@
         background-color: #ffffcc;
     }
 
-
     .report-wrapper {
         background: #fff;
         padding: 24px 20px;
@@ -193,15 +192,12 @@
         white-space: nowrap;
     }
 
-
     .empty-row {
         height: 90px;
         color: #777;
         font-style: italic;
     }
 
-
-    
     #suratPesananModal .modal-dialog {
         width: min(920px, calc(100vw - 32px));
         max-width: 920px;
@@ -476,9 +472,6 @@
         }
     }
 
-
-    
-
     .surat-pesanan-content {
         font-family: "Segoe UI", Tahoma, Arial, sans-serif;
         color: #263449;
@@ -713,9 +706,6 @@
         }
     }
 
-
-    
-
     .surat-pesanan-content {
         font-family: inherit;
     }
@@ -750,9 +740,6 @@
         vertical-align: middle;
         cursor: default;
     }
-
-
-    
 
     .surat-pesanan-content {
         font-family: "Segoe UI", Tahoma, Arial, sans-serif;
@@ -808,8 +795,6 @@
         font-variant-numeric: tabular-nums;
     }
 
-    
-
     .surat-pesanan-content input[type="radio"] {
         width: 16px;
         height: 16px;
@@ -818,8 +803,6 @@
         vertical-align: -3px;
         cursor: pointer;
     }
-
-    
 
     .modern-checkbox-label {
         display: inline-flex;
@@ -899,9 +882,6 @@
         color: #1d4ed8;
         box-shadow: 0 3px 10px rgba(37, 99, 235, 0.11);
     }
-
-
-    
 
     .modern-radio-group {
         display: flex;
@@ -1012,9 +992,6 @@
         }
     }
 
-
-    
-
     .surat-pesanan-content .opsi-row {
         align-items: flex-start;
     }
@@ -1042,8 +1019,6 @@
         white-space: nowrap;
     }
 
-
-    
     .surat-pesanan-content .filter-date-radio-group {
         display: grid;
         grid-template-columns: 1fr;
@@ -1061,7 +1036,6 @@
         justify-content: flex-start;
     }
 
-    
     .surat-pesanan-content .bgb-radio-group {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1100,9 +1074,6 @@
         }
     }
 
-
-    
-
     .surat-pesanan-content .bgb-radio-group {
         display: grid;
         grid-template-columns: repeat(2, 90px);
@@ -1135,7 +1106,6 @@
         white-space: nowrap;
     }
 
-    
     .surat-pesanan-content
     .bgb-radio-group
     .modern-radio-label-compact:nth-child(3) {
@@ -1147,8 +1117,6 @@
             grid-template-columns: repeat(2, 90px);
         }
     }
-
-
 
     .surat-pesanan-content .bgb-radio-group {
         display: grid;
@@ -1197,24 +1165,18 @@
         }
     }
 
-
-    
-
     .surat-pesanan-content .bgb-radio-group {
         display: grid;
 
-        
         flex: 0 1 auto;
         width: 100%;
         min-width: 0;
         max-width: 100%;
 
-        
         grid-template-columns: repeat(2, 90px);
         grid-auto-rows: 38px;
         gap: 7px;
 
-        
         justify-content: start;
         align-content: start;
     }
@@ -1252,10 +1214,6 @@
             justify-content: start;
         }
     }
-
-
-
-    
 
     :root {
         --dsp-primary: #2563eb;
@@ -1381,16 +1339,6 @@
         cursor: pointer;
     }
 
-    /*
-     * Tombol teropong. Ukuran, warna, sudut, dan gerak angkatnya disalin
-     * dari .undangan-lookup-button pada Daftar Undangan Surat Rumah,
-     * supaya kedua halaman terasa satu keluarga.
-     *
-     * Bentuknya sengaja berdiri sendiri, terpisah 8px dari kotak isian,
-     * bukan menempel seperti sebelumnya. Itu juga mengikuti halaman yang
-     * ditiru, dan membuat teropongnya terbaca sebagai tombol, bukan
-     * sebagai hiasan di ujung kotak.
-     */
     .surat-pesanan-content .filter-panel .lookup-button {
         display: inline-flex;
         min-width: 42px !important;
@@ -1434,7 +1382,6 @@
         transform: translateY(0);
     }
 
-    
     .surat-pesanan-content .filter-date-radio-group {
         display: flex !important;
         flex: 1 1 auto !important;
@@ -1536,11 +1483,6 @@
         transform: translateY(0);
     }
 
-    /*
-     * Tombol Print mati selama laporannya belum tampil. Rupanya harus ikut
-     * menyatakan itu, sebab tombol yang mati tetapi terlihat hidup lebih
-     * membingungkan daripada tombol yang menolak ditekan disertai pesan.
-     */
     .surat-pesanan-content .action-btn:disabled,
     .surat-pesanan-content .action-btn[disabled] {
         color: #94a3b8 !important;
@@ -1607,9 +1549,6 @@
         }
     }
 
-
-
-    
     #suratPesananModal .modal-table th {
         background: #eff6ff !important;
         color: #0f172a !important;
@@ -1650,7 +1589,6 @@
         background: #eaf2ff !important;
     }
 
-    
     .surat-pesanan-content .filter-panel > .row > .col-md-4:nth-child(2) .filter-label {
         width: 88px !important;
         flex: 0 0 88px !important;
@@ -1666,7 +1604,6 @@
         gap: 7px !important;
     }
 
-    
     .surat-pesanan-content .filter-panel > .row > .col-md-4:nth-child(2) .lookup-row > .form-control,
     .surat-pesanan-content .filter-panel > .row > .col-md-4:nth-child(2) .lookup-row > .modern-radio-group,
     .surat-pesanan-content .filter-panel > .row > .col-md-4:nth-child(3) .lookup-row > .form-control,
@@ -1684,11 +1621,6 @@
         }
     }
 
-
-    /* =========================================================
-       HEADER ICON CONSISTENCY — MATCH DAFTAR SERTIPIKAT PECAHAN
-       Hanya icon kiri atas header yang diubah.
-       ========================================================= */
     .page-title-icon.sertipikat-style-heading-icon {
         width: 34px !important;
         height: 34px !important;
@@ -1707,13 +1639,6 @@
         line-height: 1 !important;
     }
 
-
-    /* =========================================================
-       TAMPILAN HASIL LAPORAN — MENGIKUTI DAFTAR SERTIFIKAT PECAHAN
-       Struktur: 3 grid (header → subtitle → tabel).
-       Catatan: HANYA tampilan/gaya. Kolom, urutan kolom, dan isi
-       data laporan tidak diubah sama sekali.
-       ========================================================= */
     .surat-pesanan-content .report-wrapper {
         position: relative;
         min-height: 0 !important;
@@ -1739,7 +1664,6 @@
         background: linear-gradient(90deg, transparent, #38bdf8, #2563eb, #6366f1, transparent);
     }
 
-    /* --- GRID 1 : HEADER LAPORAN --- */
     .surat-pesanan-content .report-header {
         display: grid;
         grid-template-columns: minmax(150px, 1fr) minmax(260px, 1.4fr) minmax(180px, 1fr);
@@ -1781,7 +1705,6 @@
         line-height: 1.55;
     }
 
-    /* --- GRID 2 : BARIS SEKTOR/CLUSTER --- */
     .surat-pesanan-content .report-subtitle {
         display: grid;
         grid-template-columns: 1fr auto 1fr;
@@ -1843,7 +1766,6 @@
         box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.10);
     }
 
-    /* --- GRID 3 : TABEL LAPORAN --- */
     .surat-pesanan-content .report-table-container {
         width: 100%;
         max-width: 100%;
@@ -1942,13 +1864,6 @@
         box-shadow: inset 4px 0 0 #2563eb !important;
     }
 
-    /*
-     * Baris subtotal per tanggal.
-     *
-     * Dibuat setipis mungkin agar terbaca sebagai garis pemisah, bukan
-     * sebagai baris data tambahan. Garis vertikal antar sel dihilangkan
-     * supaya sel-sel kosongnya tidak tampak seperti deretan kotak.
-     */
     .surat-pesanan-content .report-table tbody tr.report-subtotal-row td {
         height: 24px !important;
         padding: 2px 9px !important;
@@ -1968,7 +1883,6 @@
         color: #334155 !important;
     }
 
-    /* Baris TOTAL tetap tegas karena hanya ada satu di seluruh laporan. */
     .surat-pesanan-content .report-table tbody tr.report-total-row td {
         height: 40px !important;
         padding: 7px 9px !important;
@@ -2028,11 +1942,8 @@
         }
     }
 
-    /* =========================================================
-       MODAL ALERT (PENGGANTI TOAST)
-       ========================================================= */
     #noDataAlertModal .modal-dialog {
-        max-width: 380px; /* Custom lebar agar teks tidak memotong ke bawah */
+        max-width: 380px; 
     }
     #noDataAlertModal .modal-content {
         border: 0;
@@ -2084,9 +1995,7 @@
 
 <div class="surat-pesanan-content">
 
-    <!-- Modal Alert Kosong (Telah disesuaikan lebarnya) -->
     <div class="modal fade" id="noDataAlertModal" tabindex="-1" aria-hidden="true">
-        <!-- Menghapus class "modal-sm" agar custom max-width di CSS kita berfungsi -->
         <div class="modal-dialog modal-dialog-centered"> 
             <div class="modal-content">
                 <div class="modal-body text-center p-4">
@@ -2100,7 +2009,6 @@
             </div>
         </div>
     </div>
-    <!-- End Modal Alert Kosong -->
 
     <div class="modal" id="suratPesananModal">
         <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -2272,13 +2180,6 @@
 
             <div class="lookup-row">
                 <div class="filter-label">Unit</div>
-                {{--
-                    Nilai cadangan disamakan dengan model. Model memakai
-                    session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA',
-                    sedangkan di sini sebelumnya jatuh ke 'CGTK'. Bila
-                    session('kd_unit') kosong, laporan jadi menyaring unit
-                    yang berbeda dari yang dimaksud tanpa pesan apa pun.
-                --}}
                 <input type="text" id="perusahaan" class="form-control" value="{{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}" readonly>
             </div>
 
@@ -2404,28 +2305,11 @@
         bindSummaryInvalidation();
     });
 
-    /*
-     * Peramban memulihkan isi form ketika halaman di-refresh atau dibuka
-     * kembali dari bfcache. Yang dipulihkan bukan hanya kotak teks, tetapi
-     * juga pilihan, tombol pilih, dan kotak centang. Karena laporannya
-     * sendiri selalu dikosongkan saat halaman dibuka, penyaring yang masih
-     * membawa pilihan lama justru menyesatkan: layar menyatakan Per Tgl
-     * Bayar dan Tanda Jadi Aktif masih menyala padahal laporannya kosong.
-     *
-     * pageshow dipakai karena peristiwa ini juga terjadi ketika halaman
-     * diambil dari bfcache, saat ready tidak dijalankan lagi.
-     */
     window.addEventListener('pageshow', function () {
         resetFilterDefaults();
         resetReportDisplay();
     });
 
-    /*
-     * Mengembalikan SELURUH penyaring ke keadaan awal, sama seperti saat
-     * fitur ini baru dibuka. Nilai awalnya diambil dari markup: Filter
-     * Tanggal pada Tgl. Entry SP, BGB pada Semua, ketiga tanggal pada hari
-     * ini, seluruh pilihan pada Semua, dan kedua kotak centang mati.
-     */
     function resetFilterDefaults() {
         setDefaultDate();
 
@@ -2454,15 +2338,6 @@
         $('#salesentry').text('Semua Sales');
     }
 
-    /*
-     * Tombol Print hanya hidup ketika laporannya benar-benar ada di layar.
-     *
-     * Tandanya diambil dari DOM, yaitu keberadaan .report-wrapper di dalam
-     * #main-display, bukan dari penanda terpisah. Alasannya, penanda
-     * terpisah bisa berbeda dengan keadaan layar yang sebenarnya, sedangkan
-     * syarat ini persis sama dengan syarat yang dipakai printSuratPesananReport
-     * sebelum mencetak, jadi keduanya tidak mungkin berselisih.
-     */
     function syncSuratPesananPrintState() {
         var siap = $('#main-display .report-wrapper').length > 0;
 
@@ -2516,19 +2391,10 @@
         ].join(',');
 
         $(document).on('change', selector, function () {
-            /*
-             * Jangan biarkan response request lama menimpa filter yang baru.
-             * Laporan yang sudah tampil tidak dihapus; hanya request in-flight
-             * yang dibatalkan.
-             */
             cancelActiveSummaryRequest();
         });
     }
 
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -2565,7 +2431,6 @@
             tanda_jadi_aktif: $('#tanda_jadi_aktif').is(':checked') ? 'Y' : 'T'
         };
     }
-
 
     function toggle_modal() {
         $('#suratPesananModal').modal('toggle');
@@ -2641,7 +2506,7 @@
         keyword = String(keyword || '').toLowerCase();
 
         $('#suratPesananModal .modal-table tr').each(function(index) {
-            
+
             if (index === 0) {
                 $(this).show();
                 return;
@@ -2855,7 +2720,6 @@
         });
     }
 
-
     function loadSektor() {
         $.ajax({
             url: '{{ url()->current() }}/get_sektor',
@@ -2931,11 +2795,6 @@
         });
     }
 
-    /*
-     * Nama perusahaan hanya dipakai sebagai identitas pada header laporan
-     * (kolom kiri grid pertama), mengikuti tampilan Daftar Sertifikat Pecahan.
-     * Tidak memengaruhi filter maupun data yang diambil dari server.
-     */
     function extractCompanyName(value) {
         var raw = String(value || '').replace(/\u00a0/g, ' ');
         var locationMatch = raw.match(/Lokasi\s*:[^\r\n|]*?-\s*([^\r\n|]+)/i);
@@ -2962,11 +2821,6 @@
         return null;
     }
 
-    /*
-     * Nilai dianggap nama panjang perusahaan bila BUKAN sekadar kode unit.
-     * Kode unit (mis. "DTSA", "CGTK") ditolak agar header tidak menampilkan
-     * singkatan seperti sebelumnya.
-     */
     function isLongCompanyName(value, unit) {
         var name = String(value === null || value === undefined ? '' : value).trim();
 
@@ -2978,28 +2832,14 @@
             return false;
         }
 
-        // Kode unit umumnya satu kata pendek tanpa spasi.
         return /\s/.test(name) || name.length > 8;
     }
 
-    /*
-     * Sumber terakhir: teks header aplikasi yang selalu memuat baris
-     * "Unit : DTSA & Lokasi : PDSA - PT. Duta Sumara Abadi".
-     * Inilah string yang dibaca extractCompanyName() pada view Daftar
-     * Sertifikat Pecahan sehingga di sana nama PT bisa tampil penuh.
-     */
     function escapeRegExp(value) {
         return String(value === null || value === undefined ? '' : value)
             .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    /*
-     * Kumpulkan teks halaman yang berpotensi memuat identitas unit aktif.
-     * Nilai <input> ikut dibaca karena kotak unit pada topbar aplikasi
-     * berupa input readonly berisi
-     * "Unit : DTSA & Lokasi : PDSA - PT. Duta Sumara Abadi",
-     * dan jQuery .text() tidak membaca value input.
-     */
     function collectUnitTextCandidates() {
         var candidates = [];
 
@@ -3040,12 +2880,6 @@
         return candidates;
     }
 
-    /*
-     * Ambil nama PT HANYA dari teks yang menyebut kode unit yang sedang
-     * dipilih. Pencarian bebas di seluruh halaman tidak dipakai karena
-     * layout juga memuat nama grup induk (mis. pada sidebar/footer),
-     * sehingga nama yang terbaca bisa bukan milik unit aktif.
-     */
     function scrapeCompanyNameForUnit(unit) {
         unit = String(unit || '').trim();
 
@@ -3071,16 +2905,6 @@
         return '';
     }
 
-    /*
-     * Header memakai nama panjang perusahaan (nama PT) milik unit aktif,
-     * bukan singkatan unit dan bukan nama grup induk.
-     * Urutan sumber:
-     *   1. kolom nama PT pada baris data hasil query;
-     *   2. teks halaman yang menyebut kode unit aktif (topbar "Unit : ... &
-     *      Lokasi : ... - PT ...");
-     *   3. variabel controller / session (hidden input);
-     *   4. kode unit, hanya bila ketiganya kosong.
-     */
     function resolveReportCompany(firstRow, sessionName) {
         var unit = String($('#perusahaan').val() || '').trim().toUpperCase();
 
@@ -3126,13 +2950,6 @@
             lokasi_text: $('#lokasi option:selected').text() || 'Semua Lokasi',
             sektor_text: $.trim($('#sektorentry').text()) || 'Semua Sektor',
             jenis_text: $('#jenis option:selected').text() || 'Semua',
-            /*
-             * Filter berikut ikut dibawa agar header laporan dapat
-             * menyebutkan penyaring yang sedang aktif. Tanpa ini, laporan
-             * dengan Status atau Tipe Bayar tertentu terlihat sama persis
-             * dengan laporan tanpa penyaring, sehingga selisih jumlah unit
-             * sulit ditelusuri.
-             */
             unit_text: String(filterData.perusahaan || '').trim(),
             status_value: filterData.status,
             status_text: $('#status option:selected').text() || 'Semua',
@@ -3167,10 +2984,6 @@
             cache: false,
             data: filterData,
             success: function (data) {
-                /*
-                 * Hanya request terbaru yang boleh menggambar laporan.
-                 * Ini mencegah response sektor lama menimpa response filter baru.
-                 */
                 if (requestSerial !== summaryRequestSerial) {
                     return;
                 }
@@ -3199,7 +3012,6 @@
         });
     }
 
-
     function formatDateIndo(dateValue) {
         if (!dateValue) {
             return '-';
@@ -3221,10 +3033,6 @@
     function renderTable(data, renderContext) {
         renderContext = renderContext || getSummaryRenderContext(getFilterData());
 
-        /*
-         * Metadata laporan berasal dari snapshot filter yang dipakai saat request
-         * dikirim, bukan dari kondisi form saat response baru selesai.
-         */
         var tglAwal = renderContext.tgl_awal;
         var tglAkhir = renderContext.tgl_akhir;
         var tglBayar = renderContext.tgl_bayar;
@@ -3249,12 +3057,6 @@
 
         var columns = [];
 
-        /*
-         * sumOf diisi untuk kolom nilai uang yang ikut dijumlahkan pada baris
-         * TOTAL di bagian bawah laporan, mengikuti tampilan desktop. Kolom luas
-         * dan persentase sengaja tidak dijumlahkan karena penjumlahannya tidak
-         * bermakna, sama seperti desktop.
-         */
         function addColumn(title, render, align, sumOf) {
             columns.push({
                 title: title,
@@ -3299,12 +3101,6 @@
         }
 
         addColumn('No.', function (item, index, nomorUnit) {
-            /*
-             * Sama seperti desktop: penomoran diulang dari 1 di setiap
-             * tanggal, dan hanya baris pertama tiap surat pesanan yang
-             * diberi nomor. Baris pembayaran berikutnya untuk surat pesanan
-             * yang sama dibiarkan kosong.
-             */
             if (nomorUnit === null || nomorUnit === undefined) {
                 return '';
             }
@@ -3436,11 +3232,6 @@
 
         html += '<div class="report-wrapper">';
 
-        /*
-         * GRID 1 — HEADER LAPORAN
-         * Kiri: identitas perusahaan/unit. Tengah: judul laporan.
-         * Kanan: periode & keterangan mode (isi tetap seperti sebelumnya).
-         */
         html += '<div class="report-header">';
         html += '<div class="report-company">' + escapeHtml(companyText) + '</div>';
         html += '<div class="report-title">DAFTAR PENERIMAAN TANDA JADI SEBELUM DAN SESUDAH PPJB</div>';
@@ -3462,20 +3253,12 @@
         html += '</div>';
         html += '</div>';
 
-        /*
-         * GRID 2 — BARIS SEKTOR/CLUSTER
-         * Label di kiri, nilai sektor di tengah, badge status di kanan.
-         */
         html += '<div class="report-subtitle">';
         html += '<span class="report-subtitle-label">Sektor/Cluster:</span>';
         html += '<span class="report-subtitle-value">' + escapeHtml(sektorText) + '</span>';
         html += '<span class="report-live-badge">Live data</span>';
         html += '</div>';
 
-        /*
-         * GRID 3 — TABEL LAPORAN
-         * Kolom, urutan, dan isi data tidak diubah.
-         */
         var tableMinWidth = Math.max(1500, columns.length * 115);
 
         html += '<div id="reportTableContainer" class="report-table-container">';
@@ -3496,12 +3279,6 @@
             html += '<td colspan="' + columns.length + '" class="empty-row">Data tidak ditemukan.</td>';
             html += '</tr>';
         } else {
-            /*
-             * Laporan desktop memberi subtotal di setiap pergantian tanggal
-             * surat pesanan lalu satu baris TOTAL di bagian bawah. Data sudah
-             * terurut menurut tgl_uang_muka dari model, sehingga pengelompokan
-             * cukup dilakukan atas baris yang berurutan.
-             */
             var akumulatorTotal = createSummaryAccumulator(columns);
             var akumulatorGrup = createSummaryAccumulator(columns);
             var tanggalGrup = null;
@@ -3574,13 +3351,6 @@
         $('#main-display').html(html);
         syncSuratPesananPrintState();
 
-        /*
-         * Kembalikan posisi gulir ke awal setiap laporan digambar ulang.
-         *
-         * Firefox mengembalikan posisi gulir elemen setelah halaman di-refresh.
-         * Tanpa ini, laporan baru langsung tampil dari bagian bawah mengikuti
-         * posisi terakhir sebelum refresh, seolah-olah hasilnya tidak berubah.
-         */
         var wadahTabel = document.getElementById('reportTableContainer');
 
         if (wadahTabel) {
@@ -3589,12 +3359,10 @@
         }
 
         if (!data || data.length === 0) {
-            // Trigger Modal Alert saat data kosong
             $('#noDataAlertModal').modal('show');
         }
     }
 
-    
     function cleanCustomerName(value) {
         if (value === null || value === undefined) {
             return '';
@@ -3605,7 +3373,6 @@
         if (name === '') {
             return '';
         }
-
 
         name = name
             .replace(/""/g, '"')
@@ -3631,18 +3398,6 @@
         return isNaN(number) ? 0 : number;
     }
 
-    /*
-     * Kolom Blok/Nomor dipakai sebagai tempat jumlah unit pada baris subtotal
-     * per tanggal maupun baris TOTAL, mengikuti tampilan desktop.
-     */
-    /*
-     * Baris keterangan penyaring pada header laporan.
-     *
-     * Unit selalu ditampilkan karena menentukan seluruh isi laporan.
-     * Penyaring lain hanya muncul ketika benar-benar dipakai, supaya header
-     * tetap ringkas saat semuanya dipilih "Semua", tetapi selisih jumlah unit
-     * langsung terlihat sebabnya ketika ada penyaring yang aktif.
-     */
     function renderActiveFilterLines(renderContext) {
         var html = '';
         var unit = String(renderContext.unit_text || '').trim();
@@ -3674,11 +3429,6 @@
         return html;
     }
 
-    /*
-     * Subtotal ditampilkan di setiap tanggal tanpa kecuali, termasuk tanggal
-     * yang hanya berisi satu unit, supaya jumlah baris JUMLAH / TGL. pada
-     * hasil cetak sama persis dengan desktop dan mudah dicocokkan.
-     */
     function renderDateSubtotalRow(columns, tanggal, akumulator) {
         return renderSummaryRow(
             columns,
@@ -3698,10 +3448,6 @@
         return columns.length > 3 ? 3 : 1;
     }
 
-    /*
-     * Satu surat pesanan bisa memiliki lebih dari satu baris pembayaran.
-     * Kunci ini dipakai agar unit yang sama hanya dihitung sekali.
-     */
     function unitGroupKey(item) {
         var kunci = valueOrEmpty(item.UANG_MUKA_ID_INTERNAL);
 
@@ -3730,11 +3476,6 @@
         return akumulator;
     }
 
-    /*
-     * Desktop hanya menghitung baris pertama tiap surat pesanan. Baris
-     * pembayaran berikutnya untuk surat pesanan yang sama tidak menambah
-     * jumlah unit maupun nilainya, sehingga subtotal tidak dobel.
-     */
     function accumulateSummary(akumulator, columns, item, kunciUnit) {
         if (akumulator.unitTerhitung[kunciUnit]) {
             return;
@@ -3750,11 +3491,6 @@
         }
     }
 
-    /*
-     * Baris ringkasan laporan. Label berada di sebelah kiri kolom Blok/Nomor,
-     * jumlah unit tepat di bawah kolom Blok/Nomor, lalu tiap kolom nilai uang
-     * menampilkan jumlahnya. Kolom lain dibiarkan kosong.
-     */
     function renderSummaryRow(columns, kelas, label, akumulator) {
         var indeksBlok = findBlokColumnIndex(columns);
 
@@ -3805,7 +3541,6 @@
         return number.toLocaleString('id-ID');
     }
 
-
     function formatPercent(value) {
         if (value === null || value === undefined || value === '') {
             return '';
@@ -3823,21 +3558,6 @@
         });
     }
 
-
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -3865,10 +3585,6 @@
         (doc.head || doc.documentElement).appendChild(gaya);
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -3928,14 +3644,6 @@
             return;
         }
 
-        /*
-         * Mekanisme print disamakan dengan Daftar Rencana Serah Terima:
-         * - menggunakan iframe terisolasi;
-         * - tidak membuka tab/window baru;
-         * - langsung memanggil native print dialog browser;
-         * - tidak mengunci size/orientation pada @page sehingga browser tetap
-         *   menampilkan pilihan Portrait / Landscape dan Paper size.
-         */
         $('#suratPesananNativePrintFrame').remove();
 
         var frame = document.createElement('iframe');
@@ -3993,7 +3701,6 @@
                 display: none !important;
             }
 
-            /* GRID 1 — HEADER */
             .report-header {
                 display: grid !important;
                 grid-template-columns: 1fr 1.45fr 1fr !important;
@@ -4034,7 +3741,6 @@
                 line-height: 1.35 !important;
             }
 
-            /* GRID 2 — BARIS SEKTOR/CLUSTER */
             .report-subtitle {
                 display: grid !important;
                 grid-template-columns: 1fr auto 1fr !important;
@@ -4095,7 +3801,6 @@
                 box-shadow: none !important;
             }
 
-            /* GRID 3 — TABEL */
             .report-table-container {
                 width: 100% !important;
                 max-width: 100% !important;
@@ -4144,12 +3849,6 @@
                 max-width: none !important;
                 height: auto !important;
                 padding: 4px 2px !important;
-                /*
-                 * Garis kisi dibuat abu-abu tipis, bukan hitam pekat.
-                 * Strukturnya tetap sama, hanya tidak lagi terasa mengurung
-                 * setiap angka sehingga isinya lebih menonjol daripada
-                 * garisnya.
-                 */
                 border: 1px solid #d5d5d5 !important;
                 background: #fff !important;
                 color: #000 !important;
@@ -4164,11 +3863,6 @@
                 line-height: 1.3 !important;
             }
 
-            /*
-             * Baris judul kolom diberi latar abu-abu sangat muda dan garis
-             * yang sedikit lebih tegas daripada garis isi, supaya kepala
-             * tabel terbaca sebagai satu kesatuan tanpa perlu garis tebal.
-             */
             .report-table thead th {
                 padding: 5px 2px !important;
                 border-color: #9a9a9a !important;
@@ -4188,11 +3882,6 @@
                 white-space: nowrap !important;
             }
 
-            /*
-             * Sel kosong pada baris ringkasan dibiarkan tanpa garis vertikal
-             * agar hasil cetak menyerupai desktop, yang hanya menampilkan
-             * satu garis mendatar lalu angkanya.
-             */
             .report-table tbody tr.report-subtotal-row td,
             .report-table tbody tr.report-total-row td {
                 border-left: 0 !important;
@@ -4222,27 +3911,7 @@
                 text-align: center !important;
                 font-style: italic !important;
             }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .report-table,
@@ -4257,7 +3926,6 @@
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .report-table th,
             .report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -4276,12 +3944,10 @@
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .report-table tbody tr[class*="sector-row"] > td,
             .report-table tbody tr[class*="sektor-row"] > td,
             .report-table tbody tr[class*="cluster-row"] > td,
@@ -4290,17 +3956,11 @@
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .report-table tbody tr[class*="total-row"] > td,
             .report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -4329,7 +3989,6 @@
         try {
             frameWindow.onafterprint = cleanupPrintFrame;
         } catch (error) {
-            // Fallback cleanup di bawah.
         }
 
         window.setTimeout(function () {
@@ -4382,27 +4041,6 @@
         form.remove();
     }
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -4416,10 +4054,6 @@
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -4474,15 +4108,6 @@
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -4532,12 +4157,6 @@
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -4577,11 +4196,6 @@
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -4631,7 +4245,6 @@
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -4669,8 +4282,6 @@
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -4716,8 +4327,6 @@
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -4775,9 +4384,6 @@
             mulai();
         }
     })();
-
-
-
 
 </script>
 

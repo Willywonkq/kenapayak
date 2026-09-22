@@ -1,9 +1,5 @@
 @extends('layouts.template')
 
-{{-- VIEW VERSION V1-20260903-DESKTOP-LAYOUT --}}
-{{-- Tata letak filter dan kolom laporan mengikuti tampilan desktop SRIS. --}}
-{{-- Hasil laporan dikelompokkan per cluster, satu tabel untuk setiap cluster. --}}
-
 @section('content')
 <style>
 .reba-page,
@@ -639,7 +635,6 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* Dipakai bersama oleh modal Cluster dan modal Blok/Nomor. */
 .reba-modal {
     position: fixed;
     inset: 0;
@@ -754,11 +749,6 @@
     color: #1d4ed8;
 }
 
-/* =========================================================
-   ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-   Modal informasi yang tampil saat hasil laporan tidak
-   menghasilkan baris data sama sekali.
-   ========================================================= */
 #rebaNoDataAlertModal .modal-dialog {
     max-width: 380px;
 }
@@ -814,11 +804,6 @@
     box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
 }
 
-/* =========================================================
-   BLOK/NOMOR
-   Setiap sisi rentang memiliki tombol lookup sendiri, sama
-   seperti tampilan desktop.
-   ========================================================= */
 .reba-range-lookup {
     display: grid;
     grid-template-columns:
@@ -827,11 +812,6 @@
     align-items: center;
 }
 
-/* =========================================================
-   KELOMPOK CLUSTER PADA LAPORAN
-   Seluruh baris tetap berada pada satu tabel. Setiap kali
-   cluster berganti, sebuah baris judul disisipkan di atasnya.
-   ========================================================= */
 .reba-cluster-row td {
     padding: 9px 10px;
     background: linear-gradient(90deg, #eff6ff 0%, #f8fbff 62%, #ffffff 100%) !important;
@@ -864,7 +844,6 @@
     font-weight: 800;
 }
 
-/* Modal lookup blok memuat banyak kolom, jadi dibuat lebih lebar. */
 .reba-modal-dialog.is-wide {
     max-width: 1180px;
 }
@@ -913,7 +892,6 @@
 }
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="rebaNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1100,10 +1078,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1113,12 +1087,6 @@
     var rebaBlokTarget = 'rebaBlokAwal';
 
     $(document).ready(function () {
-        /*
-         * Browser memulihkan isi form saat halaman di-refresh, sehingga
-         * isian blok dan pilihan cluster dapat terbawa dari kunjungan
-         * sebelumnya. Reset dipanggil bertahap karena pemulihan itu dapat
-         * terjadi setelah DOMContentLoaded.
-         */
         resetRebaInitialState();
         window.setTimeout(resetRebaInitialState, 10);
         window.setTimeout(resetRebaInitialState, 100);
@@ -1147,10 +1115,6 @@
         }
     });
 
-    /*
-     * Mengembalikan seluruh filter dan area laporan ke keadaan awal,
-     * seperti saat fitur ini baru dibuka.
-     */
     function resetRebaInitialState() {
         $('#rebaBlokAwal').val('');
         $('#rebaBlokAkhir').val('');
@@ -1185,10 +1149,6 @@
         $('#rebaTglAkhir').val(today);
     }
 
-    /*
-     * Blok/Nomor boleh dikosongkan. Desktop memperlakukan isian kosong
-     * sebagai rentang penuh, dan header laporannya menulis A s/d ZZ.
-     */
     function rebaBlokAwal() {
         return String($('#rebaBlokAwal').val() || 'A').toUpperCase().trim() || 'A';
     }
@@ -1210,9 +1170,6 @@
         hideRebaNoDataAlert();
     }
 
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     */
     function showRebaNoDataAlert(message) {
         var $modal = $('#rebaNoDataAlertModal');
 
@@ -1310,7 +1267,6 @@
         return text;
     }
 
-    /* Kolom rupiah memakai pemisah ribuan tanpa desimal, seperti desktop. */
     function rebaFormatCurrency(value) {
         if (value === null || value === undefined || String(value).trim() === '') {
             return '';
@@ -1328,7 +1284,6 @@
         });
     }
 
-    /* Nama PT untuk header laporan, sama dengan fitur lain. */
     function rebaExtractCompanyName(value) {
         var raw = String(value || '').replace(/\u00a0/g, ' ');
         var locationMatch = raw.match(/Lokasi\s*:[^\r\n|]*?-\s*([^\r\n|]+)/i);
@@ -1405,16 +1360,11 @@
             try {
                 localStorage.setItem(cacheKey, company);
             } catch (error) {
-                // Browser dapat menolak storage; nama tetap dipakai saat ini.
             }
         }
 
         return company;
     }
-
-    /* ==============================================
-       CLUSTER
-       ============================================== */
 
     function toggleRebaClusterModal(show) {
         $('#rebaClusterModal')
@@ -1511,10 +1461,6 @@
         });
     }
 
-    /* ==============================================
-       BLOK/NOMOR
-       ============================================== */
-
     function toggleRebaBlokModal(show) {
         $('#rebaBlokModal')
             .toggleClass('show', show === true)
@@ -1535,10 +1481,6 @@
         });
     }
 
-    /*
-     * Daftar blok dipakai oleh kedua sisi rentang, jadi hasilnya disimpan
-     * agar pembukaan berikutnya tidak memanggil server lagi.
-     */
     function getRebaBlokModal(target) {
         var perusahaan = String($('#rebaPerusahaan').val() || '').trim();
 
@@ -1589,11 +1531,6 @@
         });
     }
 
-    /*
-     * Kolom lookup mengikuti tampilan Search pada desktop: Blok Nomor,
-     * Nama Pembeli, No Virtual Acc, No Uang Muka, Tgl Uang Muka, Tipe,
-     * dan Lokasi, ditambah Cluster yang juga tersedia pada query.
-     */
     var REBA_BLOK_COLUMNS = [
         { judul: 'Blok Nomor', keys: ['BLOK_NOMOR', 'blok_nomor'] },
         { judul: 'Nama Pembeli', keys: ['NAMA_PEMBELI', 'nama_pembeli'] },
@@ -1651,10 +1588,6 @@
         toggleRebaBlokModal(true);
         $('#rebaBlokModal .reba-modal-search').trigger('focus');
     }
-
-    /* ==============================================
-       DATA LAPORAN
-       ============================================== */
 
     function validateRebaFilter() {
         if (!$('#rebaTglAwal').val() || !$('#rebaTglAkhir').val()) {
@@ -1752,11 +1685,6 @@
         });
     }
 
-    /*
-     * Mengelompokkan baris per cluster dengan tetap menjaga urutan yang
-     * dikirim server. Baris tanpa cluster dikumpulkan pada satu kelompok
-     * sendiri supaya tidak hilang dari laporan.
-     */
     function groupRebaRows(rows) {
         var groups = [];
         var index = {};
@@ -1785,10 +1713,6 @@
         return groups;
     }
 
-    /*
-     * Tabel dibuat selebar area laporan, dengan batas minimum supaya
-     * kesembilan kolom tetap terbaca pada layar sempit.
-     */
     function rebaTableStyle() {
         return 'style="width:100%;min-width:1180px;"';
     }
@@ -1867,11 +1791,6 @@
             html += '</td></tr>';
         }
 
-        /*
-         * Seluruh baris berada pada satu tabel. Setiap kali cluster
-         * berganti, sebuah baris judul disisipkan di atasnya, dan nomor
-         * urut dimulai lagi dari satu seperti tampilan desktop.
-         */
         $.each(groups, function (posisi, group) {
             html += '<tr class="reba-cluster-row"><td colspan="9">';
             html += '<span class="reba-cluster-label">Cluster :</span>';
@@ -1939,24 +1858,6 @@
         return html;
     }
 
-    /* ==============================================
-       PRINT
-       ============================================== */
-
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -2011,10 +1912,6 @@
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -2095,10 +1992,6 @@
         var frameWindow = frame.contentWindow;
         var frameDocument = frame.contentDocument || frameWindow.document;
 
-        /*
-         * @page hanya mengatur margin dan tidak mengunci size/orientation,
-         * sehingga pilihan Portrait/Landscape tetap tersedia.
-         */
         var printCss = `
             @page { margin: 8mm; }
 
@@ -2204,13 +2097,6 @@
                 font-size: 10px;
             }
 
-            /*
-             * Lebar kolom tidak lagi dipaksa auto. Dengan auto setiap kolom
-             * mendapat lebar yang sama, sehingga kolom nama terpotong
-             * menjadi dua baris sementara kolom nomor menyisakan ruang
-             * kosong. Persentase per kolom dihasilkan oleh
-             * applyPrintTableRules() dari colgroup laporan.
-             */
             .reba-report-table thead { display: table-header-group; }
             .reba-report-table tbody { display: table-row-group; }
 
@@ -2236,35 +2122,10 @@
 
             .reba-report-table th { text-align: center; font-weight: 700; }
 
-            /*
-             * Tanggal dan angka tidak boleh dipenggal di tengah. Dengan
-             * table-layout otomatis, lebar kolomnya yang menyesuaikan.
-             */
             .reba-center { text-align: center; white-space: nowrap; }
             .reba-left { text-align: left; }
             .reba-number { text-align: right; white-space: nowrap; }
 
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
-
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .reba-report-table,
@@ -2279,7 +2140,6 @@
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .reba-report-table th,
             .reba-report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -2298,12 +2158,10 @@
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .reba-report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .reba-report-table tbody tr[class*="sector-row"] > td,
             .reba-report-table tbody tr[class*="sektor-row"] > td,
             .reba-report-table tbody tr[class*="cluster-row"] > td,
@@ -2312,17 +2170,11 @@
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .reba-report-table tbody tr[class*="total-row"] > td,
             .reba-report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .reba-report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2351,27 +2203,6 @@
         }, 180);
     }
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -2385,10 +2216,6 @@
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -2443,15 +2270,6 @@
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -2501,12 +2319,6 @@
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -2546,11 +2358,6 @@
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -2600,7 +2407,6 @@
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -2638,8 +2444,6 @@
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -2685,8 +2489,6 @@
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -2744,9 +2546,6 @@
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

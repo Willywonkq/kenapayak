@@ -2,9 +2,6 @@
 
 @section('content')
 <style>
-    /* =========================================================
-       STANDARD FONT & PAGE LAYOUT MATCHING DAFTAR PBB & DESKTOP
-       ========================================================= */
     .dps-page,
     .dps-page input,
     .dps-page select,
@@ -49,7 +46,6 @@
             #f3f6fb;
     }
 
-    /* Command Ribbon Header Bar */
     .dps-toolbar {
         position: relative;
         display: flex;
@@ -120,7 +116,6 @@
         letter-spacing: 0.06em;
     }
 
-    /* Filter Card Panel Form */
     .dps-filter-panel {
         position: relative;
         margin: 0;
@@ -162,7 +157,6 @@
         align-items: center;
     }
 
-    /* POSISI KHUSUS SAAT MODE PT AKTIF: Tgl. Ambil & Tgl. PPJB Sejajar di Baris 2 */
     .dps-filter-panel.dps-mode-pt-active #fieldAmbil {
         grid-column: 1;
         grid-row: 2;
@@ -249,7 +243,6 @@
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
     }
 
-    /* Action Stack */
     .dps-action-stack {
         position: relative;
         width: 82px;
@@ -327,7 +320,6 @@
         opacity: 1;
     }
 
-    /* Checkbox Row di Bagian Bawah Filter */
     .dps-mode-row {
         grid-column: 1 / span 2;
         display: flex;
@@ -378,7 +370,6 @@
         display: none !important;
     }
 
-    /* Workspace & Report Shell Area */
     .dps-workspace {
         position: relative;
         margin-top: 18px;
@@ -448,7 +439,6 @@
         color: #dc2626;
     }
 
-    /* Header Hasil Laporan */
     .dps-report-head {
         display: grid;
         grid-template-columns: minmax(150px, 1fr) minmax(280px, 1.5fr) minmax(180px, 1fr);
@@ -497,7 +487,6 @@
         text-align: right;
     }
 
-    /* Sub-header Sektor/Cluster */
     .dps-report-subtitle {
         display: grid;
         grid-template-columns: auto 1fr auto;
@@ -548,7 +537,6 @@
         box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.10);
     }
 
-    /* Table Design & Sticky Sub-Headers */
     .dps-table-wrap {
         width: 100%;
         max-height: calc(100vh - 285px);
@@ -729,11 +717,6 @@
         }
     }
 
-    /* =========================================================
-       ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-       Modal informasi yang tampil saat hasil laporan tidak
-       menghasilkan baris data sama sekali.
-       ========================================================= */
         #dpsNoDataAlertModal .modal-dialog {
             max-width: 380px;
         }
@@ -791,7 +774,6 @@
 
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="dpsNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -812,7 +794,6 @@
     </div>
 </div>
 
-
 <div class="dps-page">
     <div class="dps-toolbar">
         <h1 class="dps-toolbar-title">Daftar Pengambilan Surat-Surat</h1>
@@ -821,13 +802,11 @@
         </code>
     </div>
 
-    {{-- Form Filter dengan autocomplete="off" --}}
     <form id="dpsFilterForm" class="dps-filter-panel" autocomplete="off" onsubmit="return false;">
         <input type="hidden" id="dpsPerusahaan" value="{{ session('kd_unit') ?? session('kd_perusahaan') ?? '' }}">
         <input type="hidden" id="dpsNamaPerusahaan" value="{{ session('nama_pt') ?? session('nama_perusahaan') ?? session('nama_unit') ?? '' }}">
 
         <div class="dps-filter-grid">
-            {{-- Row 1: Blok & Sektor --}}
             <div class="dps-field">
                 <label for="dpsBlokAwal" class="dps-label">Blok</label>
                 <div class="dps-range">
@@ -844,7 +823,6 @@
                 </select>
             </div>
 
-            {{-- Action Stack --}}
             <div class="dps-action-stack">
                 <button type="button" class="dps-submit" id="dpsSubmitButton">View</button>
                 <button type="button" class="dps-print-button" id="dpsPrintButton" disabled aria-disabled="true">
@@ -852,7 +830,6 @@
                 </button>
             </div>
 
-            {{-- Filter Tanggal Terima IMB (DEFAULT HARI INI PERSIS DESKTOP) --}}
             <div class="dps-regular-filter dps-field">
                 <label class="dps-label">Tgl. Terima IMB</label>
                 <div class="dps-range">
@@ -882,7 +859,6 @@
 
             <div class="dps-regular-filter"></div>
 
-            {{-- Filter Tanggal Terima AJB & SHM --}}
             <div class="dps-regular-filter dps-field">
                 <label class="dps-label">Tgl. Terima AJB</label>
                 <div class="dps-range">
@@ -903,7 +879,6 @@
 
             <div class="dps-regular-filter"></div>
 
-            {{-- Filter Tanggal Terima PH & PPJB --}}
             <div id="fieldPh" class="dps-field">
                 <label class="dps-label">Tgl. Terima PH</label>
                 <div class="dps-range">
@@ -924,7 +899,6 @@
 
             <div></div>
 
-            {{-- Checkbox Row di Bagian Bawah Filter --}}
             <div class="dps-mode-row">
                 <label class="dps-checkbox">
                     <input type="checkbox" id="dpsModePt" autocomplete="off">
@@ -944,10 +918,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -980,7 +950,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Reset bertahap untuk memastikan Tgl Terima IMB langsung terisi tanggal hari ini
         resetPage();
         setTimeout(resetPage, 10);
         setTimeout(resetPage, 100);
@@ -1043,7 +1012,6 @@
         }
     }
 
-    /* HARD RESET FUNCTION SAAT DI REFRESH */
     function resetPage() {
         try { localStorage.removeItem('sris.dps.savedFilters'); } catch (e) {}
 
@@ -1055,24 +1023,22 @@
         setInputValue('dpsBlokAwal', 'A');
         setInputValue('dpsBlokAkhir', 'ZZ');
         setInputValue('dpsSektor', '*');
-        
+
         var chkModePt = document.getElementById('dpsModePt');
         if (chkModePt) chkModePt.checked = false;
 
-        // Kosongkan semua filter tanggal selain IMB & Ambil
         regularDateFields.forEach(function (field) {
             setInputValue(field[2], '');
             setInputValue(field[3], '');
         });
 
-        // Set TGL TERIMA IMB Awal & Akhir ke TANGGAL HARI INI (Sama persis seperti Desktop SRIS)
         var today = localToday();
         setInputValue('dpsImbAwal', today);
         setInputValue('dpsImbAkhir', today);
 
         setInputValue('dpsAmbilAwal', today);
         setInputValue('dpsAmbilAkhir', today);
-        
+
         var btnPrint = document.getElementById('dpsPrintButton');
         if (btnPrint) {
             btnPrint.disabled = true;
@@ -1118,7 +1084,6 @@
             });
             select.value = '*';
         }).catch(function () {
-            // Pilihan Semua Sektor tetap dapat dipakai
         });
     }
 
@@ -1176,12 +1141,6 @@
         return '';
     }
 
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     * Skrip halaman ini berada di dalam IIFE, jadi tombol OK dipasang
-     * lewat addEventListener, bukan atribut onclick. Jika plugin modal
-     * tidak tersedia, modal ditampilkan manual agar tampilannya sama.
-     */
     function showDpsNoDataAlert(message) {
         var modal = document.getElementById('dpsNoDataAlertModal');
         var messageElement = document.getElementById('dpsNoDataMessage');
@@ -1260,7 +1219,7 @@
                 lastRows = rows;
                 lastMode = filters.mode;
                 renderReport(rows, filters);
-                
+
                 var btnPrint = document.getElementById('dpsPrintButton');
                 if (btnPrint) {
                     btnPrint.disabled = rows.length === 0;
@@ -1350,7 +1309,6 @@
             : buildRegularReport(rows, filters);
     }
 
-    /* EKSTRAKSI NAMA PT LENGKAP KIRI ATAS */
     function dpsExtractCompanyName(value) {
         var raw = String(value || '').replace(/\u00a0/g, ' ');
         var locationMatch = raw.match(/Lokasi\s*:[^\r\n|]*?-\s*([^\r\n|]+)/i);
@@ -1422,11 +1380,10 @@
         return s + ' s/d ' + e;
     }
 
-    /* BUILD HEADER LAPORAN */
     function buildRegularHeaderHtml(rows, filters) {
         var first = rows.length > 0 ? rows[0] : {};
         var company = dpsCompanyName(first);
-        
+
         var sektorSelect = document.getElementById('dpsSektor');
         var sektorText = 'Semua Sektor';
         if (sektorSelect && sektorSelect.selectedIndex >= 0 && sektorSelect.options[sektorSelect.selectedIndex]) {
@@ -1488,7 +1445,6 @@
             + '</div>';
     }
 
-    /* REPORT REGULAR */
     function buildRegularReport(rows, filters) {
         var inputKeys = [
             'TGL_INPUT_IMB', 'TGL_INPUT_SER', 'TGL_INPUT_AKTA',
@@ -1511,7 +1467,7 @@
             + '<th colspan="6" style="width:528px;">Tanggal Terima</th>'
             + '<th colspan="6" style="width:528px;">Tanggal Ambil</th>'
             + '</tr>';
-        
+
         html += '<tr>'
             + '<th style="width:88px;">IMB</th><th style="width:88px;">Sert. HGB</th><th style="width:88px;">AJB</th><th style="width:88px;">SHM</th><th style="width:88px;">PH</th><th style="width:88px;">PPJB</th>'
             + '<th style="width:88px;">IMB</th><th style="width:88px;">Sert. HGB</th><th style="width:88px;">AJB</th><th style="width:88px;">SHM</th><th style="width:88px;">PH</th><th style="width:88px;">PPJB</th>'
@@ -1540,7 +1496,6 @@
         return html;
     }
 
-    /* REPORT KHUSUS LEGAL / PT DENGAN ANAKAN */
     function buildSpecialReport(rows, filters) {
         var html = buildSpecialHeaderHtml(rows, filters);
 
@@ -1638,21 +1593,6 @@
             .replace(/'/g, '&#039;');
     }
 
-    /* PRINT NATIVE DENGAN TOMBOL ORIENTASI & KERTAS DI DIALOG BROWSER */
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -1707,10 +1647,6 @@
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -1945,27 +1881,7 @@
             .dps-name { color: #000000; font-weight: 700; }
             .dps-total-label { text-align: right; font-weight: 700; }
             .dps-total-count { text-align: center; font-weight: 700; }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .dps-table,
@@ -1980,7 +1896,6 @@
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .dps-table th,
             .dps-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -1999,12 +1914,10 @@
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .dps-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .dps-table tbody tr[class*="sector-row"] > td,
             .dps-table tbody tr[class*="sektor-row"] > td,
             .dps-table tbody tr[class*="cluster-row"] > td,
@@ -2013,17 +1926,11 @@
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .dps-table tbody tr[class*="total-row"] > td,
             .dps-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .dps-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }

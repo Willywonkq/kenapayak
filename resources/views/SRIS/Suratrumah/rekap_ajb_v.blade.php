@@ -1,8 +1,5 @@
 @extends('layouts.template')
 
-{{-- VIEW VERSION V1-20260902-DESKTOP-LAYOUT --}}
-{{-- Tata letak filter dan kolom laporan mengikuti tampilan desktop SRIS. --}}
-
 @section('content')
 <style>
 .rajb-page,
@@ -207,11 +204,6 @@
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
 }
 
-/* =========================================================
-   DROPDOWN LOKASI
-   Memakai tabel dua kolom, bukan <select>, supaya deskripsi
-   selalu rata betapa pun panjang kode lokasinya.
-   ========================================================= */
 .rajb-lokasi {
     position: relative;
     z-index: 60;
@@ -381,7 +373,6 @@
     vertical-align: middle;
 }
 
-/* Lebar kolom kode dikunci, jadi deskripsi selalu mulai di titik sama. */
 .rajb-lokasi-table td:first-child {
     width: 78px;
     border-radius: 10px 0 0 10px;
@@ -848,10 +839,6 @@
     text-align: center;
 }
 
-/* =========================================================
-   FOOTER TANDA TANGAN
-   Nilai mengikuti Daftar Sertifikat Pecahan.
-   ========================================================= */
 .rajb-signature-footer {
     width: min(100%, 980px);
     min-height: 190px;
@@ -914,10 +901,6 @@
     border-bottom: 1px dotted #98a2b3;
 }
 
-
-/* =========================================================
-   TAMBAHAN KHUSUS REKAP
-   ========================================================= */
 .rajb-check-row {
     display: flex;
     min-height: 42px;
@@ -1095,11 +1078,6 @@
     color: #1d4ed8;
 }
 
-/* =========================================================
-   ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-   Modal informasi yang tampil saat hasil laporan tidak
-   menghasilkan baris data sama sekali.
-   ========================================================= */
 #rajbNoDataAlertModal .modal-dialog {
     max-width: 380px;
 }
@@ -1207,7 +1185,6 @@
 }
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="rajbNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1349,8 +1326,6 @@
                 </div>
             </div>
 
-            {{-- Baris 2 kolom 2 dan 3 dikosongkan. Pada desktop kolom itu
-                 berisi label "Status Berkas:" tanpa isian. --}}
             <div></div>
             <div></div>
 
@@ -1419,10 +1394,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1430,12 +1401,6 @@
     var lastRajbRows = null;
 
     $(document).ready(function () {
-        /*
-         * Browser memulihkan isi form saat halaman di-refresh, sehingga
-         * centang Belum Ttd Akta dan isian blok dapat terbawa dari
-         * kunjungan sebelumnya. Reset dipanggil bertahap karena pemulihan
-         * itu dapat terjadi setelah DOMContentLoaded.
-         */
         resetRajbInitialState();
         window.setTimeout(resetRajbInitialState, 10);
         window.setTimeout(resetRajbInitialState, 100);
@@ -1446,12 +1411,6 @@
             $(this).val(String($(this).val() || '').toUpperCase());
         });
 
-        /*
-         * Mengubah pilihan Belum Ttd Akta langsung memuat ulang laporan,
-         * tanpa perlu menekan OK lagi. resetRajbPrint() dipanggil lebih
-         * dulu supaya tombol Print tidak sempat aktif untuk laporan lama
-         * bila filter ternyata belum sah dan permintaan dibatalkan.
-         */
         $('#rajbBelumTtdAkta').on('change', function () {
             syncRajbTanggalState();
             resetRajbPrint();
@@ -1495,10 +1454,6 @@
         }
     });
 
-    /*
-     * Mengembalikan seluruh filter dan area laporan ke keadaan awal,
-     * seperti saat fitur ini baru dibuka.
-     */
     function resetRajbInitialState() {
         $('#rajbBlokAwal').val('A');
         $('#rajbBlokAkhir').val('Z');
@@ -1548,11 +1503,6 @@
         return $('#rajbBelumTtdAkta').is(':checked');
     }
 
-    /*
-     * Query desktop untuk "Belum Ttd Akta" tidak memakai rentang tanggal,
-     * jadi isian tanggal dinonaktifkan agar tidak terlihat berpengaruh.
-     * Nilainya tetap dikirim supaya aturan validasi controller terpenuhi.
-     */
     function syncRajbTanggalState() {
         var nonaktif = isRajbBelumTtdAkta();
 
@@ -1580,9 +1530,6 @@
         hideRajbNoDataAlert();
     }
 
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     */
     function showRajbNoDataAlert(message) {
         var $modal = $('#rajbNoDataAlertModal');
 
@@ -1685,7 +1632,6 @@
         return isFinite(number) ? number : 0;
     }
 
-    /* Kolom rupiah memakai pemisah ribuan tanpa desimal, seperti desktop. */
     function rajbFormatCurrency(value) {
         if (value === null || value === undefined || String(value).trim() === '') {
             return '';
@@ -1723,7 +1669,6 @@
             + ' ' + date.getFullYear();
     }
 
-    /* Nama PT untuk header laporan, sama dengan fitur lain. */
     function rajbExtractCompanyName(value) {
         var raw = String(value || '').replace(/\u00a0/g, ' ');
         var locationMatch = raw.match(/Lokasi\s*:[^\r\n|]*?-\s*([^\r\n|]+)/i);
@@ -1800,16 +1745,11 @@
             try {
                 localStorage.setItem(cacheKey, company);
             } catch (error) {
-                // Browser dapat menolak storage; nama tetap dipakai saat ini.
             }
         }
 
         return company;
     }
-
-    /* ==============================================
-       LOKASI
-       ============================================== */
 
     function toggleRajbLokasiPanel(event) {
         if (event) {
@@ -1929,10 +1869,6 @@
         });
     }
 
-    /* ==============================================
-       SEKTOR
-       ============================================== */
-
     function toggleRajbSektorModal(show) {
         $('#rajbSektorModal')
             .toggleClass('show', show === true)
@@ -2023,10 +1959,6 @@
             }
         });
     }
-
-    /* ==============================================
-       DATA LAPORAN
-       ============================================== */
 
     function validateRajbFilter() {
         if (!$('#rajbBlokAwal').val() || !$('#rajbBlokAkhir').val()) {
@@ -2162,7 +2094,6 @@
             + '-' + String(now.getMonth() + 1).padStart(2, '0')
             + '-' + now.getFullYear();
 
-        /* Saat Belum Ttd Akta, kolom akta dan harga tidak ditampilkan. */
         var jumlahKolom = belumTtd ? 10 : 14;
 
         var html = '';
@@ -2348,24 +2279,6 @@
         $('#rajbMainDisplay').html(html);
     }
 
-    /* ==============================================
-       PRINT
-       ============================================== */
-
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -2420,10 +2333,6 @@
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -2504,10 +2413,6 @@
         var frameWindow = frame.contentWindow;
         var frameDocument = frame.contentDocument || frameWindow.document;
 
-        /*
-         * @page hanya mengatur margin dan tidak mengunci size/orientation,
-         * sehingga pilihan Portrait/Landscape tetap tersedia.
-         */
         var printCss = `
             @page { margin: 8mm; }
 
@@ -2597,13 +2502,6 @@
                 font-size: 10px;
             }
 
-            /*
-             * Lebar kolom tidak lagi dipaksa auto. Dengan auto setiap kolom
-             * mendapat lebar yang sama, sehingga kolom nama terpotong
-             * menjadi dua baris sementara kolom nomor menyisakan ruang
-             * kosong. Persentase per kolom dihasilkan oleh
-             * applyPrintTableRules() dari colgroup laporan.
-             */
             .rajb-report-table thead { display: table-header-group; }
             .rajb-report-table tbody { display: table-row-group; }
 
@@ -2635,10 +2533,6 @@
                 font-weight: 700;
             }
 
-            /*
-             * Tanggal dan angka tidak boleh dipenggal di tengah. Dengan
-             * table-layout otomatis, lebar kolomnya yang menyesuaikan.
-             */
             .rajb-center { text-align: center; white-space: nowrap; }
             .rajb-left { text-align: left; }
             .rajb-number { text-align: right; white-space: nowrap; }
@@ -2690,27 +2584,7 @@
                 height: 10px;
                 border-bottom: 1px dotted #444;
             }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .rajb-report-table,
@@ -2725,7 +2599,6 @@
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .rajb-report-table th,
             .rajb-report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -2744,12 +2617,10 @@
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .rajb-report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .rajb-report-table tbody tr[class*="sector-row"] > td,
             .rajb-report-table tbody tr[class*="sektor-row"] > td,
             .rajb-report-table tbody tr[class*="cluster-row"] > td,
@@ -2758,17 +2629,11 @@
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .rajb-report-table tbody tr[class*="total-row"] > td,
             .rajb-report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .rajb-report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2797,27 +2662,6 @@
         }, 180);
     }
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -2831,10 +2675,6 @@
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -2889,15 +2729,6 @@
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -2947,12 +2778,6 @@
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -2992,11 +2817,6 @@
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -3046,7 +2866,6 @@
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -3084,8 +2903,6 @@
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -3131,8 +2948,6 @@
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -3190,9 +3005,6 @@
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

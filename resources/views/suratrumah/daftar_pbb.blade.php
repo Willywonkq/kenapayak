@@ -731,11 +731,6 @@
     }
 }
 
-    /* =========================================================
-       ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-       Modal informasi yang tampil saat hasil laporan tidak
-       menghasilkan baris data sama sekali.
-       ========================================================= */
         #pbbNoDataAlertModal .modal-dialog {
             max-width: 380px;
         }
@@ -793,7 +788,6 @@
 
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="pbbNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1022,10 +1016,6 @@
 @endsection
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1059,36 +1049,14 @@ var pbbTampilanAwal = null;
             resetPbbPrint();
         });
     });
-    /*
-     * Sebelumnya penyetelan ulang hanya dijalankan ketika halaman diambil
-     * dari bfcache, sehingga pada refresh biasa kedua kotak centang, blok,
-     * tahun, dan sektor tetap membawa pilihan lama. Sekarang seluruh
-     * penyaring dikembalikan pada setiap pageshow, apa pun sebabnya.
-     */
     $(window).on('pageshow', function () {
         resetPbbFilter();
     });
 
-    /*
-     * Mengembalikan setiap kontrol penyaring ke nilai bawaannya.
-     *
-     * Nilai bawaan dibaca dari defaultValue, defaultChecked, dan
-     * defaultSelected, yaitu nilai yang tertulis pada markup. Ketiganya
-     * tidak ikut berubah ketika peramban memulihkan isi form setelah
-     * halaman di-refresh, jadi selalu tepat dipakai sebagai acuan.
-     */
     function resetPbbKontrol(wadah) {
         var daftar = document.querySelectorAll(wadah + ' input, ' + wadah + ' select');
 
         Array.prototype.forEach.call(daftar, function (kontrol) {
-            /*
-             * Input tersembunyi sengaja dilewati. Pada jenis ini menulis
-             * .value ikut mengubah atribut value, sehingga defaultValue
-             * tidak lagi menyimpan nilai awal dan tidak bisa dipakai
-             * sebagai acuan. Nilainya dikembalikan secara tersurat pada
-             * pemanggil, atau dibiarkan apa adanya bila memang berasal
-             * dari sesi dan selalu sama di setiap pemuatan halaman.
-             */
             if (kontrol.type === 'hidden') {
                 return;
             }
@@ -1151,13 +1119,6 @@ var pbbTampilanAwal = null;
         hidePbbNoDataAlert();
     }
 
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     * Hanya menampilkan pesan; pengambilan data dan render laporan
-     * tetap memakai alur yang sudah ada. Jika plugin modal tidak
-     * tersedia pada halaman ini, modal ditampilkan secara manual
-     * sehingga tampilannya tetap sama.
-     */
     function showPbbNoDataAlert(message) {
         var $modal = $('#pbbNoDataAlertModal');
 
@@ -1374,7 +1335,6 @@ var pbbTampilanAwal = null;
                     company
                 );
             } catch (error) {
-                // Storage dapat ditolak browser; render saat ini tetap jalan.
             }
         }
         return company;
@@ -2109,20 +2069,6 @@ var showDetail = $('#pbbTampilNamaAlamatWp')
         }
         printPbbInNativeDialog();
     }
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -2177,10 +2123,6 @@ var showDetail = $('#pbbTampilNamaAlamatWp')
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -2449,27 +2391,7 @@ html, body {
     height: 100px;
     text-align: center;
 }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .pbb-report-table,
@@ -2484,7 +2406,6 @@ html, body {
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .pbb-report-table th,
             .pbb-report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -2503,12 +2424,10 @@ html, body {
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .pbb-report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .pbb-report-table tbody tr[class*="sector-row"] > td,
             .pbb-report-table tbody tr[class*="sektor-row"] > td,
             .pbb-report-table tbody tr[class*="cluster-row"] > td,
@@ -2517,17 +2436,11 @@ html, body {
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .pbb-report-table tbody tr[class*="total-row"] > td,
             .pbb-report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .pbb-report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2562,27 +2475,7 @@ html, body {
         };
         window.setTimeout(doPrint, 150);
     }
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
 
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -2596,10 +2489,6 @@ html, body {
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -2654,15 +2543,6 @@ html, body {
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -2712,12 +2592,6 @@ html, body {
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -2757,11 +2631,6 @@ html, body {
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -2811,7 +2680,6 @@ html, body {
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -2849,8 +2717,6 @@ html, body {
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -2896,8 +2762,6 @@ html, body {
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -2955,9 +2819,6 @@ html, body {
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

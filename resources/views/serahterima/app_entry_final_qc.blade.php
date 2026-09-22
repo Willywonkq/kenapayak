@@ -80,12 +80,6 @@
         color: #1e40af;
     }
 
-    /*
-     * Checkbox direstyle jadi kotak modern bercentang biru, konsisten
-     * dengan komponen modern-checkbox-label yang dipakai fitur lain.
-     * Ini murni gaya CSS — elemen <input type="checkbox"> dan id/class
-     * yang dipakai JS tidak diubah sama sekali.
-     */
     .approval-qc-checkbar input[type="checkbox"],
     .approval-qc-table input[type="checkbox"] {
         appearance: none;
@@ -406,10 +400,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }

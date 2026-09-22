@@ -1,10 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - DAFTAR SERTIPIKAT BALIK NAMA
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260917
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-
 namespace App\Models\SRIS\Suratrumah;
 
 use DateTimeImmutable;
@@ -17,10 +12,6 @@ class dftr_sertifikat_balik_nama_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
@@ -62,18 +53,6 @@ class dftr_sertifikat_balik_nama_m extends Model
         );
     }
 
-    /**
-     * SUMBER TTD MASIH HARUS DIIDENTIFIKASI.
-     *
-     * Jangan isi nama secara hardcode.
-     *
-     * Method sementara ini mengambil PEGAWAI sebagai kandidat KODE saja.
-     * Setelah tabel master ditemukan, hanya method ini yang perlu diganti.
-     *
-     * Tabel sr_pegawai belum pernah dipakai fitur lain yang sudah dimigrasi,
-     * jadi keberadaannya diperiksa lebih dulu. Bila belum ada, daftar
-     * dikembalikan kosong dan layarnya tetap bisa dibuka.
-     */
     public function obtainTTDMengetahui($kdPerusahaan)
     {
         if (!$this->adaTabel('sr_pegawai')) {
@@ -118,10 +97,6 @@ class dftr_sertifikat_balik_nama_m extends Model
 
         $tglAwal = $this->normalizeDate($request->tgl_awal);
 
-        /*
-         * Tanggal akhir memakai H+1 exclusive agar seluruh jam pada tanggal
-         * akhir ikut terambil.
-         */
         $tglAkhirEksklusif = $this->normalizeDate($request->tgl_akhir, 1);
 
         $apartemen = filter_var(
@@ -143,11 +118,6 @@ class dftr_sertifikat_balik_nama_m extends Model
         $stokSektor = $this->kolomKode('sr_stok', [
             'kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2',
         ]);
-        /*
-         * Pada hasil migrasi kolom jenis bangunan di sr_stok bernama
-         * kd_jenis_bgn, bukan kd_jenis seperti pada query desktop. Sudah
-         * terbukti pada fitur Rekap Estimasi Biaya AJB.
-         */
         $stokJenis = $this->kolomKode('sr_stok', [
             'kd_jenis_bgn', 'kd_jenis',
         ]);
@@ -158,10 +128,6 @@ class dftr_sertifikat_balik_nama_m extends Model
             'kd_perusahaan', 'kd_unit', 'kd_pt',
         ]);
 
-        /*
-         * Query desktop normal memakai KD_JENIS NOT IN ('APT','KTR'),
-         * sedangkan checkbox Apartemen hanya menampilkan APT.
-         */
         $ekspresiJenis =
             "UPPER(BTRIM(COALESCE(CAST(stok.{$stokJenis} AS TEXT), '')))";
         $jenisFilter = $apartemen
@@ -173,7 +139,6 @@ class dftr_sertifikat_balik_nama_m extends Model
             'hasil_dasar."NOMOR"'
         );
 
-        /* Kolom nomor telepon belum tentu ada pada hasil migrasi. */
         $telpRumah = $this->kolomOpsional('sr_nasabah', 'nasabah', 'telp_rmh');
         $noHp = $this->kolomOpsional('sr_nasabah', 'nasabah', 'no_hp');
         $telpKantor = $this->kolomOpsional('sr_nasabah', 'nasabah', 'telp_ktr');
@@ -184,14 +149,6 @@ class dftr_sertifikat_balik_nama_m extends Model
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
                 FROM public.sr_stok AS stok
-                /*
-                 * Cabang pertama membandingkan kolomnya apa adanya. Hasilnya
-                 * sama persis dengan cabang kedua, karena parameternya sudah
-                 * dibuat huruf besar tanpa spasi oleh normalizeText. Gunanya
-                 * memberi perencana query sebuah perbandingan kolom biasa yang
-                 * ada statistiknya, supaya jumlah barisnya tidak ditaksir 1
-                 * padahal ribuan.
-                 */
                 WHERE (
                         stok.{$stokPerusahaan} = :perusahaan_langsung
                         OR UPPER(BTRIM(COALESCE(
@@ -212,12 +169,6 @@ class dftr_sertifikat_balik_nama_m extends Model
                   AND stok.nomor IS NOT NULL
             ),
             sertipikat_terpilih AS (
-                /*
-                 * Sertipikat disaring tanggal lebih dulu supaya yang dijoin
-                 * tinggal sedikit. Tanggal sumber dibuat aman karena pada
-                 * database legacy kolom tanggal dapat berisi teks yang bukan
-                 * tanggal; ini padanan ISDATE() desktop.
-                 */
                 SELECT
                     s.*,
                     CASE
@@ -226,11 +177,7 @@ class dftr_sertifikat_balik_nama_m extends Model
                         THEN CAST(s.tgl_input_blk_nm AS TIMESTAMP)
                     END AS tgl_input_blk_nm_valid
                 FROM public.sr_sertipikat AS s
-                WHERE /*
-                 * Cabang pertama membandingkan kolomnya apa adanya. Hasilnya
-                 * sama persis dengan cabang kedua, hanya memberi perencana
-                 * query statistik kolom yang tidak dimiliki bentuk UPPER/BTRIM.
-                 */
+                WHERE 
                       (
                         s.status_blk_nm = 'Y'
                         OR UPPER(BTRIM(COALESCE(
@@ -249,11 +196,6 @@ class dftr_sertifikat_balik_nama_m extends Model
                       END < CAST(:tgl_akhir_eksklusif AS DATE)
             ),
             pembeli_nama AS MATERIALIZED (
-                /*
-                 * Pengganti F_GET_PEMBELI. Seluruh pembeli aktif pada satu
-                 * PPJB digabung menjadi satu teks, sama seperti keluaran
-                 * fungsi desktopnya.
-                 */
                 SELECT
                     BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT)) AS kode,
                     STRING_AGG(
@@ -271,12 +213,6 @@ class dftr_sertifikat_balik_nama_m extends Model
                 GROUP BY 1
             ),
             nasabah_kontak AS MATERIALIZED (
-                /*
-                 * Pengganti INNER JOIN NASABAH pada query desktop. Kontak
-                 * diambil dari pembeli aktif yang pertama pada PPJB itu,
-                 * mengikuti urutan fisik baris seperti SQL Server tanpa
-                 * ORDER BY.
-                 */
                 SELECT DISTINCT ON (kode)
                     kode, telp_rmh, no_hp, telp_ktr
                 FROM (
@@ -296,11 +232,6 @@ class dftr_sertifikat_balik_nama_m extends Model
                 ORDER BY kode, urutan_fisik
             ),
             sektor_ref AS MATERIALIZED (
-                /*
-                 * Pengganti OUTER APPLY ... SELECT TOP (1) SEKTOR.
-                 * Urutannya dipertahankan: sektor milik unit yang sama lebih
-                 * dulu, lalu yang bertanda aktif.
-                 */
                 SELECT DISTINCT ON (kode)
                     kode, deskripsi
                 FROM (
@@ -452,20 +383,6 @@ class dftr_sertifikat_balik_nama_m extends Model
         ]);
     }
 
-    /**
-     * Syarat rentang blok, dipasang setelah penggabungan tabel.
-     *
-     * Bentuknya memakai UPPER, BTRIM, dan penyambungan teks, sehingga
-     * perencana query tidak punya statistik apa pun untuk menaksirnya dan
-     * menduga sr_stok hanya berisi 1 baris padahal ribuan. Dugaan itu membuat
-     * PostgreSQL memilih nested loop yang membaca sr_sertipikat berulang kali.
-     *
-     * Hasilnya tidak berubah karena stok disambung dengan INNER JOIN, jadi
-     * menyaring sebelum atau sesudah penggabungan sama saja.
-     *
-     * Cabang kedua memakai BLOK_AKHIR untuk kedua sisinya, mengikuti query
-     * desktop apa adanya.
-     */
     private function syaratBlok(string $blok, string $nomor): string
     {
         return <<<SQL
@@ -490,11 +407,6 @@ class dftr_sertifikat_balik_nama_m extends Model
             SQL;
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
-     * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
-     * unit. Sama seperti pada model lain yang sudah dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         $tersedia = $this->kolomTabel($tabel);
@@ -508,10 +420,6 @@ class dftr_sertifikat_balik_nama_m extends Model
         return $kandidat[0];
     }
 
-    /**
-     * Mengembalikan nama kolom bila ada, atau NULL bila tidak ada, supaya
-     * query tetap jalan pada hasil migrasi yang kolomnya belum lengkap.
-     */
     private function kolomOpsional(
         string $tabel,
         string $alias,
@@ -549,10 +457,6 @@ class dftr_sertifikat_balik_nama_m extends Model
         return $ingatan[$tabel];
     }
 
-    /**
-     * PostgreSQL memakai format tanggal ISO, bukan gaya CONVERT 112 milik
-     * SQL Server.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);

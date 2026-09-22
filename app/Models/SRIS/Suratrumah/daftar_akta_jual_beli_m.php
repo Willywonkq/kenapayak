@@ -1,10 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - DAFTAR AKTA JUAL BELI
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260916
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-
 namespace App\Models\SRIS\Suratrumah;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,25 +12,9 @@ class daftar_akta_jual_beli_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
-    /**
-     * Master lokasi.
-     *
-     * Data lokasi memang tersimpan di tabel LOKASI. Query laporan desktop
-     * membuktikannya lewat dua baris berikut:
-     *
-     *     ( SELECT DESKRIPSI FROM LOKASI WHERE KD_LOKASI = STOK.KD_LOKASI )
-     *     ( STOK.KD_LOKASI = :lokasi OR :lokasi = '*' )
-     *
-     * Daftar dibaca langsung dan apa adanya seperti lookup desktop, tanpa
-     * disaring lewat STOK.
-     */
     public function obtainLokasi($kdPerusahaan)
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -64,13 +43,6 @@ class daftar_akta_jual_beli_m extends Model
         );
     }
 
-    /**
-     * Master sektor, mengikuti pola fitur Daftar Sertipikat Pecahan.
-     *
-     * Kode perusahaan yang kosong ikut ditampilkan. Pada hasil migrasi
-     * sebagian baris master tidak membawa kode perusahaan, sedangkan desktop
-     * tetap memakai sektornya lewat STOK.
-     */
     public function obtainSektor($kdPerusahaan)
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -113,32 +85,6 @@ class daftar_akta_jual_beli_m extends Model
         );
     }
 
-    /**
-     * Laporan Daftar Akta Jual Beli.
-     *
-     * Query mengikuti query desktop, dengan penyesuaian berikut:
-     *
-     * 1. Join implisit pada FROM diubah menjadi JOIN eksplisit. Relasi antar
-     *    tabel dan seluruh kondisi WHERE tidak berubah.
-     * 2. Batas blok bawah pada cabang kedua memakai :blok_awal_blok. Pada
-     *    query asli cabang itu tertulis
-     *    ( STOK.BLOK >= :BLOK_AKHIR AND STOK.BLOK <= :BLOK_AKHIR ),
-     *    sehingga hanya cocok untuk satu blok saja.
-     * 3. Batas tanggal atas dibuat eksklusif (tanggal akhir + 1 hari) agar
-     *    baris yang jam-nya bukan 00:00 pada tanggal akhir tetap ikut,
-     *    sama seperti fitur lain di aplikasi ini.
-     * 4. NASABAH disambung dengan LEFT JOIN, bukan INNER JOIN seperti
-     *    desktop. Di SQL Server seluruh 38.821 baris punya pasangan,
-     *    sedangkan di PostgreSQL hanya 34.560 dari 63.447. INNER JOIN akan
-     *    membuang unit yang di desktop tetap tampil; dengan LEFT JOIN
-     *    unitnya tetap ada dan hanya kolom nasabahnya yang kosong.
-     *
-     * Padanan dialek yang dipakai: ISNULL -> COALESCE, + -> ||,
-     * GETDATE() -> CURRENT_TIMESTAMP, SELECT TOP (1) -> LIMIT 1,
-     * OUTER APPLY -> LEFT JOIN LATERAL ... ON TRUE, ISDATE() -> kawal regex,
-     * NOT LIKE '%[^0-9]%' -> ~ '^[0-9]+$',
-     * RIGHT(REPLICATE('0',50)+x,50) -> LPAD(x,50,'0').
-     */
     public function obtainDaftarAktaJualBeli($request): array
     {
         $perusahaan = $this->normalizeText(
@@ -178,11 +124,6 @@ class daftar_akta_jual_beli_m extends Model
             $blokAkhir = 'ZZ';
         }
 
-        /*
-         * Nama kolom kode berbeda-beda antar hasil migrasi, sama seperti
-         * pada model Serah Terima. Hanya kolom kode yang dicari seperti ini;
-         * kolom lainnya ditulis apa adanya.
-         */
         $stokPerusahaan = $this->kolomKode('sr_stok', [
             'kd_perusahaan', 'kd_unit', 'kd_pt',
         ]);
@@ -201,32 +142,6 @@ class daftar_akta_jual_beli_m extends Model
 
         $kunciAkta = $this->kunciSertipikat('akta.sertipikat_id');
 
-        /*
-         * Susunan query sengaja dibuat menyempit lebih dulu.
-         *
-         * Seluruh kunci pada database ini harus dibandingkan lewat
-         * BTRIM(CAST(...)), dan perbandingan semacam itu tidak bisa memakai
-         * index. Kalau tabel besar dijoin apa adanya, PostgreSQL membaca
-         * habis semuanya berkali-kali. Karena itu akta disaring tanggal
-         * lebih dulu dan stok disaring unit, lokasi, sektor, serta blok
-         * lebih dulu, sehingga yang dijoin tinggal sedikit.
-         *
-         * Ketiga kolom yang dulu diambil lewat subquery berkorelasi kini
-         * disiapkan sebagai tabel kecil dan disambung dengan LEFT JOIN.
-         * Subquery berkorelasi dijalankan sekali untuk setiap baris hasil,
-         * dan untuk sr_angsuran yang besar itu berarti membacanya ratusan
-         * kali. Sekarang tabel itu dibaca satu kali saja.
-         *
-         * Ketiga subquery itu memakai LIMIT 1 tanpa ORDER BY, jadi barisnya
-         * dipilih sekenanya: yang pertama ditemukan saat tabel dibaca
-         * berurutan, yaitu yang letak fisiknya paling awal. Supaya nilai
-         * yang tampil tidak berubah sedikit pun, DISTINCT ON di sini juga
-         * mengurutkan berdasarkan letak fisik lewat ctid, bukan berdasarkan
-         * tanggal. Satu PPJB yang punya lebih dari satu kuitansi BBN tetap
-         * menampilkan tanggal yang sama seperti sebelumnya.
-         *
-         * Susunan kolom keluaran tidak berubah sama sekali.
-         */
         $sql = <<<SQL
             WITH akta_terpilih AS (
                 SELECT
@@ -375,11 +290,6 @@ class daftar_akta_jual_beli_m extends Model
                 ON BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT))
                  = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
 
-            /*
-             * Desktop memakai INNER JOIN ke NASABAH. Di PostgreSQL sebagian
-             * pasangannya belum ikut tersalin, sehingga INNER JOIN akan
-             * menghapus unit yang di desktop tetap tampil.
-             */
             LEFT JOIN public.sr_nasabah AS nasabah
                 ON BTRIM(CAST(nasabah.nasabah_id AS TEXT))
                  = BTRIM(CAST(pembeli_ppjb.nasabah_id AS TEXT))
@@ -388,14 +298,6 @@ class daftar_akta_jual_beli_m extends Model
                 ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT))
                  = akta.kunci_sertipikat
 
-            /*
-             * SERTIPIKAT_ID pada sr_pengambilan juga kehilangan awalannya.
-             * Kedua sisi sama-sama dibuang awalannya di sini, dan hasilnya
-             * sama dengan menyusun ulang awalan seperti pada join di atas,
-             * karena awalan pada sertipikat memang sudah dipastikan benar
-             * oleh join tersebut. Bedanya, bentuk ini hanya menyangkut dua
-             * tabel sehingga PostgreSQL bisa memakai hash join.
-             */
             LEFT JOIN public.sr_pengambilan AS pengambilan
                 ON REGEXP_REPLACE(
                        BTRIM(CAST(pengambilan.sertipikat_id AS TEXT)),
@@ -458,28 +360,6 @@ class daftar_akta_jual_beli_m extends Model
         ]);
     }
 
-    /**
-     * Menyusun ulang SERTIPIKAT_ID agar bisa disamakan dengan
-     * sr_sertipikat.sertipikat_id.
-     *
-     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-18784, sedangkan
-     * sr_akta dan sr_pengambilan bertipe numeric sehingga awalannya terbuang
-     * dan hanya menyisakan 18784.
-     *
-     * Awalannya tidak boleh sekadar dibuang dari sisi sertipikat. Pada
-     * database DTSA ada DUA awalan yang dipakai bersamaan, DBPSA- dan
-     * DBPSS-, dan setiap angka muncul pada keduanya. Membuang awalan
-     * membuat satu akta menemukan dua sertipikat sekaligus, sehingga
-     * barisnya berganda dan sebagiannya menunjuk unit yang salah.
-     *
-     * Awalan yang benar diambil dari PPJB_ID pada baris akta itu sendiri,
-     * karena kolom itu selamat sebagai teks lengkap. Akta dengan PPJB_ID
-     * DBPSA-18784 berarti sertipikatnya DBPSA- ditambah angkanya.
-     *
-     * Bila nilainya ternyata sudah membawa awalan sendiri, nilainya dipakai
-     * apa adanya. Bila PPJB_ID tidak berawalan, angkanya juga dipakai apa
-     * adanya. Jadi skema yang kuncinya sudah konsisten tidak ikut berubah.
-     */
     private function kunciSertipikat(string $kolom): string
     {
         return <<<SQL
@@ -495,11 +375,6 @@ class daftar_akta_jual_beli_m extends Model
             SQL;
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
-     * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
-     * unit. Sama seperti pada model Serah Terima yang sudah dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $kolomTabel = [];
@@ -531,10 +406,6 @@ class daftar_akta_jual_beli_m extends Model
         );
     }
 
-    /**
-     * Menormalisasi tanggal request menjadi format Y-m-d.
-     * Mendukung nilai HTML date (Y-m-d) dan dua format slash umum.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);

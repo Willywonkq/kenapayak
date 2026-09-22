@@ -13,11 +13,6 @@ class daftar_sp_sudah_ppjb_m extends Model
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
-
-    /**
-     * Cache metadata kolom hanya di memory selama request berjalan.
-     * Tidak menulis ke database dan tidak memakai persistent cache.
-     */
     private array $tableColumnsCache = [];
 
     private function tableColumns(string $table): array
@@ -56,12 +51,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         return isset($this->tableColumns($table)[strtolower($column)]);
     }
 
-    /**
-     * Apakah kolom bertipe angka pada database yang sedang dipakai.
-     *
-     * Tipe kolom kunci berbeda antar hasil migrasi, dan PostgreSQL menolak
-     * perbandingan langsung antara numeric dengan character varying.
-     */
     private function isNumericColumn(string $table, string $column): bool
     {
         $type = $this->tableColumns($table)[strtolower($column)] ?? '';
@@ -72,14 +61,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         ], true);
     }
 
-    /**
-     * Perbandingan kolom kunci sebuah tabel dengan kolom hasil CTE yang sudah
-     * menyediakan bentuk teks maupun numeric sekaligus.
-     *
-     * Kolom tabelnya selalu dibiarkan mentah supaya index tetap terpakai.
-     * Membungkus kolom dengan CAST membuat PostgreSQL memindai seluruh tabel,
-     * dan sr_angsuran maupun sr_jadwal_angsuran berisi ratusan ribu baris.
-     */
     private function idJoinPrepared(
         string $table,
         string $alias,
@@ -94,9 +75,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         return "{$alias}.{$column} = {$textColumn}";
     }
 
-    /**
-     * Daftar nilai untuk perbandingan ANY(), disesuaikan dengan tipe kolomnya.
-     */
     private function pgArrayForColumn(string $table, string $column, array $values): string
     {
         if ($this->isNumericColumn($table, $column)) {
@@ -110,23 +88,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         return $this->pgTextArray($values);
     }
 
-
-    /**
-     * Syarat "kolom kunci ini kosong", ditulis agar PostgreSQL tetap dapat
-     * memperkirakan jumlah barisnya.
-     *
-     * Bentuk lama, NULLIF(BTRIM(COALESCE(CAST(x AS text), '')), '') IS NULL,
-     * adalah ekspresi buram bagi perencana. Statistik kolom tidak terpakai,
-     * sehingga perkiraannya jatuh ke nilai bawaan yang sangat kecil. Ketika
-     * beberapa syarat buram dikalikan, perkiraannya menjadi satu baris,
-     * perencana memilih nested loop, dan tabel di sisi dalam dipindai
-     * berulang kali sebanyak jumlah baris di sisi luar.
-     *
-     * Bentuk baru ini persis sama artinya. Kolom angka tidak mungkin berisi
-     * teks kosong sehingga cukup IS NULL, sedangkan kolom teks tetap
-     * memeriksa keduanya. Bagian IS NULL dapat diperkirakan lewat statistik
-     * null_frac, dan itu sudah cukup untuk mengembalikan rencana hash join.
-     */
     private function kunciKosongExpr(string $table, string $alias, string $column): string
     {
         $qualified = "{$alias}.{$column}";
@@ -138,19 +99,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         return "({$qualified} IS NULL OR BTRIM(CAST({$qualified} AS text)) = '')";
     }
 
-
-    /**
-     * Syarat "kolom kode ini bernilai X", ditulis agar perkiraan barisnya
-     * tetap masuk akal bagi perencana.
-     *
-     * Bentuk UPPER(BTRIM(COALESCE(CAST(x AS text), ''))) = 'A' bersifat buram,
-     * sehingga PostgreSQL memakai perkiraan bawaan yang jauh lebih kecil
-     * daripada kenyataan lalu memilih nested loop. Bagian IN di depan memakai
-     * kolom apa adanya sehingga statistik nilai tersering dapat dipakai.
-     *
-     * Artinya persis sama: setiap nilai yang memenuhi bagian IN pasti juga
-     * memenuhi bagian sesudah OR, jadi kumpulan barisnya tidak berubah.
-     */
     private function kodeSamaExpr(string $table, string $alias, string $column, string $nilai): string
     {
         $qualified = "{$alias}.{$column}";
@@ -166,13 +114,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         return "({$qualified} IN ('{$hurufBesar}', '{$hurufKecil}') OR {$umum})";
     }
 
-    /**
-     * Bentuk perbandingan dua kolom kunci antar tabel dengan tipe apa pun.
-     *
-     * Ketika kedua sisi bertipe sama, perbandingannya dibiarkan apa adanya
-     * supaya index PostgreSQL tetap terpakai. Penyamaan tipe hanya dilakukan
-     * bila memang berbeda.
-     */
     private function idJoin(
         string $tableA,
         string $aliasA,
@@ -189,11 +130,6 @@ class daftar_sp_sudah_ppjb_m extends Model
             return "{$aliasA}.{$columnA} = {$aliasB}.{$columnB}";
         }
 
-        /*
-         * Ranah 'angka' hanya boleh dipakai untuk kunci yang isinya pasti
-         * bilangan bulat. Untuk kunci beraksara seperti stok_id, mengubahnya
-         * menjadi angka akan menghasilkan NULL dan barisnya hilang diam-diam.
-         */
         if ($ranah === 'angka') {
             $sisiAngka = $numerikA ? "{$aliasA}.{$columnA}" : "{$aliasB}.{$columnB}";
             $sisiTeks = $numerikA ? "{$aliasB}.{$columnB}" : "{$aliasA}.{$columnA}";
@@ -208,10 +144,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         return "CAST({$sisiDicast} AS text) = BTRIM(CAST({$sisiMentah} AS text))";
     }
 
-    /**
-     * Membentuk COALESCE dari kolom fisik yang tersedia.
-     * Fallback dan urutan kandidat tetap sama seperti akses to_jsonb() sebelumnya.
-     */
     private function directTextExpression(
         string $table,
         string $alias,
@@ -562,7 +494,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         }
 
         if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $value, $m)) {
-            // Format datepicker di layar: MM/DD/YYYY.
             return sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[1], (int) $m[2]);
         }
 
@@ -622,10 +553,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         ];
         $canonicalSektor = $fallbackByDescription[$sektor] ?? $sektor;
 
-        /*
-         * Modal sektor mengirim KD_SEKTOR. Jika sudah berupa kode, tidak perlu
-         * scan sr_sektor + sr_lokasi lagi sebelum query laporan dijalankan.
-         */
         if (preg_match('/^[A-Z0-9_-]{1,30}$/', $sektor)) {
             return $this->normalizeCodes([$canonicalSektor, $sektor]);
         }
@@ -689,10 +616,6 @@ class daftar_sp_sudah_ppjb_m extends Model
             return ['*'];
         }
 
-        /*
-         * Select lokasi mengirim kode KD_LOKASI. Hindari scan master bila
-         * nilainya sudah jelas berupa kode.
-         */
         if (preg_match('/^[A-Z0-9_-]{1,30}$/', $lokasi)) {
             return [$lokasi];
         }
@@ -746,20 +669,6 @@ class daftar_sp_sudah_ppjb_m extends Model
 
         $schema = self::SCHEMA;
 
-        /*
-         * Ekspresi stok dibuat dari kolom fisik yang benar-benar tersedia.
-         * Ini menghindari to_jsonb(stok) berulang pada setiap row sr_stok.
-         */
-        /*
-         * Urutan kandidat kolom mendahulukan kd_jenis, kd_tipe, dan kd_model.
-         *
-         * Query desktop menyambung TIPE memakai STOK.KD_JENIS dan STOK.KD_TIPE,
-         * serta mencari MODEL memakai STOK.KD_MODEL. Versi sebelumnya di sini
-         * mendahulukan varian kd_*_bgn, sehingga bila kolom itu ada dan berisi
-         * nilai yang berbeda, INNER JOIN ke sr_tipe gagal dan barisnya hilang
-         * dari laporan. Kolom kd_*_bgn tetap dipakai sebagai cadangan ketika
-         * kolom utamanya kosong.
-         */
         $stokJenisRaw = $this->directTextExpression(
             'sr_stok', 'stok', ['kd_jenis', 'kd_jenis_bgn'], '', false, false
         );
@@ -806,23 +715,12 @@ class daftar_sp_sudah_ppjb_m extends Model
         $where[] = "NULLIF(BTRIM(COALESCE(CAST(stok.blok AS text), '')), '') IS NOT NULL";
         $where[] = "NULLIF(BTRIM(COALESCE(CAST(stok.nomor AS text), '')), '') IS NOT NULL";
 
-        /*
-         * Filter jenis dipasang setelah kandidat PPJB + stok dipersempit.
-         * Dengan begitu PostgreSQL tidak perlu menjalankan join tabel referensi
-         * terhadap seluruh histori PPJB.
-         */
         $jenisBindings = [];
 
         if ($jenis !== '*') {
             $jenisWhere = "UPPER(BTRIM(COALESCE(CAST(jenis_bangunan.flag_laporan AS text), ''))) = ?";
             $jenisBindings[] = $jenis;
         } else {
-            /*
-             * Desktop memakai ( JENIS_BANGUNAN.FLAG_LAPORAN = :jenis or :jenis = '*' ),
-             * jadi pilihan Semua tidak membatasi apa pun. Versi sebelumnya di sini
-             * membatasi flag_laporan ke '1'..'5' sehingga jenis bangunan dengan kode
-             * lain, kosong, atau NULL ikut hilang dari laporan.
-             */
             $jenisWhere = "TRUE";
         }
 
@@ -839,21 +737,10 @@ class daftar_sp_sudah_ppjb_m extends Model
         $whereSql = implode("\n                AND ", $where);
         $bindings = array_merge($bindings, $jenisBindings);
 
-        /*
-         * Master referensi dinormalisasi sekali per query.
-         * Versi lama membangun to_jsonb(sr_sektor/sr_lokasi/sr_model)
-         * berulang di LATERAL untuk setiap row hasil PPJB.
-         */
         $modelKode = $this->directTextExpression(
             'sr_model', 'master_model', ['kd_model', 'kd_model_bgn'], '', false, false
         );
 
-        /*
-         * Sisi sr_tipe dan sr_jenis_bangunan dibaca dengan cara yang sama
-         * seperti sisi sr_stok, yaitu mencoba nama kolom bervariasi. Tanpa ini
-         * kode tipe yang di master tersimpan pada kolom kd_tipe_bgn tidak akan
-         * pernah cocok dengan kd_tipe_bgn milik stok.
-         */
         $tipeJenisKode = $this->directTextExpression(
             'sr_tipe', 'tipe', ['kd_jenis', 'kd_jenis_bgn'], '', true, true
         );
@@ -900,11 +787,6 @@ class daftar_sp_sudah_ppjb_m extends Model
             'sr_lokasi', 'master_lokasi', ['flag_aktif'], 'A', true, true
         );
 
-        /*
-         * Query utama sengaja tidak menghitung ANGSURAN di dalam CTE besar.
-         * Nilai JML_BAYAR, PROSENTASE, dan TGL_CAPAI dihitung terpisah oleh
-         * hydratePembayaranColumns() agar sr_angsuran tidak membuat report timeout.
-         */
         $sql = <<<SQL
             WITH model_master AS MATERIALIZED (
                 SELECT
@@ -1008,28 +890,6 @@ class daftar_sp_sudah_ppjb_m extends Model
 
                 FROM filtered_ppjb AS fp
 
-                /*
-                 * LEFT JOIN, bukan INNER JOIN.
-                 *
-                 * Query desktop memang memakai INNER JOIN ke TIPE, tetapi tabel
-                 * TIPE di SQL Server memuat seluruh kode tipe sehingga tidak ada
-                 * baris yang gugur karenanya. Pada PostgreSQL hasil migrasi,
-                 * sr_tipe tidak selengkap itu: dari 777 baris yang lolos seluruh
-                 * filter dasar, hanya 571 yang menemukan pasangan kode tipenya.
-                 * Dengan INNER JOIN, 206 baris sisanya hilang dari laporan
-                 * padahal di desktop tetap tampil.
-                 *
-                 * Kolom yang berasal dari join ini tidak ada yang ditampilkan
-                 * pada laporan. Deskripsi tipe dan jenis bangunan tidak dipakai
-                 * sebagai kolom, sedangkan luas tanah dan luas bangunan diambil
-                 * dari sr_stok lebih dulu lewat COALESCE. Jadi mengubahnya
-                 * menjadi LEFT JOIN memulihkan jumlah baris tanpa mengubah isi
-                 * kolom mana pun.
-                 *
-                 * Penyaring Jenis Bgn tetap berperilaku seperti desktop: ketika
-                 * user memilih jenis tertentu, baris tanpa pasangan jenis
-                 * bangunan otomatis tidak lolos karena flag_laporan-nya kosong.
-                 */
                 LEFT JOIN {$schema}.sr_tipe AS tipe
                     ON {$tipeJenisKode} = fp.stok_kd_jenis
                    AND {$tipeTipeKode} = fp.stok_kd_tipe
@@ -1070,13 +930,6 @@ class daftar_sp_sudah_ppjb_m extends Model
                 WHERE ppjb_id IS NOT NULL
             ),
 
-            /*
-             * Satu PPJB dicari memakai ID aslinya, dan hanya bila berbeda juga
-             * memakai versi angkanya saja. Karena kedua nilai itu dijamin
-             * berbeda, satu baris jadwal maupun angsuran mustahil cocok dua
-             * kali untuk PPJB yang sama, sehingga penjumlahan di bawah tidak
-             * perlu lagi memakai DISTINCT.
-             */
             ppjb_lookup AS MATERIALIZED (
                 SELECT
                     bp.ppjb_id,
@@ -1099,14 +952,6 @@ class daftar_sp_sudah_ppjb_m extends Model
             ),
 
             jadwal_source AS MATERIALIZED (
-                /*
-                 * DISTINCT dihapus.
-                 *
-                 * Sebelumnya baris jadwal dengan jadwal_id kosong atau berulang
-                 * dan nilai yang kebetulan sama ikut tergabung menjadi satu,
-                 * sehingga HARGA_SETELAH_PPJB menjadi lebih kecil daripada
-                 * SUM(JUMLAH) pada query desktop.
-                 */
                 SELECT
                     pl.ppjb_id,
                     jadwal_angsuran.kd_transaksi,
@@ -1136,22 +981,10 @@ class daftar_sp_sudah_ppjb_m extends Model
             ),
 
             pembeli_ppjb_match AS MATERIALIZED (
-                /*
-                 * Pencarian pembeli ikut memakai ppjb_lookup, sama seperti
-                 * angsuran dan jadwal. Sebelumnya hanya dicocokkan dengan
-                 * ppjb_id apa adanya, sehingga PPJB yang di sr_pembeli_ppjb
-                 * tersimpan dengan format angka saja tidak pernah ketemu dan
-                 * kolom Nama Pembeli selalu berisi '-'.
-                 */
                 SELECT
                     pl.ppjb_id,
                     pp.nasabah_id,
 
-                    /*
-                     * Database baru tidak lagi menjamin NASABAH_ID bertipe numeric.
-                     * Simpan dan bandingkan sebagai text agar ID alfanumerik tetap utuh.
-                     * Tidak ada karakter yang dibuang sehingga data pembeli tidak berubah.
-                     */
                     NULLIF(
                         UPPER(BTRIM(CAST(pp.nasabah_id AS text))),
                         ''
@@ -1170,15 +1003,6 @@ class daftar_sp_sudah_ppjb_m extends Model
             ),
 
             pembeli_ppjb AS MATERIALIZED (
-                /*
-                 * Nilai '-' tidak lagi dijadikan cadangan di dalam COALESCE.
-                 * Dengan begitu pembeli yang namanya tidak ditemukan menghasilkan
-                 * NULL dan dilewati STRING_AGG, sehingga kolomnya tidak pernah
-                 * berisi "-, NAMA" ketika satu PPJB punya beberapa pembeli dan
-                 * hanya sebagian yang namanya ketemu. Ketika tidak ada satu pun
-                 * nama, hasilnya NULL dan tetap ditampilkan sebagai '-' oleh
-                 * COALESCE pada SELECT utama.
-                 */
                 SELECT
                     pm.ppjb_id,
                     STRING_AGG(
@@ -1356,12 +1180,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         }
 
         if (count($lookupPairs) < 1) {
-            /*
-             * Sebelumnya seluruh baris dibuang di sini. Query desktop tidak
-             * pernah membuang baris hanya karena PPJB_ID tidak dapat dibaca;
-             * ISNULL(...) membuat JML_BAYAR menjadi 0 dan baris tetap tunduk
-             * pada HAVING persentase. Perilaku itu yang ditiru di sini.
-             */
             $this->applyPembayaranToRows($rows, [], $minimalPersen);
 
             return;
@@ -1370,10 +1188,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         $idKeys = [];
         $lookupIds = [];
 
-        /*
-         * Pasangan yang nilainya bukan angka dibuang bersama kuncinya ketika
-         * sr_angsuran.ppjb_id bertipe angka, agar kedua array tetap sejajar.
-         */
         $angsuranNumerik = $this->isNumericColumn('sr_angsuran', 'ppjb_id');
         $lookupTipe = $angsuranNumerik ? 'numeric' : 'text';
 
@@ -1392,10 +1206,6 @@ class daftar_sp_sudah_ppjb_m extends Model
             return;
         }
 
-        /*
-         * Dua parameter array jauh lebih ringan diparse PostgreSQL dibanding
-         * ratusan/ribuan placeholder VALUES (?, ?).
-         */
         $bindings = [
             $this->pgTextArray($idKeys),
             $angsuranNumerik
@@ -1405,16 +1215,6 @@ class daftar_sp_sudah_ppjb_m extends Model
 
         $schema = self::SCHEMA;
 
-        /*
-         * Sama seperti query desktop:
-         * JML_BAYAR = SUM(ANGSURAN.JUMLAH_BAYAR)
-         * dengan KODE_TRANSAKSI yang FLAG_HITUNG='Y' dan FLAG_PAJAK='Y', atau DCB,
-         * serta ANGSURAN.FLAG_AKTIF='A'.
-         *
-         * Dipisahkan dari query utama agar sr_angsuran hanya diproses untuk
-         * daftar PPJB yang sudah lolos filter utama. Optimasi ini tidak
-         * membutuhkan pembuatan index atau perubahan skema database.
-         */
         $sql = <<<SQL
             WITH lookup(id_key, ppjb_lookup) AS (
                 SELECT *
@@ -1423,23 +1223,6 @@ class daftar_sp_sudah_ppjb_m extends Model
             ),
 
             sumber AS (
-                /*
-                 * DISTINCT dihapus.
-                 *
-                 * Query desktop memakai SUM(JUMLAH_BAYAR) atas seluruh baris
-                 * ANGSURAN. Dengan DISTINCT, dua pembayaran yang kebetulan
-                 * sama persis (PPJB, kode transaksi, jumlah, dan tanggal
-                 * kuitansi yang sama) tergabung menjadi satu sehingga
-                 * JML_BAYAR di web lebih kecil daripada desktop. Hal ini
-                 * terjadi juga ketika angsuran_id kosong pada data hasil
-                 * migrasi.
-                 *
-                 * DISTINCT juga tidak diperlukan untuk mencegah satu baris
-                 * angsuran terhitung dua kali: daftar lookup hanya memuat
-                 * versi angka ketika nilainya berbeda dari ID aslinya,
-                 * sehingga satu baris angsuran mustahil cocok dua kali untuk
-                 * PPJB yang sama.
-                 */
                 SELECT
                     lookup.id_key,
                     angsuran.kd_transaksi,
@@ -1504,13 +1287,6 @@ class daftar_sp_sudah_ppjb_m extends Model
         $this->applyPembayaranToRows($rows, $bayarByPpjb, $minimalPersen);
     }
 
-    /**
-     * Isi JML_BAYAR, PROSENTASE, dan TGL_CAPAI lalu terapkan batas persentase.
-     *
-     * Penyaringan di sini meniru klausa HAVING pada query desktop, yaitu
-     * ( JML_BAYAR / HARGA_SETELAH_PPJB ) * 100 >= :persen. Tidak ada baris
-     * yang dibuang karena alasan lain.
-     */
     private function applyPembayaranToRows(array &$rows, array $bayarByPpjb, float $minimalPersen): void
     {
         $filteredRows = [];
@@ -1526,10 +1302,6 @@ class daftar_sp_sudah_ppjb_m extends Model
                 ? ($jmlBayar / $hargaSetelahPpjb) * 100
                 : 0.0;
 
-            /*
-             * Filter tetap memakai nilai asli seperti HAVING desktop.
-             * Tampilan dikunci maksimal 100 agar tidak muncul 100.1122...
-             */
             if (($prosentaseRaw + 0.000001) < $minimalPersen) {
                 unset($row->PPJB_ID_INTERNAL);
                 continue;

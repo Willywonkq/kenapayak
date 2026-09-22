@@ -1,10 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - REKAP ESTIMASI BIAYA AJB
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260916
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-
 namespace App\Models\SRIS\AktaJualBeli;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,23 +12,9 @@ class rekap_estimasi_biaya_ajb_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
-    /**
-     * Master cluster.
-     *
-     * Desktop menyebutnya Cluster, sumber datanya tabel SEKTOR, sama dengan
-     * lookup Sektor/Cluster pada fitur Daftar Undangan Surat Rumah.
-     *
-     * Kode perusahaan yang kosong ikut ditampilkan. Pada hasil migrasi
-     * sebagian baris master tidak membawa kode perusahaan, sedangkan desktop
-     * tetap memakai sektornya lewat STOK.
-     */
     public function obtainCluster($kdPerusahaan)
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -79,12 +60,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
         );
     }
 
-    /**
-     * Lookup Blok/Nomor.
-     *
-     * Query mengikuti obtainBlok() pada model Daftar Undangan Surat Rumah,
-     * sehingga daftar unit yang muncul sama persis dengan fitur tersebut.
-     */
     public function obtainBlok($kdPerusahaan): array
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -109,12 +84,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
             'kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2',
         ]);
 
-        /*
-         * Pada hasil migrasi kolom jenis dan tipe bangunan di sr_stok
-         * bernama kd_jenis_bgn dan kd_tipe_bgn, sedangkan di sr_tipe dan
-         * sr_jenis_bangunan tetap kd_jenis dan kd_tipe. Karena itu nama
-         * kolomnya dicari lebih dulu, seperti kolom kode lainnya.
-         */
         $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
         $stokTipe = $this->kolomKode('sr_stok', ['kd_tipe_bgn', 'kd_tipe']);
 
@@ -179,11 +148,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ON BTRIM(CAST(ppjb.ppjb_id AS TEXT))
                  = BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT))
 
-            /*
-             * Desktop memakai INNER JOIN ke NASABAH. Di PostgreSQL sebagian
-             * pasangannya belum ikut tersalin, sehingga INNER JOIN akan
-             * menghapus unit yang di desktop tetap tampil.
-             */
             LEFT JOIN public.sr_nasabah AS nasabah
                 ON BTRIM(CAST(pembeli_ppjb.nasabah_id AS TEXT))
                  = BTRIM(CAST(nasabah.nasabah_id AS TEXT))
@@ -229,9 +193,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
         ]);
     }
 
-    /**
-     * Entry utama data laporan Rekap Estimasi Biaya AJB.
-     */
     public function obtainRekapEstimasiBiayaAjb($request): array
     {
         $perusahaan = $this->normalizeText(
@@ -270,24 +231,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
         );
     }
 
-    /**
-     * Query laporan.
-     *
-     * Query desktop dipertahankan apa adanya, kecuali beberapa penyesuaian
-     * yang dijelaskan pada komentar di dalam SQL. Join implisit pada
-     * subquery JENIS_BGN diubah menjadi JOIN eksplisit.
-     *
-     * Padanan dialek yang dipakai: ISNULL -> COALESCE, + -> ||,
-     * GETDATE() -> CURRENT_TIMESTAMP, SELECT TOP (1) -> DISTINCT ON,
-     * OUTER APPLY -> ekspresi CASE di dalam CTE, ISDATE() -> kawal regex,
-     * NOT LIKE '%[^0-9]%' -> ~ '^[0-9]+$',
-     * RIGHT(REPLICATE('0',50)+x,50) -> LPAD(x,50,'0').
-     *
-     * Fungsi F_GET_PEMBELI() milik SQL Server tidak ada di PostgreSQL.
-     * Penggantinya adalah tabel bantu pembeli_ppjb_nama yang menggabungkan
-     * nama seluruh pembeli aktif pada satu PPJB, sama seperti cara model
-     * Daftar Penjualan Tanda Jadi Agen mengganti F_GET_PEMBELI_DP().
-     */
     private function obtainEstimasiBiaya(
         string $perusahaan,
         string $cluster,
@@ -307,17 +250,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
         ]);
         $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
 
-        /*
-         * Syarat penyaring unit dipakai di dua tempat dan dirakit sekali di
-         * sini supaya tidak mungkin berbeda.
-         *
-         * Keduanya sengaja tidak memakai satu CTE bersama. CTE yang dirujuk
-         * lebih dari sekali otomatis dimaterialisasi oleh PostgreSQL, dan
-         * begitu itu terjadi jumlah barisnya tidak lagi terlihat oleh
-         * perencana. Pada percobaan sebelumnya stok_terpilih ditaksir satu
-         * baris padahal isinya 5.167, sehingga nested loop tampak murah dan
-         * sr_ppjb dibaca habis 5.167 kali.
-         */
         $syaratStok = <<<SQL
         UPPER(BTRIM(COALESCE(CAST(stok.flag_aktif AS TEXT), ''))) = 'A'
                   AND stok.blok IS NOT NULL
@@ -345,15 +277,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
 
         $sql = <<<SQL
             WITH awalan_unit AS MATERIALIZED (
-                /*
-                 * Awalan kunci yang dipakai tiap unit, dibaca dari STOK_ID
-                 * pada sr_stok. Diukur pada database DTSA: kedua puluh enam
-                 * kode perusahaan masing-masing hanya memakai satu awalan,
-                 * misalnya DTSA dan SBKS memakai DBPSA- sedangkan SSPG dan
-                 * SPCK memakai DBPSS-. DISTINCT ON mengambil yang terbanyak
-                 * supaya tetap satu baris per unit seandainya suatu saat ada
-                 * unit yang datanya bercampur.
-                 */
                 SELECT DISTINCT ON (kode_unit) kode_unit, awalan
                 FROM (
                     SELECT
@@ -370,27 +293,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ORDER BY kode_unit, jumlah DESC, awalan
             ),
             biaya_terpilih AS (
-                /*
-                 * Tiga CTE besar di sini sengaja TIDAK ditandai MATERIALIZED.
-                 * MATERIALIZED menyembunyikan jumlah baris dari perencana,
-                 * dan pada percobaan sebelumnya stok_terpilih ditaksir satu
-                 * baris padahal isinya 5.167. Akibatnya PostgreSQL memilih
-                 * nested loop dan membuang 267 juta baris hanya untuk
-                 * mendapat 84 baris hasil. MATERIALIZED hanya dipakai pada
-                 * tabel bantu kecil, yang memang perlu dicegah dihitung
-                 * ulang berkali-kali.
-                 */
-                /*
-                 * Pada database legacy kolom tanggal dapat berisi nilai yang
-                 * tidak valid, sehingga tanggal dokumen dikonversi aman dulu
-                 * sebelum dibandingkan dengan rentang filter. Ini padanan
-                 * OUTER APPLY + ISDATE() desktop.
-                 *
-                 * Batas atas dibuat eksklusif (tanggal akhir + 1 hari) agar
-                 * baris yang jamnya bukan 00:00 pada tanggal akhir tetap
-                 * ikut. Query asli memakai <= tanggal akhir, sehingga baris
-                 * seperti itu terlewat.
-                 */
                 SELECT
                     biaya_ajb.*,
                     CASE
@@ -420,15 +322,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
                       END < CAST(:tgl_akhir_eksklusif AS DATE)
             ),
             stok_terpilih AS (
-                /*
-                 * Kunci pada database ini harus dibandingkan lewat BTRIM dan
-                 * CAST, dan perbandingan semacam itu tidak bisa memakai
-                 * index. Karena itu stok disaring unit, cluster, dan blok
-                 * lebih dulu supaya yang dijoin tinggal sedikit.
-                 *
-                 * Cabang pertama membandingkan BLOK/NOMOR sebagai satu teks,
-                 * cabang kedua hanya blok.
-                 */
                 SELECT
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
@@ -448,20 +341,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ORDER BY kode, urutan_fisik
             ),
             jenis_bgn_unik AS MATERIALIZED (
-                /*
-                 * Pengganti subquery JENIS_BGN.
-                 *
-                 * Subquery desktop mencari JENIS_BANGUNAN lewat STOK milik
-                 * PPJB yang PPJB_ID-nya sama dengan baris biaya. STOK itu
-                 * sama dengan STOK yang sudah disambung pada query utama,
-                 * jadi hasilnya sama persis bila JENIS_BANGUNAN dicari
-                 * langsung dari kode jenis pada STOK tersebut.
-                 *
-                 * Bentuk lama menyambung sr_jenis_bangunan, sr_stok, dan
-                 * sr_ppjb lebih dulu, yang berarti 62.000 lawan 62.000 baris
-                 * hanya untuk mengambil satu kolom. Sekarang cukup membaca
-                 * sr_jenis_bangunan yang berisi beberapa baris saja.
-                 */
                 SELECT DISTINCT ON (kode) kode, flag_laporan
                 FROM (
                     SELECT
@@ -473,13 +352,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ORDER BY kode, urutan_fisik
             ),
             ppjb_unit AS (
-                /*
-                 * Daftar PPJB milik unit yang sedang dilaporkan. Dipakai
-                 * untuk mempersempit penggabungan nama pembeli. Bentuk
-                 * daftar seperti ini disambung dengan hash join, sedangkan
-                 * EXISTS berkorelasi akan dijalankan ulang untuk setiap
-                 * baris sr_pembeli_ppjb.
-                 */
                 SELECT DISTINCT BTRIM(CAST(p.ppjb_id AS TEXT)) AS kode
                 FROM public.sr_ppjb AS p
                 INNER JOIN public.sr_stok AS stok
@@ -488,16 +360,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 WHERE {$syaratStok}
             ),
             pembeli_ppjb_nama AS MATERIALIZED (
-                /*
-                 * Pengganti F_GET_PEMBELI(PPJB_ID) milik SQL Server. Nama
-                 * seluruh pembeli aktif pada satu PPJB digabung, sama seperti
-                 * cara model Daftar Penjualan Tanda Jadi Agen mengganti
-                 * F_GET_PEMBELI_DP().
-                 *
-                 * Hanya PPJB milik unit yang sedang dilaporkan yang dihitung.
-                 * Tanpa batas itu seluruh 63.000 baris sr_pembeli_ppjb ikut
-                 * digabung padahal yang terpakai hanya sebagian kecil.
-                 */
                 SELECT
                     BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT)) AS kode,
                     STRING_AGG(
@@ -574,41 +436,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
 
             FROM biaya_terpilih AS biaya_ajb
 
-            /*
-             * PPJB_ID ditulis berbeda di kedua tabel karena migrasi tidak
-             * utuh. sr_ppjb menyimpan teks lengkap berawalan seperti
-             * DBPSA-18784, sedangkan sr_biaya_ajb terlanjur dibuat bertipe
-             * numeric sehingga awalannya terbuang dan hanya menyisakan
-             * 18784. Diukur pada database DTSA: dari 1.664 baris
-             * sr_biaya_ajb yang PPJB_ID-nya terisi, nol yang cocok bila
-             * dibandingkan apa adanya.
-             *
-             * Awalan itu tidak boleh ditebak dari angkanya saja. Ada dua
-             * awalan yang dipakai bersamaan, DBPSA- dan DBPSS-, dan dari
-             * 62.328 baris sr_ppjb hanya 38.895 angka yang berbeda: angka
-             * yang sama dipakai oleh kedua awalan. Membandingkan angkanya
-             * saja membuat 1.348 dari 1.664 baris biaya menempel ke dua
-             * PPJB sekaligus, dan salah satunya pasti milik unit lain.
-             *
-             * Untungnya sr_biaya_ajb membawa KD_PERUSAHAAN sendiri, dan
-             * setiap unit hanya memakai satu awalan. Jadi awalan yang benar
-             * diambil dari unit pada baris biaya itu, lalu disambung dengan
-             * angkanya menjadi PPJB_ID yang utuh. Hasilnya menunjuk tepat
-             * satu PPJB, sama pastinya seperti cara model Daftar Akta Jual
-             * Beli mengambil awalan SERTIPIKAT_ID dari PPJB_ID.
-             *
-             * Bila PPJB_ID pada baris biaya ternyata sudah membawa awalan
-             * sendiri, nilainya dipakai apa adanya, sehingga skema yang
-             * kuncinya sudah konsisten tidak ikut berubah.
-             */
-            /*
-             * Kunci PPJB yang utuh sudah dihitung di dalam biaya_terpilih,
-             * sekali untuk tiap baris biaya. Menghitungnya di sini membuat
-             * syarat join menyangkut tiga tabel sekaligus, dan PostgreSQL
-             * tidak bisa memakai hash join untuk bentuk seperti itu
-             * sehingga jatuh ke nested loop yang membaca habis sr_ppjb
-             * berulang kali.
-             */
             INNER JOIN public.sr_ppjb AS ppjb
                 ON BTRIM(CAST(ppjb.ppjb_id AS TEXT)) = biaya_ajb.kunci_ppjb
                AND UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
@@ -620,12 +447,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
                 ON BTRIM(CAST(biaya_ajb.kd_notaris AS TEXT))
                  = BTRIM(CAST(tbl_notaris.kd_notaris AS TEXT))
 
-            /*
-             * Query desktop ikut menyambung BANK lewat TBL_NOTARIS.KD_BANK
-             * meskipun tidak ada satu pun kolom BANK yang dipilih. Join itu
-             * dipertahankan apa adanya supaya jumlah barisnya sama persis
-             * dengan desktop.
-             */
             LEFT JOIN public.sr_bank AS bank
                 ON BTRIM(CAST(tbl_notaris.kd_bank AS TEXT))
                  = BTRIM(CAST(bank.kd_bank AS TEXT))
@@ -639,11 +460,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
             LEFT JOIN pembeli_ppjb_nama
                 ON pembeli_ppjb_nama.kode = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
 
-            /*
-             * Query asli tidak memiliki ORDER BY. Urutan ditambahkan supaya
-             * baris dapat dikelompokkan per cluster pada laporan, persis
-             * seperti tampilan desktop.
-             */
             ORDER BY
                 "NM_CLUSTER" ASC,
                 UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) ASC,
@@ -674,11 +490,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
         ]);
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
-     * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
-     * unit. Sama seperti pada model lain yang sudah dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $kolomTabel = [];
@@ -710,9 +521,6 @@ class rekap_estimasi_biaya_ajb_m extends Model
         );
     }
 
-    /**
-     * Menormalisasi tanggal request menjadi format Y-m-d.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);

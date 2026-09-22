@@ -82,11 +82,6 @@
         color: #1e40af;
     }
 
-    /*
-     * Checkbox direstyle jadi kotak modern bercentang biru, konsisten
-     * dengan Approval Entry Final QC. Elemen <input type="checkbox">
-     * dan id/class yang dipakai JS tidak diubah sama sekali.
-     */
     .approval-rs-checkbar input[type="checkbox"],
     .approval-rs-table input[type="checkbox"] {
         appearance: none;
@@ -423,10 +418,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }

@@ -64,14 +64,6 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
         ['KD_LOKASI' => 'WG',    'DESKRIPSI' => 'Wisma Gading Permai'],
     ];
 
-    /**
-     * Laporan ini harus memuat seluruh unit seperti desktop, karena baris TOTAL
-     * PENJUALAN dihitung dari jumlah baris yang dikirim ke tampilan. Batas bawaan
-     * 700 baris membuat total di web ikut terpotong tanpa peringatan apa pun,
-     * jadi bawaannya sekarang tanpa batas.
-     *
-     * Batas hanya berlaku bila request memang mengirim limit/page_limit/per_page.
-     */
     private const DEFAULT_VIEW_LIMIT = 0;
     private const MAX_VIEW_LIMIT = 5000;
 
@@ -79,11 +71,6 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
     {
         $kdPerusahaan = strtoupper(trim((string) $kdPerusahaan));
 
-        /*
-         * Kode sektor wajib berasal dari sr_stok karena nilai inilah yang
-         * dipakai kembali oleh filter laporan. sr_sektor dan sr_lokasi hanya
-         * melengkapi deskripsi seperti pada model Daftar Unit ST.
-         */
         $sql = <<<'SQL'
             WITH
             stok_sektor AS (
@@ -363,19 +350,8 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
 
         $schema = self::SCHEMA;
 
-        /*
-         * Catatan penting:
-         * Query SQL Server asli yang diberikan tidak memasang filter NOT EXISTS PPJB.
-         * Karena itu model ini juga tidak membuang unit yang sudah punya PPJB,
-         * agar daftar barisnya mengikuti laporan desktop.
-         */
         $sql = <<<SQL
             WITH raw_base AS (
-                /*
-                 * Ambil kolom transaksi/stok dan bentuk kode JSON satu kali.
-                 * Pada versi sebelumnya to_jsonb(stok) dihitung berulang di SELECT,
-                 * filter, dan JOIN untuk baris yang sama.
-                 */
                 SELECT
                     um.uang_muka_id,
                     BTRIM(CAST(um.uang_muka_id AS text)) AS uang_muka_id_text,
@@ -424,16 +400,6 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
             ),
 
             tipe_jenis_lookup AS (
-                /*
-                 * Normalisasi tabel referensi satu kali agar ekspresi UPPER/BTRIM
-                 * tidak dihitung ulang untuk setiap pasangan transaksi.
-                 * Tidak memakai DISTINCT supaya kardinalitas tetap sama dengan JOIN lama.
-                 *
-                 * sr_jenis_bangunan disambung memakai LEFT JOIN. Di SQL Server tabel
-                 * JENIS_BANGUNAN lengkap sehingga INNER JOIN aman, sedangkan di
-                 * PostgreSQL masih ada kd_jenis yang belum tersalin. Dengan INNER JOIN
-                 * baris tipe tersebut hilang dari lookup dan ikut menghilangkan unit.
-                 */
                 SELECT
                     UPPER(BTRIM(CAST(tipe.kd_jenis AS text))) AS kd_jenis,
                     UPPER(BTRIM(CAST(tipe.kd_tipe AS text))) AS kd_tipe,
@@ -453,17 +419,6 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
                     tipe.listrik,
                     tipe.jenis_bangunan
                 FROM raw_base AS raw
-                /*
-                 * Query desktop menyambung TIPE dengan join lama (koma di FROM),
-                 * yang berarti INNER JOIN. Itu aman di SQL Server karena setiap
-                 * pasangan KD_JENIS + KD_TIPE pada STOK pasti ada di TIPE.
-                 *
-                 * Di PostgreSQL pasangan tersebut belum lengkap: sebagian sr_stok
-                 * kd_tipe-nya kosong atau kodenya belum ada di sr_tipe. INNER JOIN
-                 * membuat unit tersebut lenyap dari laporan, padahal desktop tetap
-                 * menampilkannya. Karena itu di sini memakai LEFT JOIN: unitnya tetap
-                 * tampil, hanya kolom Tipe/Jenis/Listrik yang kosong.
-                 */
                 LEFT JOIN tipe_jenis_lookup AS tipe
                     ON tipe.kd_jenis =
                        UPPER(BTRIM(COALESCE(CAST(raw.kd_jenis AS text), '')))
@@ -597,12 +552,6 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
                 GROUP BY uang_muka_id
             ),
 
-            /*
-             * Ketiga lookup berikut menggantikan LEFT JOIN LATERAL yang sebelumnya
-             * dijalankan kembali untuk setiap baris laporan. Hasilnya tetap sama:
-             * satu deskripsi paling awal menurut aturan ORDER BY lama, tetapi setiap
-             * tabel referensi cukup dipindai satu kali untuk seluruh request.
-             */
             lokasi_lookup AS (
                 SELECT
                     kode,
@@ -813,22 +762,7 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
         $rows = DB::connection(self::CONNECTION)->select($sql, $bindings);
         $postgresMs = $this->elapsedMilliseconds($postgresStartedAt);
 
-        /*
-         * Fallback sementara untuk kasus data sr_nasabah PostgreSQL belum lengkap.
-         * Desktop masih membaca SQL Server sehingga nama pembeli bisa muncul,
-         * sedangkan PostgreSQL hanya bisa menampilkan nama yang sudah termigrasi.
-         * Jika koneksi SQL Server lama tersedia di config/database.php, method ini
-         * akan mengisi nama yang masih kosong berdasarkan NO_UANG_MUKA.
-         */
         $sqlServerTiming = $this->hydrateMissingBuyerNamesFromSqlServer($rows);
-
-        /*
-         * Pertahankan seluruh unit yang memenuhi filter transaksi, meskipun
-         * nama pembelinya belum ditemukan di PostgreSQL maupun SQL Server.
-         * Query utama sudah memakai LEFT JOIN dan fallback '-' sehingga blok
-         * seperti GA/001, GA/003, dan GA/005 tidak boleh dibuang hanya karena
-         * data nama pembeli belum lengkap.
-         */
 
         $timing = [
             'resolver_ms' => $resolverMs,
@@ -924,13 +858,6 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
                     }
                 }
 
-                /*
-                 * Jalur langsung di atas dapat memakai indeks bawaan NO_UANG_MUKA.
-                 * Untuk data lama yang mungkin mempunyai spasi/format tidak normal,
-                 * ulangi hanya kode yang belum cocok dengan aturan lama. Dengan cara
-                 * ini hasil tetap kompatibel, tetapi full scan normalisasi tidak
-                 * menjadi jalur utama setiap request.
-                 */
                 $unmatchedChunk = array_values(array_filter(
                     $chunk,
                     static fn ($item) => !isset($matchedNoUangMuka[strtoupper(trim((string) $item))])
@@ -963,10 +890,6 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
                 }
             }
         } catch (Throwable $exception) {
-            /*
-             * Fallback ini tidak boleh membuat laporan gagal. Jika koneksi SQL Server
-             * belum tersedia di environment web, laporan tetap memakai data PostgreSQL.
-             */
             $timing['status'] = 'failed_' . class_basename($exception);
             $timing['duration_ms'] = $this->elapsedMilliseconds($startedAt);
 
@@ -1097,7 +1020,6 @@ class daftar_penjualan_tanda_jadi_agen_m extends Model
         }
 
         if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $value, $m)) {
-            // Format datepicker di web terlihat MM/DD/YYYY.
             return sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[1], (int) $m[2]);
         }
 

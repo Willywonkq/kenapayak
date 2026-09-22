@@ -2,12 +2,7 @@
 
 @section('content')
 
-
 <style>
-    /* =========================================================
-       V31 CLEAN — DAFTAR SERTIPIKAT BALIK NAMA
-       Satu stylesheet final, tanpa tumpukan override V2–V30.
-       ========================================================= */
 
     .sertifikat-balik-nama-page,
     .sertifikat-balik-nama-page * {
@@ -37,9 +32,6 @@
         font-size: 12px;
     }
 
-    /* =========================================================
-       HEADER WORKSPACE
-       ========================================================= */
     .baliknama-view-header {
         position: relative;
         display: flex;
@@ -109,9 +101,6 @@
         letter-spacing: 0.06em;
     }
 
-    /* =========================================================
-       FILTER CARD
-       ========================================================= */
     .desktop-filter-panel {
         position: relative;
         z-index: 30;
@@ -146,21 +135,6 @@
         pointer-events: none;
     }
 
-    /*
-     * Satu sistem grid untuk baris 1 dan baris 2:
-     *
-     * 1 label kiri
-     * 2 input/lookup kiri
-     * 3 s.d / bagian lookup
-     * 4 input/lookup kiri
-     * 5 label kanan
-     * 6 field kanan
-     * 7 s.d / field kanan
-     * 8 field kanan
-     * 9 action
-     *
-     * Label besar diberi ruang sendiri, sehingga tidak tertabrak field.
-     */
     .desktop-filter-panel .filter-row {
         position: relative;
         z-index: 2;
@@ -193,7 +167,6 @@
             72px;
     }
 
-    /* Semua LABEL UTAMA sengaja sama persis. */
     .desktop-filter-panel .label-blok,
     .desktop-filter-panel .label-tanggal,
     .desktop-filter-panel .label-sektor,
@@ -217,7 +190,6 @@
         white-space: nowrap;
     }
 
-    /* Row 1 */
     .filter-row:first-of-type .label-blok { grid-column: 1; }
     .filter-row:first-of-type #blok_awal { grid-column: 2; }
     .filter-row:first-of-type .range-label:first-of-type { grid-column: 3; }
@@ -228,14 +200,12 @@
     .filter-row:first-of-type #tgl_akhir { grid-column: 8; }
     .filter-row:first-of-type .ok-button { grid-column: 9; }
 
-    /* Row 2 */
     .filter-row:nth-of-type(2) .label-sektor { grid-column: 1; }
     .filter-row:nth-of-type(2) .lookup-wrap { grid-column: 2 / 5; }
     .filter-row:nth-of-type(2) .label-ttd { grid-column: 5; }
     .filter-row:nth-of-type(2) .ttd-dropdown { grid-column: 6 / 9; }
     .filter-row:nth-of-type(2) .baliknama-print-button { grid-column: 9; }
 
-    /* Row 3 */
     .baliknama-options-row {
         min-height: 34px !important;
         margin-top: 8px !important;
@@ -249,9 +219,6 @@
         justify-content: flex-start;
     }
 
-    /* =========================================================
-       INPUT / LOOKUP
-       ========================================================= */
     .desktop-input,
     .lookup-value {
         width: 100%;
@@ -353,9 +320,6 @@
         box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12);
     }
 
-    /* =========================================================
-       ACTION BUTTONS — MENTOK DI EDGE CARD PUTIH
-       ========================================================= */
     .ok-button,
     .baliknama-print-button {
         width: calc(100% + 16px);
@@ -398,9 +362,6 @@
         filter: grayscale(.12);
     }
 
-    /* =========================================================
-       APARTEMEN
-       ========================================================= */
     .apartemen-wrap {
         display: inline-flex;
         width: max-content;
@@ -428,9 +389,6 @@
         accent-color: var(--ui-blue);
     }
 
-    /* =========================================================
-       TTD MENGETAHUI
-       ========================================================= */
     .ttd-dropdown {
         position: relative;
         z-index: 90;
@@ -630,9 +588,6 @@
         font-weight: 900;
     }
 
-    /* =========================================================
-       INITIAL / LOADING
-       ========================================================= */
     .report-workspace {
         position: relative;
         z-index: 1;
@@ -714,9 +669,6 @@
         font-weight: 700;
     }
 
-    /* =========================================================
-       REPORT
-       ========================================================= */
     .report-paper {
         width: 100%;
         min-width: 0;
@@ -826,11 +778,6 @@
         width: 100%;
         min-width: 0;
         max-width: 100%;
-        /*
-         * Tinggi kotaknya dibatasi supaya halaman tidak memanjang ke bawah
-         * ketika barisnya banyak. Kelebihannya di-scroll di dalam kotak,
-         * sama seperti Daftar Sertipikat Pecahan.
-         */
         max-height: calc(100vh - 285px);
         min-height: 320px;
         overflow-x: auto;
@@ -868,30 +815,6 @@
         vertical-align: middle;
     }
 
-    /*
-     * Header dibuat menempel supaya tetap terlihat saat isinya di-scroll.
-     *
-     * Kelas head-sticky baru dipasang oleh JavaScript setelah tabelnya
-     * jadi, karena posisi menempel baris kedua harus sama persis dengan
-     * tinggi baris pertama, dan tinggi itu tidak bisa dikunci dari CSS:
-     * browser tetap memakai tinggi isinya. Kalau angkanya ditebak, header
-     * baris kedua naik terlalu tinggi dan data di belakangnya tembus.
-     *
-     * Tanpa JavaScript, tabelnya tampil persis seperti sebelumnya, hanya
-     * tanpa header menempel. Pembatasan tinggi kotaknya tetap jalan.
-     *
-     * Tabel ini memakai border-collapse: collapse, dan garis pada sel yang
-     * menempel tidak ikut terbawa. Garisnya karena itu digambar ulang
-     * memakai inset box-shadow supaya tampilannya tetap sama.
-     */
-    /*
-     * Saat header menempel, garis tabel harus digambar oleh selnya sendiri.
-     * Dengan border-collapse: collapse, garis dan latar digambar oleh tabel
-     * pada posisi aslinya, sehingga ada sisa tipis di bawah header tempat
-     * data di belakangnya tembus. Terbukti pada percobaan di browser: dengan
-     * collapse datanya terlihat menembus header, dengan separate tidak.
-     * Cara ini sama dengan yang dipakai Daftar Sertipikat Pecahan.
-     */
     .desktop-report-table.head-sticky {
         border-collapse: separate;
         border-spacing: 0;
@@ -961,9 +884,6 @@
         background: #ffffff !important;
     }
 
-    /* =========================================================
-       SIGNATURE
-       ========================================================= */
     .report-signature-section {
         width: min(100%, 900px);
         margin: 34px auto 8px;
@@ -1026,9 +946,6 @@
         font-weight: 650;
     }
 
-    /* =========================================================
-       MODAL SEKTOR
-       ========================================================= */
     #sektorModal .modal-content {
         overflow: hidden;
         border: 1px solid #dbe3ef;
@@ -1101,9 +1018,6 @@
         color: #1d4ed8;
     }
 
-    /* =========================================================
-       ZOOM / VIEWPORT
-       ========================================================= */
     @media screen and (max-width: 880px) {
         .desktop-filter-panel {
             padding-left: 12px;
@@ -1140,11 +1054,6 @@
         }
     }
 
-    /* =========================================================
-       PRINT — BLACK & WHITE + FULL BORDERS
-       Orientation sengaja tidak dikunci agar user dapat memilih
-       Portrait / Landscape dari dialog print browser.
-       ========================================================= */
     @media print {
         @page {
             size: auto;
@@ -1173,7 +1082,6 @@
         .report-workspace,
         #mainDisplay,
         .report-paper,
-        /* Saat dicetak, header tidak boleh menempel. */
         .desktop-report-table.head-sticky {
             border-collapse: collapse !important;
         }
@@ -1327,11 +1235,6 @@
         }
     }
 
-    /* =========================================================
-       ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-       Modal informasi yang tampil saat hasil laporan tidak
-       menghasilkan baris data sama sekali.
-       ========================================================= */
         #sertifikatBalikNamaNoDataAlertModal .modal-dialog {
             max-width: 380px;
         }
@@ -1389,7 +1292,6 @@
 
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="sertifikatBalikNamaNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1410,9 +1312,7 @@
     </div>
 </div>
 
-
 <div class="sertifikat-balik-nama-page">
-
 
     <div class="baliknama-view-header" id="balikNamaViewHeader">
         <span>DAFTAR SERTIFIKAT BALIK NAMA </span>
@@ -1549,7 +1449,6 @@
                 </div>
             </div>
 
-
             <button
                 type="button"
                 id="btnPrintBalikNama"
@@ -1561,7 +1460,6 @@
             </button>
 
         </div>
-
 
         <div class="filter-row baliknama-options-row">
             <div class="baliknama-apartemen-slot">
@@ -1592,7 +1490,6 @@
     </section>
 
 </div>
-
 
 <div
     class="modal fade"
@@ -1632,14 +1529,9 @@
 
 @endsection
 
-
 @section('js')
 
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1689,7 +1581,6 @@
         $('#mainDisplay').html('<div class="initial-report"></div>');
     }
 
-
     function getBalikNamaConfig() {
         var $config = $('#balikNamaConfig');
 
@@ -1700,7 +1591,6 @@
             urlData: String($config.attr('data-url-data') || '')
         };
     }
-
 
     function setDefaultDate() {
         var now = new Date();
@@ -1713,7 +1603,6 @@
         $('#tgl_awal').val(today);
         $('#tgl_akhir').val(today);
     }
-
 
     function escapeHtml(value) {
         if (value === null || value === undefined) {
@@ -1728,7 +1617,6 @@
             .replace(/'/g, '&#039;');
     }
 
-
     function escapeJs(value) {
         return String(
             value === null || value === undefined ? '' : value
@@ -1738,7 +1626,6 @@
             .replace(/\r?\n/g, ' ');
     }
 
-
     function valueOrDash(value) {
         return (
             value === null
@@ -1746,7 +1633,6 @@
             || value === ''
         ) ? '-' : value;
     }
-
 
     function formatDate(value) {
         if (!value) {
@@ -1765,7 +1651,6 @@
 
         return text;
     }
-
 
     function formatTanggalIndonesia(dateValue) {
         var date = dateValue instanceof Date
@@ -1788,7 +1673,6 @@
             + ' '
             + date.getFullYear();
     }
-
 
     function formatLuas(value) {
         if (
@@ -1813,7 +1697,6 @@
             }
         );
     }
-
 
     function pickValue(item, keys) {
         item = item || {};
@@ -1905,13 +1788,11 @@
             try {
                 localStorage.setItem(cacheKey, company);
             } catch (error) {
-                // Browser dapat menolak storage; nama tetap dipakai untuk render saat ini.
             }
         }
 
         return company;
     }
-
 
     function getFilterData() {
         return {
@@ -1946,7 +1827,6 @@
         };
     }
 
-
     function validateFilter() {
         if (!$('#blok_awal').val() || !$('#blok_akhir').val()) {
             alert('Rentang blok wajib diisi.');
@@ -1971,11 +1851,6 @@
         return true;
     }
 
-
-    /* ==============================================
-       TTD MENGETAHUI
-       ============================================== */
-
     function toggleTTDDropdown(event) {
         if (event) {
             event.preventDefault();
@@ -1985,11 +1860,9 @@
         var $panel = $('#ttdDropdownPanel');
         var willOpen = !$panel.is(':visible');
 
-        // Tetap memakai mekanisme dropdown lama, hanya ditambahkan state visual modern.
         $panel.stop(true, true).toggle(willOpen);
         $('#ttdDropdown').toggleClass('is-open', willOpen);
     }
-
 
     function chooseTTD(kode, nama) {
         kode = kode || '';
@@ -2012,7 +1885,6 @@
         $('#ttdDropdownPanel').hide();
         $('#ttdDropdown').removeClass('is-open');
     }
-
 
     function loadTTDMengetahui() {
         var perusahaan = $('#perusahaan').val();
@@ -2096,11 +1968,6 @@
 
                 $('#ttdDropdownBody').html(html);
 
-                /*
-                 * Pilih data pertama agar perilakunya mendekati desktop.
-                 * Jika backend sudah memberikan KODE + NAMA, keduanya
-                 * akan langsung tampil.
-                 */
                 if (rows.length) {
                     var firstKode =
                         rows[0].KODE
@@ -2138,18 +2005,12 @@
         });
     }
 
-
     $(document).on('click', function (event) {
         if (!$(event.target).closest('#ttdDropdown').length) {
             $('#ttdDropdownPanel').hide();
             $('#ttdDropdown').removeClass('is-open');
         }
     });
-
-
-    /* ==============================================
-       SEKTOR
-       ============================================== */
 
     function addSektor(kode, deskripsi) {
         $('#sektor').val(kode || '*');
@@ -2159,7 +2020,6 @@
             $('#sektorModal').modal('hide');
         }
     }
-
 
     function filterSektorModal(keyword) {
         var search =
@@ -2171,7 +2031,6 @@
             );
         });
     }
-
 
     function getSektorModal() {
         var perusahaan =
@@ -2309,21 +2168,6 @@
         });
     }
 
-
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -2378,10 +2222,6 @@
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -2429,16 +2269,6 @@
         return css;
     }
 
-    /*
-     * Mencetak lewat frame terpisah seperti fitur lain, menggantikan
-     * window.print() yang ikut membawa seluruh halaman.
-     *
-     * Tidak membuat request baru dan tidak mengubah data. Yang dicetak
-     * adalah laporan yang sudah dirender oleh tombol OK.
-     *
-     * @page hanya mengatur margin dan tidak mengunci size/orientation,
-     * sehingga pilihan Portrait/Landscape tetap tersedia.
-     */
     function printBalikNamaReport() {
         if (!$('#mainDisplay .report-paper').length) {
             alert('Silahkan tampilkan laporan terlebih dahulu dengan menekan OK.');
@@ -2615,27 +2445,7 @@
                 margin: 0 auto;
                 border-bottom: 1px dotted #444;
             }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .desktop-report-table,
@@ -2650,7 +2460,6 @@
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .desktop-report-table th,
             .desktop-report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -2669,12 +2478,10 @@
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .desktop-report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .desktop-report-table tbody tr[class*="sector-row"] > td,
             .desktop-report-table tbody tr[class*="sektor-row"] > td,
             .desktop-report-table tbody tr[class*="cluster-row"] > td,
@@ -2683,17 +2490,11 @@
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .desktop-report-table tbody tr[class*="total-row"] > td,
             .desktop-report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .desktop-report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2722,16 +2523,6 @@
         }, 180);
     }
 
-
-    /* ==============================================
-       DATA LAPORAN
-       ============================================== */
-
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     * Hanya menampilkan pesan; pengambilan data dan render laporan
-     * tetap memakai alur yang sudah ada.
-     */
     function showSertifikatBalikNamaNoDataAlert(message) {
         var text = message || 'Data tidak ditemukan......!';
 
@@ -2789,10 +2580,6 @@
                     );
                 }
 
-                /*
-                 * Hanya setelah tombol OK berhasil,
-                 * laporan lengkap dirender seperti desktop.
-                 */
                 renderReport(rows);
             },
 
@@ -2836,11 +2623,6 @@
         });
     }
 
-
-    /* ==============================================
-       RENDER LAPORAN - MENIRU DESKTOP
-       ============================================== */
-
     function renderReport(rows) {
         rows = Array.isArray(rows) ? rows : [];
 
@@ -2875,7 +2657,6 @@
 
         html += '<div class="report-paper">';
 
-        /* HEADER REPORT — MODEL SAMA DENGAN SERTIPIKAT PECAHAN */
         var first = rows.length > 0 ? rows[0] : {};
         var company = resolveReportCompany(first);
 
@@ -2900,33 +2681,26 @@
         html += '<span class="baliknama-report-live-badge">Live data</span>';
         html += '</div>';
 
-        /* TABLE */
         html += '<div class="desktop-report-table-wrap">';
         html += '<table class="desktop-report-table">';
 
-        /*
-         * V10 ZOOM-STABLE COLGROUP
-         * Total = 100%. Karena semua kolom memakai persentase, tabel selalu
-         * mengikuti lebar report-paper dan kolom Kantor tidak terdorong keluar.
-         */
         html += '<colgroup>';
-        html += '<col style="width:52px">';   // No.
-        html += '<col style="width:110px">';  // Blok/Nomor
-        html += '<col style="width:260px">';  // Nama Pemilik
-        html += '<col style="width:180px">';  // Sertipikat Nomor
-        html += '<col style="width:130px">';  // Sertipikat Tanggal
-        html += '<col style="width:180px">';  // Surat Ukur Nomor
-        html += '<col style="width:130px">';  // Surat Ukur Tanggal
-        html += '<col style="width:100px">';  // Luas
-        html += '<col style="width:140px">';  // Tanggal Input Balik Nama
-        html += '<col style="width:130px">';  // Telepon Rumah
-        html += '<col style="width:130px">';  // HP
-        html += '<col style="width:130px">';  // Kantor
+        html += '<col style="width:52px">';   
+        html += '<col style="width:110px">';  
+        html += '<col style="width:260px">';  
+        html += '<col style="width:180px">';  
+        html += '<col style="width:130px">';  
+        html += '<col style="width:180px">';  
+        html += '<col style="width:130px">';  
+        html += '<col style="width:100px">';  
+        html += '<col style="width:140px">';  
+        html += '<col style="width:130px">';  
+        html += '<col style="width:130px">';  
+        html += '<col style="width:130px">';  
         html += '</colgroup>';
 
         html += '<thead>';
 
-        /* HEADER BARIS 1 */
         html += '<tr>';
 
         html +=
@@ -2966,7 +2740,6 @@
 
         html += '</tr>';
 
-        /* HEADER BARIS 2 */
         html += '<tr>';
 
         html +=
@@ -3013,7 +2786,6 @@
 
         html += '</thead>';
 
-        /* BODY */
         html += '<tbody>';
 
         $.each(rows, function (index, item) {
@@ -3170,11 +2942,6 @@
             html += '</tr>';
         });
 
-        /*
-         * Kalau query berhasil tetapi tidak ada data,
-         * header laporan dan header tabel tetap tampil,
-         * sama seperti report desktop.
-         */
         if (!rows.length) {
             html += '<tr class="empty-data-row">';
             html += '<td colspan="12">&nbsp;</td>';
@@ -3185,7 +2952,6 @@
         html += '</table>';
         html += '</div>';
 
-        /* TANDA TANGAN — mengikuti report desktop */
         html += '<div class="report-signature-section">';
 
         html += '<div class="report-signature-date">';
@@ -3224,14 +2990,6 @@
         $('#btnPrintBalikNama').prop('disabled', false);
     }
 
-    /*
-     * Menempelkan header tabel pada kotak yang di-scroll.
-     *
-     * Posisi baris kedua diambil dari tinggi baris pertama yang benar-benar
-     * dirender, bukan dari angka tetap, karena tinggi itu berubah mengikuti
-     * isi kolom, ukuran font, dan tingkat zoom. Dipanggil ulang saat ukuran
-     * jendela berubah supaya tetap pas.
-     */
     function pasangHeaderMenempel() {
         var tabel = document.querySelector('#mainDisplay .desktop-report-table');
 
@@ -3261,27 +3019,6 @@
         pasangHeaderMenempel();
     });
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -3295,10 +3032,6 @@
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -3353,15 +3086,6 @@
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -3411,12 +3135,6 @@
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -3456,11 +3174,6 @@
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -3510,7 +3223,6 @@
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -3548,8 +3260,6 @@
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -3595,8 +3305,6 @@
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -3654,9 +3362,6 @@
             mulai();
         }
     })();
-
-
-
 
 </script>
 

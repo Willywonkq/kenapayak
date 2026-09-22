@@ -1,7 +1,5 @@
 <?php
 
-// CONTROLLER VERSION SQLSERVER-V1-20260902
-
 namespace App\Http\Controllers\SRIS\Suratrumah;
 
 use App\Http\Controllers\Controller;

@@ -1,7 +1,5 @@
 <?php
 
-// CONTROLLER VERSION POSTGRES-V1-20260916
-
 namespace App\Http\Controllers\SRIS\Suratrumah;
 
 use App\Http\Controllers\Controller;

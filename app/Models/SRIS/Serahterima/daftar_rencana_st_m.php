@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\DB;
 
 class daftar_rencana_st_m extends Model
 {
-    // Minimal fix: unit tetap tampil walaupun NASABAH_ID tidak ditemukan.
     use HasFactory;
 
     private const CONNECTION = 'pgsql';
@@ -72,12 +71,6 @@ class daftar_rencana_st_m extends Model
                 continue;
             }
 
-            /*
-             * NULLIF dikenakan sesudah BTRIM. Kolom kode yang bertipe char
-             * berisi spasi ketika kosong, dan NULLIF terhadap nilai mentah
-             * tidak mengenalinya sebagai kosong, sehingga COALESCE berhenti
-             * di kolom itu dan kolom cadangan berikutnya tidak pernah dipakai.
-             */
             $parts[] = sprintf(
                 "NULLIF(BTRIM(CAST(%s.%s AS TEXT)), '')",
                 $alias,
@@ -535,7 +528,6 @@ class daftar_rencana_st_m extends Model
                     return $cached;
                 }
             } catch (\Throwable $ignored) {
-                // Cache hanya akselerator; kegagalannya tidak menggagalkan laporan.
             }
         }
 
@@ -621,24 +613,6 @@ class daftar_rencana_st_m extends Model
             $metadata,
             [['sr_ppjb', 'ppjb', 'waktu_add']]
         );
-        /*
-         * Kolom waktu berada di sr_ppjb, bukan di sr_tipe.
-         *
-         * Pada query desktop nama kolomnya ditulis tanpa nama tabel, yaitu
-         * ISNULL(TGL_RENCANA_SB, DATEADD(month, ISNULL(waktu, 0), TGL_PPJB)),
-         * sehingga sempat dikira milik TIPE. SQL Server menolak nama kolom
-         * yang ada di lebih dari satu tabel pada FROM, dan query itu berjalan
-         * normal, jadi hanya satu tabel yang memilikinya. sr_tipe terbukti
-         * tidak punya kolom waktu sama sekali, sedangkan sr_ppjb punya waktu,
-         * waktu_add, dan waktu_ppn_dtp. Jadi yang dimaksud adalah PPJB.WAKTU,
-         * satu tabel dengan TGL_RENCANA_SB dan waktu_add di rumus yang sama.
-         *
-         * Ketika masih diarahkan ke sr_tipe, kolomnya tidak ditemukan dan
-         * reportSafeInteger memakai nilai bawaan nol. Akibatnya tanggal
-         * Rencana Serah Terima jatuh menjadi sama dengan tanggal PPJB, dan
-         * karena rumus yang sama dipakai sebagai penyaring rentang tanggal,
-         * kumpulan baris yang terambil pun berbeda dengan desktop.
-         */
         $waktu = $this->reportSafeInteger(
             $metadata,
             [['sr_ppjb', 'ppjb', 'waktu']],
@@ -850,21 +824,6 @@ class daftar_rencana_st_m extends Model
                 FROM public.sr_ppjb AS ppjb
                 INNER JOIN public.sr_stok AS stok
                     ON __JOIN_STOK_PPJB__
-                /*
-                 * Query desktop menyambung TIPE dan JENIS_BANGUNAN dengan join
-                 * lama (koma di FROM), yang berarti INNER JOIN. Itu aman di SQL
-                 * Server karena setiap pasangan KD_JENIS + KD_TIPE pada STOK
-                 * pasti ada di TIPE.
-                 *
-                 * Di PostgreSQL pasangan itu belum lengkap, sehingga INNER JOIN
-                 * membuat unitnya lenyap dari laporan padahal desktop tetap
-                 * menampilkannya. Karena itu di sini memakai LEFT JOIN. Unitnya
-                 * tetap tampil, hanya kolom yang berasal dari tipe yang kosong.
-                 *
-                 * Akibat lain yang perlu diketahui: flag_laporan ikut kosong,
-                 * dan penyaring Non Kavling memakai flag_laporan <> '2',
-                 * sehingga unit tanpa tipe masuk ke Non Kavling.
-                 */
                 LEFT JOIN public.sr_tipe AS tipe
                     ON __TIPE_KD_JENIS__ = __STOK_KD_JENIS__
                     AND __TIPE_KD_TIPE__ = __STOK_KD_TIPE__
@@ -1113,16 +1072,6 @@ class daftar_rencana_st_m extends Model
                 )
                 OR prm.flag_mgmt = 'T'
             )
-            /*
-             * Desktop mengurutkan berdasarkan FLAG_LAPORAN lalu BLOK_NOMOR.
-             * Unit yang tipenya belum ada di sr_tipe tidak punya FLAG_LAPORAN,
-             * dan nilai kosong akan naik ke paling atas sehingga seluruh nomor
-             * urut bergeser dan sulit dibandingkan dengan desktop. Karena itu
-             * baris tanpa FLAG_LAPORAN sengaja ditaruh paling belakang. Urutan
-             * baris yang FLAG_LAPORAN-nya ada tetap sama persis dengan desktop,
-             * dan unit yang tipenya belum lengkap mudah dikenali di bagian
-             * bawah laporan karena kolom jenisnya kosong.
-             */
             ORDER BY
                 CASE WHEN base.flag_laporan = '' THEN 1 ELSE 0 END ASC,
                 "FLAG_LAPORAN" ASC,
@@ -1158,7 +1107,6 @@ class daftar_rencana_st_m extends Model
             try {
                 Cache::store('file')->put($cacheKey, $rows, $cacheSeconds);
             } catch (\Throwable $ignored) {
-                // Hasil laporan tetap dikembalikan walaupun cache gagal.
             }
         }
 
@@ -1315,12 +1263,6 @@ class daftar_rencana_st_m extends Model
                 continue;
             }
 
-            /*
-             * Sengaja ditimpa, bukan hanya diisi jika kosong.
-             * Tujuannya agar record PPJB historis yang salah/lebih lama
-             * tidak mempertahankan nilai kosong atau nilai yang tidak
-             * representatif.
-             */
             $row->NO_SURAT = $bast->no_surat ?? '';
             $row->TGL_SURAT = $bast->tgl_surat ?? null;
             $row->TGL_SERAH_TERIMA = $bast->tgl_serah_terima ?? null;

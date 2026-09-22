@@ -1,21 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - DAFTAR PENGAMBILAN SURAT SURAT
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260918
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-//
-// Penyesuaian khusus PostgreSQL:
-// - OUTER APPLY TOP (1) diganti tabel bantu ber-DISTINCT ON, supaya tidak
-//   dijalankan ulang untuk tiap baris keluaran;
-// - F_GET_PEMBELI diganti STRING_AGG, karena fungsi itu milik SQL Server;
-// - SERTIPIKAT_ID disusun ulang awalannya, lihat kunciSertipikat().
-//
-// Satu perbaikan keamanan yang sekaligus dibawa dari versi SQL Server:
-// di sana kode perusahaan, sektor, dan batas blok disisipkan langsung ke
-// dalam teks query. Di sini seluruhnya memakai parameter terikat, sehingga
-// isi kotak filter tidak bisa ikut dieksekusi sebagai perintah.
-
 namespace App\Models\SRIS\Suratrumah;
 
 use Illuminate\Database\Eloquent\Model;
@@ -26,18 +10,11 @@ use RuntimeException;
 
 class dftr_pengambilan_surat_m extends Model
 {
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
     public $timestamps = false;
 
-    /**
-     * Master sektor berdasarkan unit yang sedang dipakai.
-     */
     public function obtainSektor(string $kdPerusahaan): array
     {
         $perusahaan = $this->normalizeText($kdPerusahaan);
@@ -89,9 +66,6 @@ class dftr_pengambilan_surat_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Memilih query berdasarkan mode laporan.
-     */
     public function obtainDaftarPengambilanSurat(array $filters): array
     {
         $mode = strtolower(trim((string) ($filters['mode'] ?? 'biasa')));
@@ -107,14 +81,6 @@ class dftr_pengambilan_surat_m extends Model
         return $this->obtainRekapSuratBiasa($filters);
     }
 
-    /**
-     * Rekapitulasi surat biasa, mengikuti logika desktop SRIS.
-     *
-     * Aturan tanggalnya khas dan dipertahankan apa adanya: bila HANYA SATU
-     * rentang tanggal yang diisi, rentang itu diperiksa ke SELURUH kolom
-     * tanggal dokumen memakai OR. Bila lebih dari satu diisi, tiap rentang
-     * hanya diperiksa ke kolomnya sendiri, juga digabung dengan OR.
-     */
     private function obtainRekapSuratBiasa(array $filters): array
     {
         $perusahaan = $this->normalizeText($filters['perusahaan'] ?? '');
@@ -166,12 +132,6 @@ class dftr_pengambilan_surat_m extends Model
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
                 FROM public.sr_stok AS stok
-                /*
-                 * Cabang pertama membandingkan kolomnya apa adanya, supaya
-                 * perencana query punya perbandingan kolom biasa yang ada
-                 * statistiknya. Hasilnya sama dengan cabang kedua karena
-                 * parameternya sudah dibuat huruf besar tanpa spasi.
-                 */
                 WHERE (
                         stok.{$stokPerusahaan} = :perusahaan_langsung
                         OR UPPER(BTRIM(COALESCE(
@@ -201,12 +161,6 @@ class dftr_pengambilan_surat_m extends Model
                 WHERE {$syaratTanggal}
             ),
             ppjb_aktif AS MATERIALIZED (
-                /*
-                 * Dikumpulkan lebih dulu menjadi tabel bantu berkunci
-                 * sederhana. Menyambung sr_ppjb, sr_pembeli_ppjb, dan
-                 * sr_nasabah langsung memakai BTRIM(CAST(...)) membuat
-                 * perencana query kehilangan statistik dan salah menaksir.
-                 */
                 SELECT
                     BTRIM(CAST(ppjb.stok_id AS TEXT)) AS kunci_stok,
                     BTRIM(CAST(ppjb.ppjb_id AS TEXT)) AS kunci_ppjb,
@@ -235,13 +189,6 @@ class dftr_pengambilan_surat_m extends Model
                       )
             ),
             sektor_ref AS MATERIALIZED (
-                /*
-                 * Desktop memakai TOP (1) dengan urutan sektor milik unit
-                 * yang sama lebih dulu, lalu yang bertanda aktif. Karena
-                 * laporan ini selalu untuk satu unit, tabel bantunya
-                 * disusun untuk unit itu saja sehingga cukup satu baris
-                 * per kode dan tidak ada baris laporan yang tergandakan.
-                 */
                 SELECT DISTINCT ON (kode) kode, deskripsi
                 FROM (
                     SELECT
@@ -273,12 +220,6 @@ class dftr_pengambilan_surat_m extends Model
                 ORDER BY kode, urutan_fisik
             ),
             akta_ref AS MATERIALIZED (
-                /*
-                 * Padanan OUTER APPLY TOP (1) yang mengambil akta terbaru
-                 * untuk tiap PPJB. NULLS LAST dipasang karena SQL Server
-                 * menaruh NULL paling akhir pada urutan menurun sedangkan
-                 * PostgreSQL menaruhnya paling awal.
-                 */
                 SELECT DISTINCT ON (kunci_ppjb) kunci_ppjb, tgl_akta
                 FROM (
                     SELECT
@@ -398,18 +339,6 @@ class dftr_pengambilan_surat_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Menyusun syarat tanggal dokumen, mengikuti perilaku desktop.
-     *
-     * Ada enam pasang kotak tanggal, satu untuk tiap jenis dokumen. Yang
-     * khas: kalau pengguna hanya mengisi SATU pasang, rentang itu dicari
-     * pada SELURUH kolom tanggal dokumen, bukan hanya pada kolom yang
-     * kotaknya diisi. Kalau mengisi lebih dari satu, tiap rentang hanya
-     * dicari pada kolomnya sendiri.
-     *
-     * Berbeda dari versi SQL Server, tanggalnya di sini dikirim sebagai
-     * parameter terikat, bukan disisipkan ke dalam teks query.
-     */
     private function syaratTanggalDokumen(array $filters): array
     {
         $kategori = [
@@ -441,23 +370,6 @@ class dftr_pengambilan_surat_m extends Model
             return ['TRUE', []];
         }
 
-        /*
-         * HANYA RENTANG PERTAMA YANG DIPAKAI.
-         *
-         * Rentang itu dicari ke SELURUH enam kolom tanggal dokumen, dan
-         * rentang lain yang ikut diisi DIABAIKAN. Jadi mengisi kotak
-         * kedua tidak mengubah hasilnya sama sekali.
-         *
-         * Aturan ini terdengar aneh, tetapi memang begitu perilaku
-         * aplikasi desktop. Model SQL Server sebelumnya menerapkannya
-         * berbeda: bila lebih dari satu rentang diisi, tiap rentang hanya
-         * dicari ke kolomnya sendiri. Perbedaan itu yang diluruskan di
-         * sini.
-         *
-         * "Pertama" berarti pertama menurut urutan kotaknya di layar,
-         * yaitu IMB, Sertipikat, AJB, SHM, PH, lalu PPJB. Urutan itulah
-         * yang dipakai daftar $kategori di atas.
-         */
         $semuaKolom = array_column($kategori, 0);
         $potongan = [];
 
@@ -477,9 +389,6 @@ class dftr_pengambilan_surat_m extends Model
         return ['(' . implode(' OR ', $potongan) . ')', $bindings];
     }
 
-    /**
-     * Laporan Pengambilan Sertipikat atas nama PT oleh bagian Legal.
-     */
     private function obtainPengambilanSertipikatPt(array $filters): array
     {
         $perusahaan = $this->normalizeText($filters['perusahaan'] ?? '');
@@ -514,14 +423,6 @@ class dftr_pengambilan_surat_m extends Model
         $awalan = $this->awalanUnit($perusahaan);
         $pakaiUnik = $awalan === '';
 
-        /*
-         * sr_sertipikat_idk disambung dengan LEFT JOIN, jadi awalan yang
-         * tidak ketemu hanya membuat kolom pemisahannya kosong, bukan
-         * membuang barisnya. Karena itu di sini TIDAK dipasang penjagaan
-         * keluarga awalan seperti pada mode biasa; laporan tetap terbit
-         * dengan kolom pemisahan kosong, sama seperti kalau baris idk-nya
-         * memang tidak ada.
-         */
         $cteSertipikatUnik = $pakaiUnik ? $this->cteSertipikatUnik() : '';
         $joinSertipikatUnik = $pakaiUnik
             ? "LEFT JOIN sertipikat_unik
@@ -577,12 +478,6 @@ class dftr_pengambilan_surat_m extends Model
                 ORDER BY kunci_sertipikat, urutan_fisik
             ),
             ppjb_induk AS MATERIALIZED (
-                /*
-                 * Padanan OUTER APPLY TOP (1) yang mengambil PPJB induk
-                 * aktif paling baru untuk tiap stok. NULLS LAST dipasang
-                 * karena SQL Server menaruh NULL paling akhir pada urutan
-                 * menurun sedangkan PostgreSQL menaruhnya paling awal.
-                 */
                 SELECT DISTINCT ON (kunci_stok) kunci_stok, kunci_ppjb
                 FROM (
                     SELECT
@@ -602,12 +497,6 @@ class dftr_pengambilan_surat_m extends Model
                          urut_id DESC NULLS LAST
             ),
             pembeli_gabung AS MATERIALIZED (
-                /*
-                 * Pengganti F_GET_PEMBELI milik SQL Server, yang
-                 * menggabungkan nama seluruh pembeli sebuah PPJB menjadi
-                 * satu teks. Urutannya memakai urutan fisik baris, meniru
-                 * fungsi aslinya yang membaca tabel apa adanya.
-                 */
                 SELECT kunci_ppjb, STRING_AGG(nama, ', ' ORDER BY urutan_fisik) AS nama
                 FROM (
                     SELECT
@@ -775,9 +664,6 @@ class dftr_pengambilan_surat_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Nama kolom kode yang dipakai kedua mode, dikumpulkan sekali.
-     */
     private function namaKolom(): array
     {
         return [
@@ -791,12 +677,6 @@ class dftr_pengambilan_surat_m extends Model
         ];
     }
 
-    /**
-     * Master sektor pada sebagian hasil migrasi tidak membawa
-     * kd_perusahaan. Kalau begitu, pencocokan sektor cukup memakai
-     * kodenya saja, persis seperti cabang "SEKTOR.KD_PERUSAHAAN IS NULL"
-     * pada query desktop.
-     */
     private function sektorUnit(): array
     {
         $ada = $this->adaKolom('sr_sektor', 'kd_perusahaan');
@@ -820,13 +700,6 @@ class dftr_pengambilan_surat_m extends Model
         ];
     }
 
-    /**
-     * Pengurutan PPJB_ID sebagai angka.
-     *
-     * Pada SQL Server PPJB_ID bertipe angka sehingga ORDER BY PPJB_ID DESC
-     * membandingkannya sebagai angka. Pada PostgreSQL kolomnya teks
-     * berawalan, dan membandingkan teks memberi urutan berbeda.
-     */
     private function urutanPpjbId(string $kolom): string
     {
         return <<<SQL
@@ -840,32 +713,6 @@ class dftr_pengambilan_surat_m extends Model
         SQL;
     }
 
-    /**
-     * Menyusun ulang SERTIPIKAT_ID agar bisa disamakan dengan
-     * sr_sertipikat.sertipikat_id.
-     *
-     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-26099. Beberapa
-     * tabel hasil migrasi menyimpan kunci yang sama sebagai numeric
-     * sehingga awalannya terbuang; itu sudah terbukti terjadi pada
-     * sr_akta, sr_peralihan, sr_jaminan, dan sr_sertipikat_idk.
-     *
-     * Awalannya TIDAK BOLEH ditebak. Ada dua awalan yang dipakai
-     * bersamaan, DBPSA- dan DBPSS-, dan hampir seluruh angka muncul pada
-     * keduanya. Salah pilih berarti data satu unit menempel ke unit lain,
-     * dan itu tidak kelihatan di layar.
-     *
-     * Dipakai dua cara berjenjang:
-     *
-     * 1. Nilainya masih membawa awalan sendiri, dipakai apa adanya.
-     *    Ini yang berlaku bila kolomnya ternyata bertipe teks.
-     *
-     * 2. Awalan diambil dari UNIT YANG DIMINTA di layar, lewat peta unit
-     *    ke awalan yang dibaca dari sr_stok. Lihat awalanUnit().
-     *
-     * 3. Unitnya tidak ada di peta, hanya angka yang menunjuk ke TEPAT
-     *    SATU sertipikat yang dipakai. Barisnya bisa berkurang, tetapi
-     *    yang tampil dijamin tidak nyasar ke unit lain.
-     */
     private function kunciSertipikat(string $alias, bool $pakaiUnik): string
     {
         $awalan = $pakaiUnik ? 'sertipikat_unik.awalan' : ':awalan_sertipikat';
@@ -880,22 +727,6 @@ class dftr_pengambilan_surat_m extends Model
         SQL;
     }
 
-    /**
-     * Awalan kunci milik satu unit, dibaca dari STOK_ID pada sr_stok.
-     *
-     * Cara ini lebih tepat daripada memilih satu awalan lewat suara
-     * terbanyak seluruh tabel, karena laporan ini memang selalu untuk
-     * SATU unit saja. Sudah diukur pada database hasil migrasi bahwa
-     * kedua puluh enam kode perusahaan masing-masing hanya memakai satu
-     * awalan; misalnya DTSA dan SBKS memakai DBPSA-, sedangkan SSPG dan
-     * SPCK memakai DBPSS-.
-     *
-     * Diambil yang terbanyak supaya tetap satu jawaban seandainya suatu
-     * saat ada unit yang datanya bercampur.
-     *
-     * Hasilnya diingat per unit supaya query penentu ini hanya jalan
-     * sekali untuk tiap unit.
-     */
     private function awalanUnit(string $kdPerusahaan): string
     {
         static $ingatan = [];
@@ -931,13 +762,6 @@ class dftr_pengambilan_surat_m extends Model
             : '';
     }
 
-    /**
-     * Angka yang menunjuk ke tepat satu sertipikat, beserta awalannya.
-     *
-     * Hanya dipakai bila unitnya tidak ada di peta awalan. Angka yang
-     * muncul pada dua keluarga sekaligus sengaja tidak diikutkan, karena
-     * memilih salah satunya berarti menebak.
-     */
     private function cteSertipikatUnik(): string
     {
         return <<<SQL
@@ -957,18 +781,10 @@ class dftr_pengambilan_surat_m extends Model
                 GROUP BY angka
                 HAVING COUNT(*) = 1
             ),
-            
+
         SQL;
     }
 
-    /**
-     * Pengurutan nomor rumah seperti pada desktop: nomor yang seluruhnya
-     * angka didahulukan dan diurutkan sebagai angka, sisanya menyusul.
-     *
-     * Padanan SQL Server:
-     *     NOT LIKE '%[^0-9]%'          -> ~ '^[0-9]+$'
-     *     RIGHT(REPLICATE('0',50)+x,50) -> LPAD(x, 50, '0')
-     */
     private function urutanNomor(string $kolom): string
     {
         return <<<SQL
@@ -986,9 +802,6 @@ class dftr_pengambilan_surat_m extends Model
         SQL;
     }
 
-    /**
-     * Memeriksa keberadaan sebuah kolom pada tabel hasil migrasi.
-     */
     private function adaKolom(string $tabel, string $kolom): bool
     {
         static $ingatan = [];
@@ -1011,12 +824,6 @@ class dftr_pengambilan_surat_m extends Model
         return in_array(strtolower($kolom), $ingatan[$tabel], true);
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil
-     * migrasi. Hanya dipakai untuk kolom kode, karena penamaannya
-     * berbeda-beda antar tabel. Sama seperti pada model lain yang sudah
-     * dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $ingatan = [];
@@ -1036,10 +843,6 @@ class dftr_pengambilan_surat_m extends Model
         return $ingatan[$kunci] = $kandidat[0];
     }
 
-    /**
-     * PostgreSQL memakai format tanggal ISO, bukan gaya CONVERT 112
-     * milik SQL Server.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);
@@ -1080,37 +883,6 @@ class dftr_pengambilan_surat_m extends Model
         return strtoupper(trim((string) $value));
     }
 
-    /**
-     * Menolak menampilkan laporan untuk unit yang keluarga awalannya
-     * TIDAK ADA pada tabel sumber.
-     *
-     * Alasannya ditemukan waktu membandingkan hasil migrasi dengan
-     * sumbernya. Karena sertipikat_id kehilangan awalan, angkanya saja
-     * yang tersisa, dan hampir semua angka dipakai kedua keluarga awalan.
-     * Kalau sebuah unit diminta sedangkan tabel sumber tidak memuat satu
-     * pun baris dari keluarga awalan unit itu, penyusunan ulang tetap
-     * "berhasil" menemukan sertipikat, tetapi seluruh barisnya keliru:
-     * baris milik keluarga lain ditarik dan ditampilkan seolah milik unit
-     * yang diminta.
-     *
-     * Itu bukan kemungkinan di atas kertas. Diukur pada sr_imb, keenam
-     * unit berawalan DBPSS- akan menampilkan 20.140 baris yang seluruhnya
-     * tidak ada dasarnya, karena sr_imb ternyata hanya memuat baris dari
-     * SRIS_PUSAT.
-     *
-     * Laporan kosong masih bisa ditelusuri, sedangkan laporan yang salah
-     * tetapi kelihatan wajar tidak. Karena itu di sini dipilih berhenti
-     * dengan pesan, bukan menampilkan apa adanya.
-     *
-     * Pemeriksaannya membaca data, bukan daftar tetap, sehingga begitu
-     * migrasinya diperbaiki penjagaan ini membuka sendiri tanpa perlu
-     * mengubah kode.
-     *
-     * Dasar pemeriksaan: baris yang angkanya hanya dipakai SATU keluarga
-     * awalan. Baris semacam itu asal-usulnya pasti. Kalau keluarga yang
-     * diminta tidak punya satu pun baris pasti sedangkan keluarga lain
-     * punya, berarti keluarga itu memang tidak terwakili.
-     */
     private function pastikanKeluargaAda(string $tabel, string $awalan): void
     {
         static $ingatan = [];
@@ -1157,12 +929,6 @@ class dftr_pengambilan_surat_m extends Model
             $jumlahPerKeluarga[(string) $item->awalan] = (int) $item->jumlah;
         }
 
-        /*
-         * Tidak ada satu pun baris yang asal-usulnya pasti berarti
-         * pemeriksaan ini tidak punya dasar untuk menyimpulkan apa pun.
-         * Dalam keadaan itu laporan dibiarkan jalan, supaya penjagaan ini
-         * tidak memblokir database yang isinya memang sedikit.
-         */
         if ($jumlahPerKeluarga === []) {
             $ingatan[$kunci] = true;
 

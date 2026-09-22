@@ -1,10 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - DAFTAR PENGAJUAN SERTIPIKAT BALIK NAMA
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260917
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-
 namespace App\Models\SRIS\Suratrumah;
 
 use DateTimeImmutable;
@@ -17,10 +12,6 @@ class dftr_pengajuan_balik_nama_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
@@ -67,24 +58,6 @@ class dftr_pengajuan_balik_nama_m extends Model
         );
     }
 
-    /**
-     * Query laporan Daftar Pengajuan Sertipikat Balik Nama.
-     *
-     * Catatan:
-     * - Logika utama mempertahankan query desktop.
-     * - Tanggal akhir dibuat eksklusif H+1 agar seluruh transaksi pada tanggal
-     *   akhir tetap terambil walaupun AKTA.TGL_INPUT memiliki komponen waktu.
-     *
-     * Padanan dialek yang dipakai: ISNULL -> COALESCE, + -> ||,
-     * GETDATE() -> CURRENT_TIMESTAMP, SELECT TOP (1) -> DISTINCT ON,
-     * OUTER APPLY -> tabel bantu yang disambung LEFT JOIN,
-     * NOT LIKE '%[^0-9]%' -> ~ '^[0-9]+$',
-     * RIGHT(REPLICATE('0',50)+x,50) -> LPAD(x,50,'0').
-     *
-     * Fungsi F_GET_PEMBELI() milik SQL Server tidak ada di PostgreSQL.
-     * Penggantinya tabel bantu yang menggabungkan nama seluruh pembeli aktif
-     * pada satu PPJB, sama seperti pada fitur Rekap Estimasi Biaya AJB.
-     */
     public function obtainDaftarPengajuanBalikNama($request): array
     {
         $perusahaan = $this->normalizeText(
@@ -136,11 +109,6 @@ class dftr_pengajuan_balik_nama_m extends Model
             'kd_perusahaan', 'kd_unit', 'kd_pt',
         ]);
 
-        /*
-         * Pada hasil migrasi kolom jenis bangunan di sr_stok bernama
-         * kd_jenis_bgn, bukan kd_jenis seperti pada query desktop. Sudah
-         * terbukti pada fitur Rekap Estimasi Biaya AJB.
-         */
         $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
 
         $kunciAkta = $this->kunciSertipikat('akta.sertipikat_id');
@@ -149,12 +117,6 @@ class dftr_pengajuan_balik_nama_m extends Model
 
         $sql = <<<SQL
             WITH akta_terpilih AS (
-                /*
-                 * Akta disaring tanggal lebih dulu supaya yang dijoin tinggal
-                 * sedikit. Kunci pada database ini dibandingkan lewat BTRIM
-                 * dan CAST, dan perbandingan semacam itu tidak bisa memakai
-                 * index, sehingga menyempitkan lebih dulu jauh lebih murah.
-                 */
                 SELECT
                     akta.*,
                     {$kunciAkta} AS kunci_sertipikat
@@ -175,17 +137,6 @@ class dftr_pengajuan_balik_nama_m extends Model
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
                 FROM public.sr_stok AS stok
-                /*
-                 * Cabang pertama membandingkan kolomnya apa adanya. Hasilnya
-                 * sama persis dengan cabang kedua, karena parameternya sudah
-                 * dibuat huruf besar tanpa spasi oleh normalizeText, sehingga
-                 * baris yang cocok pada cabang pertama pasti cocok juga pada
-                 * cabang kedua. Gunanya bukan menyaring, melainkan memberi
-                 * perencana query sebuah perbandingan kolom biasa yang ada
-                 * statistiknya. Tanpa itu jumlah baris sr_stok ditaksir 1
-                 * padahal ribuan, dan PostgreSQL memilih nested loop yang
-                 * membaca sr_sertipikat berulang-ulang.
-                 */
                 WHERE (
                         stok.{$stokPerusahaan} = :perusahaan_langsung
                         OR UPPER(BTRIM(COALESCE(
@@ -201,10 +152,6 @@ class dftr_pengajuan_balik_nama_m extends Model
                   AND stok.nomor IS NOT NULL
             ),
             ppjb_aktif AS MATERIALIZED (
-                /*
-                 * Pengganti OUTER APPLY ... SELECT TOP (1) PPJB. Urutannya
-                 * dipertahankan: PPJB terbaru lebih dulu.
-                 */
                 SELECT DISTINCT ON (kunci_stok)
                     kunci_stok, ppjb_id
                 FROM (
@@ -220,10 +167,6 @@ class dftr_pengajuan_balik_nama_m extends Model
                 ORDER BY kunci_stok, tgl_ppjb DESC NULLS LAST, ppjb_id DESC
             ),
             pembeli_nama AS MATERIALIZED (
-                /*
-                 * Pengganti F_GET_PEMBELI(PPJB_ID) milik SQL Server. Nama
-                 * seluruh pembeli aktif pada satu PPJB digabung.
-                 */
                 SELECT
                     BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT)) AS kode,
                     STRING_AGG(
@@ -241,11 +184,6 @@ class dftr_pengajuan_balik_nama_m extends Model
                 GROUP BY 1
             ),
             sektor_ref AS MATERIALIZED (
-                /*
-                 * Pengganti OUTER APPLY ... SELECT TOP (1) SEKTOR. Urutannya
-                 * dipertahankan: yang kode perusahaannya cocok lebih dulu,
-                 * lalu yang berstatus aktif.
-                 */
                 SELECT DISTINCT ON (kode) kode, deskripsi
                 FROM (
                     SELECT
@@ -417,51 +355,6 @@ class dftr_pengajuan_balik_nama_m extends Model
         ]);
     }
 
-    /**
-     * Menyusun ulang SERTIPIKAT_ID agar bisa disamakan dengan
-     * sr_sertipikat.sertipikat_id.
-     *
-     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-18784, sedangkan
-     * sr_akta bertipe numeric sehingga awalannya terbuang dan hanya
-     * menyisakan 18784. Awalannya tidak boleh sekadar dibuang dari sisi
-     * sertipikat, karena ada dua awalan yang dipakai bersamaan, DBPSA- dan
-     * DBPSS-, dan setiap angka muncul pada keduanya.
-     *
-     * Awalan yang benar diambil dari PPJB_ID pada baris akta itu sendiri,
-     * karena kolom itu selamat sebagai teks lengkap. Cara yang sama sudah
-     * terbukti pada fitur Daftar Akta Jual Beli.
-     */
-    /**
-     * Menyusun ulang SERTIPIKAT_ID milik sr_sertipikat_idk agar bisa
-     * disamakan dengan sr_sertipikat.sertipikat_id.
-     *
-     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-21857, sedangkan
-     * sr_sertipikat_idk bertipe numeric sehingga awalannya terbuang dan
-     * hanya menyisakan 21857. Tanpa disusun ulang, sambungan kedua tabel
-     * menghasilkan 0 baris dan laporannya selalu kosong.
-     *
-     * Bila nilainya ternyata sudah membawa awalan sendiri, nilainya dipakai
-     * apa adanya, sehingga tetap benar bila kolomnya suatu saat diperbaiki
-     * menjadi teks.
-     */
-    /**
-     * Syarat rentang blok, dipasang setelah penggabungan tabel.
-     *
-     * Dulu syarat ini berada di dalam stok_terpilih. Bentuknya memakai
-     * UPPER, BTRIM, dan penyambungan teks, sehingga perencana query tidak
-     * punya statistik apa pun untuk menaksirnya dan menduga sr_stok hanya
-     * berisi 1 baris padahal ribuan. Dugaan itu membuat PostgreSQL memilih
-     * nested loop dan membaca sr_sertipikat berulang kali; pada database
-     * uji berisi 6.000 baris, satu laporan memakan 66 detik.
-     *
-     * Hasilnya tidak berubah karena stok disambung dengan INNER JOIN, jadi
-     * menyaring sebelum atau sesudah penggabungan sama saja. Yang berubah
-     * hanya taksiran perencana, dan waktunya turun menjadi di bawah satu
-     * detik.
-     *
-     * Cabang kedua memakai BLOK_AKHIR untuk kedua sisinya, mengikuti query
-     * desktop apa adanya.
-     */
     private function syaratBlok(string $blok, string $nomor): string
     {
         return <<<SQL
@@ -498,36 +391,6 @@ class dftr_pengajuan_balik_nama_m extends Model
             SQL;
     }
 
-    /**
-     * Menentukan awalan sr_sertipikat_idk dari datanya sendiri.
-     *
-     * Awalannya tidak boleh sekadar dibuang dari sisi sr_sertipikat, karena
-     * ada dua awalan yang dipakai bersamaan, DBPSA- dan DBPSS-, dan hampir
-     * seluruh angka muncul pada keduanya. Diukur pada database DTSA, 19.465
-     * dari 23.308 baris idk angkanya ada di kedua keluarga.
-     *
-     * Tiga cara yang dipakai model lain tidak bisa dipakai di sini:
-     * sr_sertipikat_idk tidak membawa KD_PERUSAHAAN seperti sr_biaya_ajb,
-     * kolom SERTIPIKAT_IDK ternyata nomor sertipikat induk dan bukan kunci
-     * berawalan seperti AKTA.PPJB_ID, dan uji kelayakan tanggal memberi
-     * hasil yang sama untuk kedua awalan, 99,0 persen lawan 99,3 persen.
-     *
-     * Penentunya memakai isi datanya sendiri. Kedua tabel menyimpan data
-     * pemisahan yang sama dari dua sisi, sehingga pasangan yang benar isinya
-     * sama dan pasangan yang salah tidak. Diukur pada database DTSA:
-     *
-     *     DBPSA-   23.304 pasangan   13.293 SU_PISAH sama   2.167 beda
-     *     DBPSS-   19.468 pasangan        0 SU_PISAH sama  12.000 beda
-     *
-     * DBPSS- tidak pernah sama sekalipun pada NO_SERTIPIKAT, TGL_SU_PISAH,
-     * TGL_SERTIPIKAT, maupun TGL_INPUT, jadi kecocokan angkanya hanyalah
-     * tabrakan. Dihitung baris per baris, 16.619 baris hanya cocok DBPSA-
-     * dan tidak satu baris pun yang hanya cocok DBPSS-.
-     *
-     * Awalannya tidak ditulis mati di sini, melainkan dihitung dari data
-     * sehingga tetap benar bila suatu saat sumbernya berubah. Hasilnya
-     * diingat supaya query penentu ini hanya jalan sekali.
-     */
     private function awalanSertipikatIdk(): string
     {
         static $awalan = null;
@@ -536,11 +399,6 @@ class dftr_pengajuan_balik_nama_m extends Model
             return $awalan;
         }
 
-        /*
-         * Kedua sisi dibuat berkunci "angka" lebih dulu supaya syarat join
-         * hanya menyangkut dua tabel dan bisa memakai hash join, sama
-         * seperti penentu awalan pada fitur Daftar Peralihan Hak.
-         */
         $sql = <<<SQL
             SELECT
                 ser.awalan AS awalan,
@@ -597,11 +455,6 @@ class dftr_pengajuan_balik_nama_m extends Model
             SQL;
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
-     * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
-     * unit. Sama seperti pada model lain yang sudah dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $kolomTabel = [];
@@ -633,9 +486,6 @@ class dftr_pengajuan_balik_nama_m extends Model
         );
     }
 
-    /**
-     * Menormalisasi tanggal request menjadi format Y-m-d.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);

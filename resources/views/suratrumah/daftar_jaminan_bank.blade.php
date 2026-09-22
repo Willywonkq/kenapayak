@@ -1,24 +1,7 @@
 @extends('layouts.template')
 
-{{-- VERIFIED V14-CLEAN-LABEL-FIT 2026-08-19:
-     - CSS report header yang terduplikasi dikonsolidasikan.
-     - Fungsi JavaScript escapeJs() yang tidak pernah dipanggil dihapus.
-     - CSS .rjb-right dan .rjb-report-filter yang tidak pernah dipakai dihapus.
-     - Label filter dibuat terbaca penuh tanpa mengecilkan font.
-     - Lebar area label dinaikkan dan minimum workspace dibuat 900px agar zoom tidak memotong label.
-     - AJAX, endpoint, getFilterData(), getData(), render data, modal, print, dan mapping field tetap.
---}}
-
 @section('content')
 <style>
-    /* =========================================================
-       DFTR JAMINAN BANK — VISUAL MATCH DAFTAR SERTIPIKAT PECAHAN
-       V3 2026-08-18
-       - Hanya mengubah tampilan/layout view.
-       - ID, AJAX, filter, endpoint, dan struktur data tetap.
-       - Layout dibuat zoom-stable: saat browser zoom berubah,
-         struktur 2 area filter + tombol kanan tidak berubah.
-       ========================================================= */
 
     .rjb-page {
         --rjb-ink: #172033;
@@ -60,9 +43,6 @@
         font-family: "Segoe UI", Tahoma, Arial, sans-serif;
     }
 
-    /* =========================================================
-       HEADER WORKSPACE — sama karakter dengan Sertipikat Pecahan
-       ========================================================= */
     .rjb-view-version {
         position: relative;
         display: flex;
@@ -133,13 +113,6 @@
         letter-spacing: 0.06em;
     }
 
-    /* =========================================================
-       FILTER PANEL
-       Struktur grid tetap:
-       kolom 1 = Blok/Sektor/Jenis,
-       kolom 2 = Tanggal/Status,
-       kolom 3 = tombol OK.
-       ========================================================= */
     .rjb-filter-panel {
         position: relative;
         padding: 20px;
@@ -191,11 +164,6 @@
         min-width: 0;
     }
 
-    /*
-     * Label diberi ruang tetap yang cukup.
-     * Font tidak dikecilkan. Letter-spacing dipadatkan agar label panjang
-     * seperti SEKTOR/CLUSTER dan JENIS JAMINAN tetap terbaca penuh.
-     */
     .rjb-label {
         overflow: visible;
         color: #475467;
@@ -326,10 +294,6 @@
         box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12);
     }
 
-    /*
-     * Tombol OK menempel ke edge kanan filter card
-     * persis pola V9.5 halaman Sertipikat Pecahan.
-     */
     .rjb-ok-button {
         width: 82px;
         min-width: 82px;
@@ -365,12 +329,6 @@
         left: 125%;
     }
 
-    /* =========================================================
-       PRINT ACTION — aman untuk struktur grid lama
-       Action stack menggantikan SATU item tombol OK lama.
-       PRINT diposisikan absolute ke bawah sehingga tidak menjadi
-       item grid baru dan tidak menggeser Sektor/Status/Jenis Jaminan.
-       ========================================================= */
     .rjb-action-stack {
         position: relative;
         width: 82px;
@@ -381,13 +339,6 @@
     }
 
     .rjb-action-stack .rjb-ok-button {
-        /*
-         * OK harus menempel ke edge kanan card persis seperti PRINT.
-         * Negative margin pada versi sebelumnya tidak benar-benar
-         * memindahkan tombol dari track grid, jadi sekarang diposisikan
-         * absolute terhadap action-stack. Ini hanya perubahan visual;
-         * struktur grid dan logic getData() tidak berubah.
-         */
         position: absolute;
         top: 0;
         right: -20px;
@@ -430,11 +381,6 @@
         box-shadow: 0 12px 24px rgba(5, 150, 105, .28);
     }
 
-    /*
-     * PRINT mengikuti pola fitur Sertipikat Berakhir Hak:
-     * belum ada laporan = tombol benar-benar disabled.
-     * Tidak memunculkan notifikasi ketika ditekan.
-     */
     .rjb-print-button:disabled,
     .rjb-print-button:disabled:hover,
     .rjb-print-button:disabled:focus {
@@ -496,17 +442,10 @@
         box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.05);
     }
 
-    /*
-     * Jenis Jaminan tetap berada pada row/kolom lama.
-     * Tidak dipindah dan tidak mengubah id/select.
-     */
     #jenis_jaminan {
         cursor: pointer;
     }
 
-    /* =========================================================
-       REPORT SHELL / INITIAL STATE
-       ========================================================= */
     .rjb-report-workspace {
         position: relative;
         margin-top: 18px;
@@ -590,9 +529,6 @@
         color: #b42318;
     }
 
-    /* =========================================================
-       REPORT HEADER
-       ========================================================= */
     .rjb-live-badge {
         display: inline-flex;
         align-items: center;
@@ -618,12 +554,6 @@
         box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.10);
     }
 
-    /* =========================================================
-       REPORT HEADER STANDARD
-       Struktur visual sama dengan header laporan fitur Sertipikat:
-       perusahaan (kiri) | judul (tengah) | blok/periode (kanan)
-       subtitle: label sektor (kiri) | value sektor (tengah) | LIVE DATA (kanan)
-       ========================================================= */
     .rjb-report-top {
         display: grid;
         grid-template-columns:
@@ -716,9 +646,6 @@
         justify-self: end;
     }
 
-    /* =========================================================
-       TABLE — ukuran font/spacing disamakan dengan Sertipikat Pecahan
-       ========================================================= */
     .rjb-table-wrapper {
         width: 100%;
         max-height: calc(100vh - 285px);
@@ -828,10 +755,6 @@
         font-weight: 800;
     }
 
-    /* =========================================================
-       FOOTER TANDA TANGAN — sama dengan Daftar Sertipikat Pecahan
-       Tetap berada setelah tabel dan tidak mengubah struktur data/AJAX.
-       ========================================================= */
     .rjb-signature-footer {
         width: min(100%, 980px);
         min-height: 190px;
@@ -899,10 +822,6 @@
         border-bottom: 1px dotted #98a2b3;
     }
 
-    /* =========================================================
-       MODAL SEKTOR — visual match modal Sertipikat Pecahan,
-       mekanisme custom modal lama tetap dipakai.
-       ========================================================= */
     #rjbModal {
         position: fixed;
         inset: 0;
@@ -1021,13 +940,6 @@
         color: #1d4ed8;
     }
 
-    /* =========================================================
-       ZOOM-STABLE DESKTOP LAYOUT
-       Tidak ada breakpoint yang mengubah grid menjadi 1 kolom.
-       Jika viewport CSS mengecil akibat browser zoom, layout tetap.
-       Minimum workspace 900px menjaga label dan date field tidak saling menekan.
-       Browser memberi horizontal scroll hanya bila ruang benar-benar lebih kecil.
-       ========================================================= */
     @media screen and (max-width: 900px) {
         .rjb-signature-footer {
             padding-inline: 18px;
@@ -1052,7 +964,6 @@
             min-width: 900px;
         }
     }
-
 
     @media print {
         @page {
@@ -1104,7 +1015,6 @@
             position: static;
         }
 
-        /* PRINT BORDER FIX: semua sisi cell dipaksa tercetak. */
         .rjb-report-top,
         .rjb-sector-line {
             border: 1px solid #777 !important;
@@ -1190,11 +1100,6 @@
         }
     }
 
-    /* =========================================================
-       ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-       Modal informasi yang tampil saat hasil laporan tidak
-       menghasilkan baris data sama sekali.
-       ========================================================= */
         #rjbNoDataAlertModal .modal-dialog {
             max-width: 380px;
         }
@@ -1252,7 +1157,6 @@
 
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="rjbNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1341,25 +1245,7 @@
 
             <div class="rjb-field-row">
                 <label class="rjb-label" for="jenis_jaminan">Jenis Jaminan :</label>
-                {{--
-                    Nilai yang dikirim SENGAJA berupa tulisan, bukan kode.
 
-                    Kolom JENIS_JAMINAN di database berisi kode satu
-                    karakter, tetapi penerjemahan tulisan ke kode dikerjakan
-                    di model pada JENIS_JAMINAN_KODE, bukan di layar. Dengan
-                    begitu controller tetap menerima nilai yang sama seperti
-                    sebelumnya dan tidak perlu ikut diubah.
-
-                    Pernah dicoba mengirim kodenya langsung, dan ditolak
-                    validasi controller dengan pesan "The selected jenis
-                    jaminan is invalid", karena daftar yang diizinkan di sana
-                    memang berisi tulisan ini.
-
-                    IMB sengaja tetap ditampilkan walaupun kodenya tidak
-                    dipakai satu baris pun pada data, supaya pilihannya sama
-                    persis dengan desktop. Sama seperti di desktop, memilih
-                    IMB menghasilkan laporan kosong.
-                --}}
                 <select id="jenis_jaminan" class="rjb-select">
                     <option value="*">Semua</option>
                     <option value="IMB">IMB</option>
@@ -1389,7 +1275,6 @@
     </section>
 </div>
 
-
 <div id="rjbModal" aria-hidden="true">
     <div class="rjb-modal-window">
         <div class="rjb-modal-header">
@@ -1403,10 +1288,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1428,36 +1309,14 @@
         });
     });
 
-    /*
-     * pageshow juga menyala ketika halaman diambil dari bfcache, saat
-     * ready tidak dijalankan lagi.
-     */
     $(window).on('pageshow', function () {
         resetRjbFilter();
     });
 
-
-
-    /*
-     * Mengembalikan setiap kontrol penyaring ke nilai bawaannya.
-     *
-     * Nilai bawaan dibaca dari defaultValue, defaultChecked, dan
-     * defaultSelected, yaitu nilai yang tertulis pada markup. Ketiganya
-     * tidak ikut berubah ketika peramban memulihkan isi form setelah
-     * halaman di-refresh, jadi selalu tepat dipakai sebagai acuan.
-     */
     function resetRjbKontrol(wadah) {
         var daftar = document.querySelectorAll(wadah + ' input, ' + wadah + ' select');
 
         Array.prototype.forEach.call(daftar, function (kontrol) {
-            /*
-             * Input tersembunyi sengaja dilewati. Pada jenis ini menulis
-             * .value ikut mengubah atribut value, sehingga defaultValue
-             * tidak lagi menyimpan nilai awal dan tidak bisa dipakai
-             * sebagai acuan. Nilainya dikembalikan secara tersurat pada
-             * pemanggil, atau dibiarkan apa adanya bila memang berasal
-             * dari sesi dan selalu sama di setiap pemuatan halaman.
-             */
             if (kontrol.type === 'hidden') {
                 return;
             }
@@ -1485,12 +1344,6 @@
         });
     }
 
-    /*
-     * Peramban memulihkan isi form ketika halaman di-refresh atau dibuka
-     * kembali dari bfcache, sehingga blok, sektor, Status AJB, dan Jenis
-     * Jaminan masih membawa pilihan lama padahal laporannya sudah kosong.
-     * Seluruh penyaring karena itu dikembalikan ke keadaan awal di sini.
-     */
     function resetRjbFilter() {
         resetRjbKontrol('.rjb-filter-panel');
         setInitialDesktopValues();
@@ -1505,10 +1358,6 @@
     }
 
     function setInitialDesktopValues() {
-        /*
-         * Tanggal awal dan tanggal akhir Bank sama-sama default ke hari ini.
-         * User tetap dapat mengubah rentang tanggal setelah halaman dibuka.
-         */
         var today = new Date();
         var yyyy = today.getFullYear();
         var mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -1592,12 +1441,6 @@
         });
     }
 
-
-    /*
-     * Khusus kolom Nama Bank/Alamat Bank/Plafond:
-     * nilai kosong tetap mengambil barisnya, tetapi tanpa tanda '-'/angka buatan.
-     * Nilai 0 yang benar-benar berasal dari database tetap ditampilkan 0.
-     */
     function formatCurrencyOrBlank(value) {
         if (value === null || value === undefined || String(value).trim() === '') {
             return '';
@@ -1614,12 +1457,6 @@
                 : value;
     }
 
-    /*
-     * Dipakai khusus di dua kolom gabungan:
-     * - Nama yg Mengajukan / Nomor Pengajuan / Tanggal Pengajuan
-     * - Nama Bank / Alamat Bank / Plafond
-     * Nilai kosong pada dua kolom tersebut tidak diberi placeholder '-'.
-     */
     function valueOrBlank(value) {
         return value === null
             || value === undefined
@@ -1748,14 +1585,6 @@
         });
     }
 
-    /*
-     * Jenis Jaminan tidak diambil DISTINCT dari database.
-     * Pilihan dibuat tetap agar sama dengan combobox aplikasi desktop:
-     * Semua, IMB, Akta Jual Beli, Sertipikat, PPJB, Peralihan Hak.
-     * Yang dikirim ke server adalah tulisannya; model yang menerjemahkan
-     * tulisan itu menjadi kode satu karakter di database.
-     */
-
     function validateFilter() {
         if (!$('#blok_awal').val() || !$('#blok_akhir').val()) {
             alert('Blok awal dan blok akhir wajib diisi.');
@@ -1792,13 +1621,6 @@
         };
     }
 
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     * Hanya menampilkan pesan; pengambilan data dan render laporan
-     * tetap memakai alur yang sudah ada. Jika plugin modal tidak
-     * tersedia pada halaman ini, modal ditampilkan secara manual
-     * sehingga tampilannya tetap sama.
-     */
     function showRjbNoDataAlert(message) {
         var $modal = $('#rjbNoDataAlertModal');
 
@@ -1895,10 +1717,6 @@
         });
     }
 
-    /* =========================================================
-       NAMA PERUSAHAAN — resolver disamakan dengan Sertipikat Pecahan
-       Tujuan: header report menampilkan nama PT, bukan hanya kode UNIT.
-       ========================================================= */
     function extractCompanyName(value) {
         var raw = String(value || '').replace(/\u00a0/g, ' ');
         var locationMatch = raw.match(/Lokasi\s*:[^\r\n|]*?-\s*([^\r\n|]+)/i);
@@ -1992,27 +1810,12 @@
             try {
                 localStorage.setItem(cacheKey, company);
             } catch (error) {
-                // Storage boleh gagal; nama tetap digunakan untuk render saat ini.
             }
         }
 
         return company;
     }
 
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -2067,10 +1870,6 @@
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -2344,27 +2143,7 @@
                 height: 10px;
                 border-bottom: 1px dotted #444;
             }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .rjb-table,
@@ -2379,7 +2158,6 @@
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .rjb-table th,
             .rjb-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -2398,12 +2176,10 @@
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .rjb-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .rjb-table tbody tr[class*="sector-row"] > td,
             .rjb-table tbody tr[class*="sektor-row"] > td,
             .rjb-table tbody tr[class*="cluster-row"] > td,
@@ -2412,17 +2188,11 @@
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .rjb-table tbody tr[class*="total-row"] > td,
             .rjb-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .rjb-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2451,7 +2221,6 @@
         }, 180);
     }
 
-
     function renderReport(rows) {
         var first = rows.length ? rows[0] : {};
         var company = getCompanyName(first);
@@ -2470,11 +2239,6 @@
         var html = '';
         html += '<div class="rjb-paper">';
 
-        /*
-         * Header report mengikuti struktur visual halaman
-         * Daftar Sertipikat Pecahan:
-         * perusahaan | judul | periode/filter.
-         */
         html += '<div class="rjb-report-top">';
         html += '<div class="rjb-company">' + escapeHtml(company) + '</div>';
 
@@ -2497,11 +2261,6 @@
         html += '<div class="rjb-table-wrapper">';
         html += '<table class="rjb-table">';
 
-        /*
-         * Lebar kolom tetap supaya proporsi tidak berubah saat browser zoom.
-         * Bila ruang layar mengecil, wrapper yang scroll horizontal,
-         * bukan struktur tabel/filter yang berubah.
-         */
         html += '<colgroup>';
         html += '<col style="width:48px">';
         html += '<col style="width:90px">';
@@ -2552,17 +2311,6 @@
                     escapeHtml(valueOrDash(pick(item, 'BLOK_NOMOR', 'blok_nomor'))) +
                     '</td>';
 
-                /*
-                 * KHUSUS dua kolom gabungan ini:
-                 * - data yang ada tetap ditampilkan seperti biasa;
-                 * - data yang kosong TIDAK diberi tanda '-';
-                 * - posisi/barisnya tetap dipertahankan, jadi field kosong tidak dihapus.
-                 *
-                 * Contoh:
-                 * NAMA PENGAJU
-                 * [baris nomor pengajuan tetap ada tetapi kosong]
-                 * [baris tanggal pengajuan tetap ada tetapi kosong]
-                 */
                 var namaText = valueOrBlank(nama);
                 var pengajuanText = valueOrBlank(pengajuan);
                 var tglPengajuanText = formatDateOrBlank(tglPengajuan);
@@ -2611,7 +2359,6 @@
         html += '</tbody></table>';
         html += '</div>';
 
-        /* Footer tanda tangan mengikuti Daftar Sertipikat Pecahan / desktop. */
         html += '<div class="rjb-signature-footer">';
         html += '<div class="rjb-signature-date">';
         html += 'Jakarta, ' + escapeHtml(tanggalTandaTangan);
@@ -2639,27 +2386,6 @@
         $('#rjbPrintButton').prop('disabled', false);
     }
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -2673,10 +2399,6 @@
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -2731,15 +2453,6 @@
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -2789,12 +2502,6 @@
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -2834,11 +2541,6 @@
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -2888,7 +2590,6 @@
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -2926,8 +2627,6 @@
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -2973,8 +2672,6 @@
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -3032,9 +2729,6 @@
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

@@ -9,8 +9,6 @@ use Illuminate\Support\Facades\DB;
 
 class daftar_st_m extends Model
 {
-    // V8: basis V4 yang sudah cepat; nasabah dibuat LEFT JOIN agar unit tetap tampil
-    // walaupun referensi nama pembeli hasil migrasi tidak ditemukan.
     use HasFactory;
 
     private const CONNECTION = 'pgsql';
@@ -109,10 +107,6 @@ class daftar_st_m extends Model
         return $default;
     }
 
-    /**
-     * Membaca tipe kolom dari katalog PostgreSQL. Query ini hanya SELECT dan
-     * memungkinkan join ID memakai operator "=" tanpa CAST ketika tipenya sama.
-     */
     private function columnMetadata(): array
     {
         static $metadata;
@@ -171,10 +165,6 @@ class daftar_st_m extends Model
         return null;
     }
 
-    /**
-     * Menghasilkan COALESCE dari kolom yang memang ada pada schema aktif.
-     * Ini menggantikan to_jsonb(row)->>'kolom' yang sangat mahal.
-     */
     private function normalizedColumnExpression(
         array $metadata,
         string $table,
@@ -204,11 +194,6 @@ class daftar_st_m extends Model
             . ')))';
     }
 
-    /**
-     * Perbandingan langsung dipakai untuk numeric/uuid dengan tipe sama.
-     * Jika schema lama menyimpan salah satu ID sebagai teks, perilaku lama
-     * (trim + cast ke text) tetap digunakan agar hasil tidak berubah.
-     */
     private function idJoinExpression(
         array $metadata,
         string $leftTable,
@@ -297,10 +282,6 @@ class daftar_st_m extends Model
             : 'COALESCE(' . implode(', ', $expressions) . ')';
     }
 
-    /**
-     * Master lokasi dan sektor dibaca satu kali. Pemilihan deskripsi meniru
-     * ORDER BY ... LIMIT 1 pada model lama, tetapi tidak diulang per baris ST.
-     */
     private function referenceMaps(string $company): array
     {
         $lokasiRows = DB::connection(self::CONNECTION)->select(
@@ -634,11 +615,6 @@ class daftar_st_m extends Model
             '*'
         );
 
-        /*
-         * Nilai dropdown sektor pada halaman dapat berupa DESKRIPSI, misalnya
-         * "VIOLA RESIDENCE", sedangkan sr_stok menyimpan KODE sektor/lokasi.
-         * Model lama menerjemahkan deskripsi itu ke kode sebelum memfilter.
-         */
         $references = $this->referenceMaps($perusahaan);
         $sektorCandidates = [$sektor];
 
@@ -696,7 +672,6 @@ class daftar_st_m extends Model
                     return $cached;
                 }
             } catch (\Throwable $ignored) {
-                // Cache hanya akselerator; laporan tetap dijalankan.
             }
         }
 
@@ -821,28 +796,10 @@ class daftar_st_m extends Model
             'ppjb_id'
         );
 
-        /*
-         * Pertahankan perilaku model lama untuk NASABAH_ID. Pada beberapa
-         * hasil migrasi, satu sisi bertipe teks dan sisi lain numerik.
-         */
         $nasabahIdType = $metadata['sr_nasabah']['nasabah_id'] ?? null;
         $pembeliNasabahIdType =
             $metadata['sr_pembeli_ppjb']['nasabah_id'] ?? null;
 
-        /*
-         * Sambungan ke sr_nasabah dibuat bertingkat.
-         *
-         * Cabang lama selalu membuang karakter bukan angka dari nasabah_id
-         * milik sr_pembeli_ppjb sebelum dibandingkan. Ketika kedua kolom
-         * bertipe teks dan isinya memuat huruf, misalnya N1, pembuangan itu
-         * menyisakan 1 sehingga tidak pernah cocok dengan N1 di sr_nasabah,
-         * dan seluruh kolom Nama Pembeli menjadi tanda hubung.
-         *
-         * Urutannya sekarang: tipe sama dibandingkan langsung, sisi nasabah
-         * bertipe angka dibandingkan sesudah karakter bukan angka dibuang,
-         * dan selebihnya dibandingkan sebagai teks yang sudah dibuang
-         * spasinya. Cabang terakhir inilah yang sebelumnya tidak ada.
-         */
         if (
             $nasabahIdType !== null
             && $nasabahIdType === $pembeliNasabahIdType
@@ -1076,21 +1033,6 @@ class daftar_st_m extends Model
             'blok_akhir' => $blokAkhir,
         ];
 
-        /*
-         * Penyaring tanggal pada query desktop hanya membandingkan kolomnya
-         * dengan rentang, tanpa jalur cadangan apa pun:
-         *
-         *     ( ( SERAH_TERIMA.TGL_SURAT >= :awal AND <= :akhir ) OR :all = 'Y' )
-         *
-         * Baris yang tanggalnya kosong ikut terbuang, karena perbandingan
-         * dengan NULL tidak pernah bernilai benar.
-         *
-         * Model sebelumnya menambahkan jalur cadangan memakai tanggal
-         * rencana ketika tanggalnya kosong. Jalur itu tidak ada di desktop
-         * dan membuat laporan web kelebihan baris, terutama pada penyaring
-         * Tgl Realisasi karena serah terima yang belum terealisasi ikut
-         * tertarik masuk. Jalur cadangan itu dihapus.
-         */
         if ($tglAll !== 'Y') {
             $where[] = 'serah_terima.tgl_surat >= CAST(:tgl_awal_surat AS DATE)'
                 . " AND serah_terima.tgl_surat < CAST(:tgl_akhir_surat AS DATE) + INTERVAL '1 day'";
@@ -1140,26 +1082,9 @@ class daftar_st_m extends Model
 
         $statusAktif = "COALESCE(NULLIF(UPPER(BTRIM(CAST(serah_terima.flag_aktif AS TEXT))), ''), 'A')";
 
-        /*
-         * Query desktop hanya menuliskan ISNULL(SERAH_TERIMA.FLAG_AKTIF,'A')
-         * yang dibandingkan dengan pilihan Aktif atau Batal. Tidak ada syarat
-         * tambahan mengenai TGL_BATAL.
-         *
-         * Model sebelumnya menambahkan tgl_batal IS NULL pada pilihan Aktif,
-         * sehingga baris yang flag_aktif-nya masih A tetapi tgl_batal-nya
-         * terisi ikut terbuang, padahal desktop tetap menampilkannya.
-         * Nilai Y dan T juga tidak dikenal desktop, jadi ikut dihapus supaya
-         * kedua laporan menyaring dengan syarat yang sama persis.
-         */
         if ($aktif === 'A') {
             $where[] = $statusAktif . " = 'A'";
         } elseif ($aktif === 'B') {
-            /*
-             * Pada sr_serah_terima nilai flag_aktif hanya A dan T, tidak ada
-             * B. Nilai yang dikirim desktop untuk pilihan Batal karena itu
-             * adalah T, sedangkan B dipakai sebagian data lama. Keduanya
-             * diterima supaya pilihan Batal tidak menghasilkan daftar kosong.
-             */
             $where[] = $statusAktif . " IN ('B', 'T')";
         } elseif ($aktif !== '*') {
             $where[] = $statusAktif . ' = :aktif_lain';
@@ -1221,18 +1146,6 @@ class daftar_st_m extends Model
             INNER JOIN public.sr_stok AS stok
                 ON __JOIN_STOK_PPJB__
 
-            /*
-             * Query desktop menyambung TIPE dan JENIS_BANGUNAN dengan join
-             * lama (koma di FROM), yang berarti INNER JOIN. Itu aman di SQL
-             * Server karena setiap pasangan KD_JENIS + KD_TIPE pada STOK
-             * pasti ada di TIPE.
-             *
-             * Di PostgreSQL pasangan itu belum lengkap, sudah terukur 1292
-             * dari 3036 pasangan yang dipakai sr_stok, sehingga INNER JOIN
-             * menghapus unitnya dari laporan padahal desktop menampilkannya.
-             * Karena itu di sini memakai LEFT JOIN. Unitnya tetap tampil,
-             * hanya kolom jenis bangunan yang kosong.
-             */
             LEFT JOIN public.sr_tipe AS tipe
                 ON __JOIN_TIPE_JENIS__
                 AND __JOIN_TIPE_KODE__
@@ -1248,13 +1161,6 @@ class daftar_st_m extends Model
 
             WHERE __WHERE__
 
-            /*
-             * Desktop mengurutkan berdasarkan FLAG_LAPORAN lalu BLOK_NOMOR.
-             * Unit yang tipenya belum ada di sr_tipe tidak punya FLAG_LAPORAN,
-             * dan nilai kosong akan naik ke paling atas sehingga seluruh nomor
-             * urut bergeser dan sulit dibandingkan dengan desktop. Karena itu
-             * baris tanpa FLAG_LAPORAN sengaja ditaruh paling belakang.
-             */
             ORDER BY
                 CASE WHEN __JENIS_FLAG__ = '' THEN 1 ELSE 0 END ASC,
                 "FLAG_LAPORAN" ASC,
@@ -1308,7 +1214,6 @@ class daftar_st_m extends Model
             try {
                 Cache::store('file')->put($cacheKey, $rows, $cacheSeconds);
             } catch (\Throwable $ignored) {
-                // Hasil laporan tetap dikembalikan walaupun cache gagal.
             }
         }
 

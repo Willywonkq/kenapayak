@@ -1,16 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - DAFTAR UNDANGAN SURAT RUMAH
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260918
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-//
-// Penyesuaian khusus PostgreSQL:
-// - OUTER APPLY dan subquery TOP (1) diganti tabel bantu ber-DISTINCT ON;
-// - F_GET_PEMBELI diganti STRING_AGG, karena fungsi itu milik SQL Server;
-// - PPJB_ID dan SERTIPIKAT_ID disusun ulang awalannya bila perlu, lihat
-//   kunciSertipikat() dan kunciPpjb().
-
 namespace App\Models\SRIS\Suratrumah;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,24 +12,9 @@ class dftr_undangan_surat_rumah_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
-    /**
-     * Tabel dan kolom penanda untuk tiap jenis report.
-     * Dikumpulkan di satu tempat supaya keenam jenisnya tidak perlu
-     * ditulis berulang di banyak method.
-     */
-    /**
-     * Jenis report yang query desktopnya TIDAK menyaring
-     * PPJB.FLAG_AKTIF.
-     *
-     * Lihat keterangan pada syaratPpjbAktif().
-     */
     private const JENIS_TANPA_SYARAT_PPJB_AKTIF = ['3'];
 
     private const SUMBER_JENIS = [
@@ -52,9 +26,6 @@ class dftr_undangan_surat_rumah_m extends Model
         '6' => ['tabel' => 'sr_perpanjangan_sertipikat', 'pakai_jenis_surat' => false],
     ];
 
-    /**
-     * Master sektor atau cluster.
-     */
     public function obtainCluster($kdPerusahaan)
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -106,9 +77,6 @@ class dftr_undangan_surat_rumah_m extends Model
         );
     }
 
-    /**
-     * Lookup blok dan nomor beserta pembelinya, untuk modal pencarian.
-     */
     public function obtainBlok($kdPerusahaan): array
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -232,9 +200,6 @@ class dftr_undangan_surat_rumah_m extends Model
         ]);
     }
 
-    /**
-     * Entry utama data report.
-     */
     public function obtainDaftarSuratUndangan($request): array
     {
         $perusahaan = $this->normalizeText(
@@ -282,14 +247,6 @@ class dftr_undangan_surat_rumah_m extends Model
         );
     }
 
-    /**
-     * Report undangan yang sudah dibuat.
-     *
-     * Keenam jenisnya memakai sumber tabel berbeda tetapi kerangka yang
-     * sama, jadi kerangkanya disusun sekali dan bagian yang berbeda saja
-     * yang ditukar. Ini menjaga penyaring blok, sektor, unit, dan tanggal
-     * tetap satu tulisan sehingga tidak bisa berbeda tanpa sengaja.
-     */
     private function obtainUndangan(
         string $perusahaan,
         string $sektor,
@@ -341,22 +298,10 @@ class dftr_undangan_surat_rumah_m extends Model
             $bindings['jenis_surat'] = $jenis;
         }
 
-        /*
-         * Awalan sertipikat HANYA dipakai jenis 6, karena hanya
-         * perpanjangan sertipikat yang bertumpu pada SERTIPIKAT_ID.
-         * Mengikatnya pada jenis lain membuat PostgreSQL menolak
-         * querynya, sebab parameternya tidak ada di dalam teks query.
-         */
         if ($jenis === '6' && !$pakaiUnik) {
             $bindings['awalan_sertipikat'] = $awalan;
         }
 
-        /*
-         * Jenis 1 sampai 5 bertumpu pada PPJB_ID. Syaratnya dibuat persis
-         * sama dengan syarat kunciPpjb() mengeluarkan parameter itu,
-         * supaya tidak pernah ada parameter yang diikat tetapi tidak
-         * dipakai, atau sebaliknya.
-         */
         if ($jenis !== '6' && $awalan !== '') {
             $bindings['awalan_ppjb'] = $awalan;
         }
@@ -381,11 +326,6 @@ class dftr_undangan_surat_rumah_m extends Model
             $bindings['unit_di_nomor'] = strtoupper($perusahaan);
         }
 
-        /*
-         * Jenis 6 bertumpu pada sertipikat, bukan pada PPJB. Karena
-         * sr_perpanjangan_sertipikat menyimpan SERTIPIKAT_ID yang mungkin
-         * kehilangan awalannya, kuncinya disusun ulang lebih dulu.
-         */
         if ($jenis === '6') {
             $cteUnik = $pakaiUnik ? $this->cteSertipikatUnik() : '';
             $joinUnik = $pakaiUnik
@@ -570,12 +510,6 @@ class dftr_undangan_surat_rumah_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Report "Belum Diundang".
-     *
-     * Berangkat dari PPJB, bukan dari surat, lalu membuang yang sudah
-     * punya surat pada rentang tanggal yang diminta.
-     */
     private function obtainBelumDiundang(
         string $perusahaan,
         string $sektor,
@@ -632,14 +566,6 @@ class dftr_undangan_surat_rumah_m extends Model
             $bindings['perusahaan_sektor_saring'] = $perusahaan;
         }
 
-        /*
-         * Daftar yang SUDAH diundang dikumpulkan lebih dulu menjadi tabel
-         * bantu, supaya NOT EXISTS berkorelasi pada desktop berubah
-         * menjadi satu kali baca.
-         *
-         * Jenis 6 berkunci stok, karena perpanjangan sertipikat menempel
-         * pada sertipikat, bukan pada PPJB.
-         */
         if ($jenis === '6') {
             $cteUnik = $pakaiUnik ? $this->cteSertipikatUnik() : '';
             $joinUnik = $pakaiUnik
@@ -730,7 +656,6 @@ class dftr_undangan_surat_rumah_m extends Model
                   AND ppjb.parent_id IS NULL
             ),
             pembeli_gabung AS MATERIALIZED (
-                /* Pengganti F_GET_PEMBELI milik SQL Server. */
                 SELECT kunci_ppjb, STRING_AGG(nama, ', ' ORDER BY urutan_fisik) AS nama
                 FROM (
                     SELECT
@@ -822,9 +747,6 @@ class dftr_undangan_surat_rumah_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Tabel bantu rujukan yang dipakai kedua jalur laporan.
-     */
     private function cteRujukan(
         string $lokasiKode,
         string $sektorKode,
@@ -898,12 +820,6 @@ class dftr_undangan_surat_rumah_m extends Model
         SQL;
     }
 
-    /**
-     * Saringan blok, dipakai kedua jalur laporan.
-     *
-     * Cabang ketiga dipertahankan dari query desktop: bila kedua batas
-     * bernilai bintang, seluruh blok ikut.
-     */
     private function syaratBlok(): string
     {
         return <<<SQL
@@ -931,10 +847,6 @@ class dftr_undangan_surat_rumah_m extends Model
         SQL;
     }
 
-    /**
-     * Susunan CASE untuk alamat, kota, dan kode pos surat, mengikuti
-     * KD_ALAMT_SURAT: 1 rumah, 2 kantor, 3 surat, selain itu KTP.
-     */
     private function kolomAlamatSurat(): string
     {
         $bagian = [
@@ -959,9 +871,6 @@ class dftr_undangan_surat_rumah_m extends Model
         return implode("\n                    ", $potongan);
     }
 
-    /**
-     * Kolom keluaran yang berbeda-beda menurut jenis report.
-     */
     private function kolomKeluaranJenis(
         string $jenis,
         string $kolomJenisStok,
@@ -1039,7 +948,6 @@ class dftr_undangan_surat_rumah_m extends Model
             SQL;
         }
 
-        /* Jenis 6, Perpanjangan Sertipikat. */
         return $bersama . <<<SQL
 
                     sertipikat.no_sertipikat  AS "NO_SERTIPIKAT",
@@ -1094,28 +1002,6 @@ class dftr_undangan_surat_rumah_m extends Model
         ];
     }
 
-    /**
-     * Kolom jenis bangunan dan tipe pada sr_stok.
-     *
-     * Query desktop memakai STOK.KD_JENIS dan STOK.KD_TIPE untuk
-     * menyambung ke master JENIS_BANGUNAN dan TIPE. Pada hasil migrasi
-     * kedua nama itu TIDAK ADA di sr_stok; namanya berubah menjadi
-     * kd_jenis_bgn dan kd_tipe_bgn.
-     *
-     * Perhatikan master TIPE dan JENIS_BANGUNAN tetap memakai nama lama,
-     * yaitu kd_jenis dan kd_tipe. Jadi yang berubah hanya di sisi stok.
-     *
-     * Karena itu namanya dicari dulu dari beberapa kemungkinan. Bila
-     * benar-benar tidak ada satu pun, kolom keluarannya dikosongkan dan
-     * sambungan ke kedua master dilepas, sehingga laporannya tetap
-     * terbit. Cara ini dipilih karena laporan tanpa kolom tipe masih
-     * berguna, sedangkan query yang gagal jalan tidak berguna sama
-     * sekali. Kolom yang terpengaruh hanya KD_JENIS, KD_TIPE,
-     * NAMA_JENIS_BANGUNAN, NAMA_TIPE, LISTRIK, dan FLAG_LAPORAN.
-     *
-     * Begitu migrasinya membawa kolom itu, model memakainya sendiri
-     * tanpa perlu diubah.
-     */
     private function kolomJenisTipe(): array
     {
         $jenis = null;
@@ -1207,32 +1093,6 @@ class dftr_undangan_surat_rumah_m extends Model
         return in_array($normalized, ['Y', '1', 'TRUE', 'ON'], true) ? 'Y' : 'T';
     }
 
-    /**
-     * Menyusun ulang SERTIPIKAT_ID agar bisa disamakan dengan
-     * sr_sertipikat.sertipikat_id.
-     *
-     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-26099. Beberapa
-     * tabel hasil migrasi menyimpan kunci yang sama sebagai numeric
-     * sehingga awalannya terbuang; itu sudah terbukti terjadi pada
-     * sr_akta, sr_peralihan, sr_jaminan, dan sr_sertipikat_idk.
-     *
-     * Awalannya TIDAK BOLEH ditebak. Ada dua awalan yang dipakai
-     * bersamaan, DBPSA- dan DBPSS-, dan hampir seluruh angka muncul pada
-     * keduanya. Salah pilih berarti data satu unit menempel ke unit lain,
-     * dan itu tidak kelihatan di layar.
-     *
-     * Dipakai dua cara berjenjang:
-     *
-     * 1. Nilainya masih membawa awalan sendiri, dipakai apa adanya.
-     *    Ini yang berlaku bila kolomnya ternyata bertipe teks.
-     *
-     * 2. Awalan diambil dari UNIT YANG DIMINTA di layar, lewat peta unit
-     *    ke awalan yang dibaca dari sr_stok. Lihat awalanUnit().
-     *
-     * 3. Unitnya tidak ada di peta, hanya angka yang menunjuk ke TEPAT
-     *    SATU sertipikat yang dipakai. Barisnya bisa berkurang, tetapi
-     *    yang tampil dijamin tidak nyasar ke unit lain.
-     */
     private function kunciSertipikat(string $alias, bool $pakaiUnik): string
     {
         $awalan = $pakaiUnik ? 'sertipikat_unik.awalan' : ':awalan_sertipikat';
@@ -1247,22 +1107,6 @@ class dftr_undangan_surat_rumah_m extends Model
         SQL;
     }
 
-    /**
-     * Awalan kunci milik satu unit, dibaca dari STOK_ID pada sr_stok.
-     *
-     * Cara ini lebih tepat daripada memilih satu awalan lewat suara
-     * terbanyak seluruh tabel, karena laporan ini memang selalu untuk
-     * SATU unit saja. Sudah diukur pada database hasil migrasi bahwa
-     * kedua puluh enam kode perusahaan masing-masing hanya memakai satu
-     * awalan; misalnya DTSA dan SBKS memakai DBPSA-, sedangkan SSPG dan
-     * SPCK memakai DBPSS-.
-     *
-     * Diambil yang terbanyak supaya tetap satu jawaban seandainya suatu
-     * saat ada unit yang datanya bercampur.
-     *
-     * Hasilnya diingat per unit supaya query penentu ini hanya jalan
-     * sekali untuk tiap unit.
-     */
     private function awalanUnit(string $kdPerusahaan): string
     {
         static $ingatan = [];
@@ -1298,13 +1142,6 @@ class dftr_undangan_surat_rumah_m extends Model
             : '';
     }
 
-    /**
-     * Angka yang menunjuk ke tepat satu sertipikat, beserta awalannya.
-     *
-     * Hanya dipakai bila unitnya tidak ada di peta awalan. Angka yang
-     * muncul pada dua keluarga sekaligus sengaja tidak diikutkan, karena
-     * memilih salah satunya berarti menebak.
-     */
     private function cteSertipikatUnik(): string
     {
         return <<<SQL
@@ -1324,18 +1161,10 @@ class dftr_undangan_surat_rumah_m extends Model
                 GROUP BY angka
                 HAVING COUNT(*) = 1
             ),
-            
+
         SQL;
     }
 
-    /**
-     * Pengurutan nomor rumah seperti pada desktop: nomor yang seluruhnya
-     * angka didahulukan dan diurutkan sebagai angka, sisanya menyusul.
-     *
-     * Padanan SQL Server:
-     *     NOT LIKE '%[^0-9]%'          -> ~ '^[0-9]+$'
-     *     RIGHT(REPLICATE('0',50)+x,50) -> LPAD(x, 50, '0')
-     */
     private function urutanNomor(string $kolom): string
     {
         return <<<SQL
@@ -1353,9 +1182,6 @@ class dftr_undangan_surat_rumah_m extends Model
         SQL;
     }
 
-    /**
-     * Memeriksa keberadaan sebuah kolom pada tabel hasil migrasi.
-     */
     private function adaKolom(string $tabel, string $kolom): bool
     {
         static $ingatan = [];
@@ -1378,12 +1204,6 @@ class dftr_undangan_surat_rumah_m extends Model
         return in_array(strtolower($kolom), $ingatan[$tabel], true);
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil
-     * migrasi. Hanya dipakai untuk kolom kode, karena penamaannya
-     * berbeda-beda antar tabel. Sama seperti pada model lain yang sudah
-     * dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $ingatan = [];
@@ -1403,10 +1223,6 @@ class dftr_undangan_surat_rumah_m extends Model
         return $ingatan[$kunci] = $kandidat[0];
     }
 
-    /**
-     * PostgreSQL memakai format tanggal ISO, bukan gaya CONVERT 112
-     * milik SQL Server.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);
@@ -1447,37 +1263,6 @@ class dftr_undangan_surat_rumah_m extends Model
         return strtoupper(trim((string) $value));
     }
 
-    /**
-     * Menolak menampilkan laporan untuk unit yang keluarga awalannya
-     * TIDAK ADA pada tabel sumber.
-     *
-     * Alasannya ditemukan waktu membandingkan hasil migrasi dengan
-     * sumbernya. Karena sertipikat_id kehilangan awalan, angkanya saja
-     * yang tersisa, dan hampir semua angka dipakai kedua keluarga awalan.
-     * Kalau sebuah unit diminta sedangkan tabel sumber tidak memuat satu
-     * pun baris dari keluarga awalan unit itu, penyusunan ulang tetap
-     * "berhasil" menemukan sertipikat, tetapi seluruh barisnya keliru:
-     * baris milik keluarga lain ditarik dan ditampilkan seolah milik unit
-     * yang diminta.
-     *
-     * Itu bukan kemungkinan di atas kertas. Diukur pada sr_imb, keenam
-     * unit berawalan DBPSS- akan menampilkan 20.140 baris yang seluruhnya
-     * tidak ada dasarnya, karena sr_imb ternyata hanya memuat baris dari
-     * SRIS_PUSAT.
-     *
-     * Laporan kosong masih bisa ditelusuri, sedangkan laporan yang salah
-     * tetapi kelihatan wajar tidak. Karena itu di sini dipilih berhenti
-     * dengan pesan, bukan menampilkan apa adanya.
-     *
-     * Pemeriksaannya membaca data, bukan daftar tetap, sehingga begitu
-     * migrasinya diperbaiki penjagaan ini membuka sendiri tanpa perlu
-     * mengubah kode.
-     *
-     * Dasar pemeriksaan: baris yang angkanya hanya dipakai SATU keluarga
-     * awalan. Baris semacam itu asal-usulnya pasti. Kalau keluarga yang
-     * diminta tidak punya satu pun baris pasti sedangkan keluarga lain
-     * punya, berarti keluarga itu memang tidak terwakili.
-     */
     private function pastikanKeluargaAda(
         string $tabel,
         string $kolom,
@@ -1485,12 +1270,6 @@ class dftr_undangan_surat_rumah_m extends Model
     ): void {
         static $ingatan = [];
 
-        /*
-         * Tabel rujukannya ditentukan oleh kolom kuncinya sendiri, bukan
-         * oleh pemanggilnya, supaya keduanya tidak bisa berbeda tanpa
-         * sengaja. Kunci PPJB dibandingkan dengan sr_ppjb, kunci
-         * sertipikat dengan sr_sertipikat.
-         */
         $rujukan = $kolom === 'sertipikat_id'
             ? 'sr_sertipikat'
             : 'sr_ppjb';
@@ -1537,12 +1316,6 @@ class dftr_undangan_surat_rumah_m extends Model
             $jumlahPerKeluarga[(string) $item->awalan] = (int) $item->jumlah;
         }
 
-        /*
-         * Tidak ada satu pun baris yang asal-usulnya pasti berarti
-         * pemeriksaan ini tidak punya dasar untuk menyimpulkan apa pun.
-         * Dalam keadaan itu laporan dibiarkan jalan, supaya penjagaan ini
-         * tidak memblokir database yang isinya memang sedikit.
-         */
         if ($jumlahPerKeluarga === []) {
             $ingatan[$kunci] = true;
 
@@ -1569,30 +1342,6 @@ class dftr_undangan_surat_rumah_m extends Model
         );
     }
 
-    /**
-     * Menyusun ulang PPJB_ID pada tabel surat undangan.
-     *
-     * Diukur pada hasil migrasi, keempat tabel surat TIDAK seragam:
-     *
-     *     sr_undangan_ppjb.ppjb_id   varchar, awalan masih utuh
-     *     sr_undangan_st.ppjb_id     varchar, awalan masih utuh
-     *     sr_undangan_ajb.ppjb_id    numeric, AWALAN TERBUANG
-     *     sr_undangan_skb.ppjb_id    numeric, AWALAN TERBUANG
-     *
-     * Kalau nilainya dipakai apa adanya, dua tabel terakhir tidak akan
-     * pernah cocok dengan sr_ppjb.ppjb_id yang berbunyi DBPSA-123,
-     * sehingga Undangan AJB dan Undangan SKB menghasilkan NOL baris
-     * padahal datanya ada.
-     *
-     * Karena itu bentuknya diperiksa dulu. Nilai yang masih berawalan
-     * dipakai apa adanya; nilai yang tinggal angka diberi awalan milik
-     * unit yang diminta, dibaca dari sr_stok lewat awalanUnit().
-     *
-     * Tidak ada jalur cadangan seperti pada sertipikat, dan memang tidak
-     * diperlukan: awalanUnit() hanya mengembalikan teks kosong bila unit
-     * itu tidak ada di sr_stok, dan dalam keadaan itu stok_terpilih juga
-     * kosong sehingga laporannya memang tidak menghasilkan baris.
-     */
     private function kunciPpjb(string $alias, string $awalan): string
     {
         if ($awalan === '') {
@@ -1609,46 +1358,6 @@ class dftr_undangan_surat_rumah_m extends Model
         SQL;
     }
 
-    /**
-     * Penjaga terhadap baris milik unit lain yang ikut terbawa karena
-     * awalan kuncinya ditebak.
-     *
-     * Duduk perkaranya: pada sr_undangan_ajb, sr_undangan_skb, dan
-     * sr_perpanjangan_sertipikat, kunci penyambungnya termigrasi sebagai
-     * angka sehingga awalannya terbuang. Model menempelkan kembali awalan
-     * milik unit yang sedang diminta. Kalau angka yang sama ternyata juga
-     * dipakai keluarga lain, penempelan itu adalah TEBAKAN, dan tebakan
-     * yang meleset akan memunculkan baris milik unit lain di laporan ini.
-     *
-     * Pada unit SBKS periode 01-07-2023 sampai 21-09-2026, 1.801 dari
-     * 2.001 baris laporan AJB kuncinya memang hasil tebakan. Sebanyak itu
-     * yang tidak bisa dibuktikan model dengan caranya sendiri.
-     *
-     * Untungnya ada bukti lain yang tidak ikut ditebak: KODE UNIT TERTULIS
-     * DI NOMOR SURATNYA, misalnya 0022/SBKS-LK/03/2024. Nomor surat milik
-     * barisnya sendiri, tidak disusun ulang, tidak bergantung awalan.
-     *
-     * Aturannya sengaja dibuat hanya bisa MEMBUANG yang terbukti asing,
-     * tidak pernah menambah dan tidak pernah membuang yang meragukan:
-     *
-     *   nomornya memuat kode unit ini          -> diterima
-     *   nomornya tidak memuat kode unit mana pun -> diterima
-     *   nomornya memuat kode unit lain SAJA    -> dibuang
-     *
-     * Baris yang kuncinya tidak ditebak, yaitu yang awalannya masih utuh,
-     * tidak diperiksa sama sekali.
-     *
-     * Pada data sekarang aturan ini membuang NOL baris, sudah diukur.
-     * Jadi ia tidak mengubah laporan hari ini. Gunanya untuk nanti:
-     * risiko tebakan sekarang kecil justru karena data SERPONG pun banyak
-     * yang belum termigrasi. Begitu migrasinya diperbaiki, jumlah angka
-     * yang dipakai dua keluarga akan bertambah, dan penjagaan ini yang
-     * menahan akibatnya.
-     *
-     * Perlu ditegaskan, ini hanya penambal. Perbaikan sebenarnya ada di
-     * migrasi: kunci itu seharusnya termigrasi utuh berikut awalannya,
-     * seperti sr_undangan_ppjb dan sr_undangan_st.
-     */
     private function saringUnitDiNomor(string $kolomKunci, string $awalan): array
     {
         if ($awalan === '' || !$this->adaKolom('sr_stok', 'kd_perusahaan')) {
@@ -1683,31 +1392,6 @@ class dftr_undangan_surat_rumah_m extends Model
         return [$saring, $cte . "\n            "];
     }
 
-    /**
-     * Syarat PPJB aktif, yang ternyata tidak dipakai semua jenis.
-     *
-     * Query desktop TIDAK seragam soal ini, sama seperti urutan
-     * keluarannya. Untuk jenis Undangan Serah Terima, desktop sama
-     * sekali tidak menyaring PPJB.FLAG_AKTIF.
-     *
-     * Ini bukan tebakan. Pada unit SBKS periode 01-07-2023 sampai
-     * 21-09-2026, jumlah baris di layar desktop 1.293 sedangkan
-     * dengan syarat itu dipasang hanya keluar 1.268. Seluruh syarat
-     * lain dilepas satu per satu dan tidak ada yang menjelaskan
-     * selisihnya; hanya melepas syarat inilah yang menghasilkan
-     * 1.293 tepat.
-     *
-     * Artinya ada 25 PPJB yang flag aktifnya bukan A tetapi surat
-     * serah terimanya tetap ditampilkan desktop. Masuk akal, sebab
-     * serah terima terjadi jauh setelah PPJB dan keadaan PPJB-nya
-     * bisa sudah berubah. Tetapi alasan itu tidak dipakai untuk
-     * memutuskan; angkanya yang dipakai.
-     *
-     * Syarat parent_id tetap dipasang untuk semua jenis, karena
-     * melepasnya tidak mengubah apa pun pada pemeriksaan tadi, dan
-     * melepas syarat yang tidak terbukti mengganggu hanya menambah
-     * risiko tanpa menambah kebenaran.
-     */
     private function syaratPpjbAktif(string $jenis): string
     {
         if (in_array($jenis, self::JENIS_TANPA_SYARAT_PPJB_AKTIF, true)) {
@@ -1724,29 +1408,6 @@ class dftr_undangan_surat_rumah_m extends Model
         SQL;
     }
 
-    /**
-     * Urutan keluaran, berbeda menurut jenis report.
-     *
-     * Query desktop TIDAK seragam, dan perbedaannya bukan sekadar gaya:
-     *
-     *   jenis 1 dan 2 : urut menurut KD_SEKTOR, yaitu KODENYA
-     *   jenis 3 dan 6 : urut menurut SEKTOR.DESKRIPSI, yaitu NAMANYA
-     *   jenis 4 dan 5 : urut menurut NAMA_SEKTOR, juga namanya
-     *
-     * Kode dan nama sektor tidak selalu berurutan sama, sehingga laporan
-     * bisa tampil dengan pengelompokan yang berbeda urutannya kalau
-     * disamakan. Karena itu dibedakan seperti aslinya.
-     *
-     * Bedanya juga ada pada nomor rumah. Jenis 1 dan 2 memakai pengurutan
-     * angka pada desktop, sehingga 9 mendahului 10. Jenis 3 sampai 6
-     * memakai urutan teks apa adanya, sehingga 10 mendahului 9. Itu
-     * terlihat janggal, tetapi memang begitu di desktop dan sengaja
-     * tidak diperbaiki agar hasilnya sama.
-     *
-     * NULLS FIRST dipasang pada nama sektor karena SQL Server menaruh
-     * NULL paling awal pada urutan menaik, sedangkan PostgreSQL
-     * menaruhnya paling akhir.
-     */
     private function urutanKeluaran(string $jenis): string
     {
         if ($jenis === '1' || $jenis === '2') {

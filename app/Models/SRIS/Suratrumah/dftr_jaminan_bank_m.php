@@ -1,10 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - REKAP JAMINAN BANK
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260917
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-
 namespace App\Models\SRIS\Suratrumah;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,10 +12,6 @@ class dftr_jaminan_bank_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
@@ -62,53 +53,6 @@ class dftr_jaminan_bank_m extends Model
         );
     }
 
-    /**
-     * Jenis Jaminan pada dropdown desktop: Semua, IMB, Akta Jual Beli,
-     * Sertipikat, PPJB, Peralihan Hak.
-     *
-     * Pada database, JENIS_JAMINAN adalah char(1) berisi KODE satu
-     * karakter, bukan tulisan seperti di dropdown. Arti kodenya tidak
-     * tersimpan di mana pun: tidak ada tabel acuan di PostgreSQL maupun
-     * di SQL Server sumbernya, dan kolom itu tidak menunjuk ke tabel lain.
-     * Artinya hanya hidup di dalam kode aplikasi desktop.
-     *
-     * Pemetaan di bawah karena itu disimpulkan dari perilaku datanya,
-     * dengan urutan kode mengikuti urutan dropdown desktop. Diukur pada
-     * baris yang siap tampil:
-     *
-     *   kode  baris  punya akta  punya peralihan
-     *   4     2.324  58,8%        7,9%
-     *   2       667  99,6%       49,9%
-     *   3        42  100%        73,8%
-     *   5        28  75,0%      100%
-     *
-     * Dasar tiap pemetaan, disebut apa adanya termasuk yang lemah:
-     *
-     *   5 = Peralihan Hak. Meyakinkan. Seluruh barisnya punya catatan
-     *       peralihan; kode lain tertinggi hanya 73,8%.
-     *   4 = PPJB. Kuat. Persentase punya-aktanya terendah dan terpaut
-     *       jauh, sekitar 25 poin dari kode mana pun. Masuk akal karena
-     *       jaminan beralaskan PPJB justru yang belum ber-AJB. Sekaligus
-     *       kode terbanyak, wajar untuk jenis yang paling umum.
-     *   2 = Akta Jual Beli. Kuat. 99,6% barisnya punya akta.
-     *   3 = Sertipikat. HANYA LEWAT ELIMINASI. Angkanya tidak
-     *       bertentangan, tetapi juga tidak menunjuk khusus ke sertipikat.
-     *   1 = IMB. TIDAK BISA DIUJI. Kode 1 tidak muncul satu baris pun.
-     *
-     * Kalau pemetaan untuk kode 3 atau 1 ternyata meleset, yang keliru
-     * hanya tulisan di dropdown. Isi laporannya tetap benar, karena yang
-     * dikirim ke query adalah kodenya, bukan tulisannya.
-     *
-     * Masih ada 670 baris berkode A, H, P, T, dan kosong, yaitu 18% data.
-     * Itu kode lama sebelum sistem berganti ke kode angka; kode huruf
-     * berhenti dipakai sekitar 1997 sampai 2004 sedangkan kode angka baru
-     * mulai 1998. Baris itu tidak pernah muncul saat sebuah jenis dipilih,
-     * di aplikasi desktop pun begitu, karena penyaringnya
-     *   (JAMINAN.JENIS_JAMINAN = :jaminan OR :jaminan = '*')
-     * Jadi baris tersebut hanya keluar pada pilihan Semua.
-     *
-     * Nilai "Semua" dikirim sebagai "*" mengikuti penyaring di atas.
-     */
     private const JENIS_JAMINAN_KODE = [
         'IMB' => '1',
         'Akta Jual Beli' => '2',
@@ -117,26 +61,6 @@ class dftr_jaminan_bank_m extends Model
         'Peralihan Hak' => '5',
     ];
 
-    /**
-     * Daftar nilai Jenis Jaminan yang boleh diterima dari layar.
-     *
-     * Disediakan supaya validasi di controller tidak perlu menyalin
-     * ulang daftarnya. Daftar yang sama pernah ditulis di tiga tempat,
-     * yaitu di layar, di controller, dan di sini; ketika dropdown diubah
-     * mengirim kode, dua tempat lainnya tidak ikut berubah dan laporannya
-     * gagal dengan pesan "The selected jenis jaminan is invalid".
-     *
-     * Dipakai di controller seperti ini:
-     *
-     *   'jenis_jaminan' => [
-     *       'nullable',
-     *       'string',
-     *       Rule::in(dftr_jaminan_bank_m::jenisJaminanDiterima()),
-     *   ],
-     *
-     * Kodenya ikut diterima supaya layar boleh mengirim salah satu di
-     * antara keduanya tanpa perlu mengubah controller lagi.
-     */
     public static function jenisJaminanDiterima(): array
     {
         $nilai = ['*', 'Semua', 'SEMUA'];
@@ -150,16 +74,6 @@ class dftr_jaminan_bank_m extends Model
         return array_values(array_unique($nilai));
     }
 
-    /**
-     * Kode Jenis Jaminan yang benar-benar ada pada data, beserta jumlah
-     * barisnya. Tidak dipakai mengisi dropdown, karena dropdownnya sengaja
-     * dibuat tetap agar sama persis dengan combobox aplikasi desktop.
-     *
-     * Disediakan sebagai alat pemeriksa. Jumlah barisnya bisa dibandingkan
-     * dengan jumlah baris yang keluar di aplikasi desktop ketika tiap
-     * pilihan dropdownnya dipakai. Dari perbandingan itu pemetaan kode
-     * pada JENIS_JAMINAN_KODE bisa dipastikan, bukan lagi disimpulkan.
-     */
     public function obtainJenisJaminan()
     {
         $sql = <<<SQL
@@ -237,10 +151,6 @@ class dftr_jaminan_bank_m extends Model
         $ajbFilterSql = $this->buildAjbFilterSql($statusAjb);
         $tanggalFilterSql = $this->buildTanggalFilterSql($tglAwalBank, $tglAkhirBank);
 
-        /*
-         * Cara menyambungkan sr_jaminan ke sr_sertipikat ditentukan dari
-         * bentuk kolomnya. Lihat keterangan panjang pada kunciSertipikatJaminan().
-         */
         $pakaiUnit = $this->adaKolom('sr_jaminan', 'kd_perusahaan');
         $awalanTunggal = $pakaiUnit ? '' : $this->awalanJaminanDariYangPasti();
         $pakaiTunggal = !$pakaiUnit && $awalanTunggal !== '';
@@ -262,37 +172,12 @@ class dftr_jaminan_bank_m extends Model
 
         $kunciJaminan = $this->kunciSertipikatJaminan($pakaiUnit, $pakaiTunggal);
 
-        /*
-         * CATATAN PENTING:
-         * Kondisi blok di bawah SENGAJA mempertahankan query desktop:
-         *
-         *   OR (STOK.BLOK >= :BLOK_AKHIR AND STOK.BLOK <= :BLOK_AKHIR)
-         *
-         * Secara logika bagian kedua hanya sama dengan BLOK_AKHIR. Belum
-         * "dibetulkan" ke BLOK_AWAL...BLOK_AKHIR agar hasilnya tetap
-         * mengikuti perilaku desktop.
-         *
-         * Saringan blok dipasang setelah penggabungan tabel, di belakang
-         * hasil_dasar. Bentuknya memakai UPPER, BTRIM, dan penyambungan
-         * teks, sehingga perencana query tidak punya statistik untuk
-         * menaksirnya dan menduga sr_stok hanya berisi 1 baris padahal
-         * ribuan; dugaan itu membuat PostgreSQL memilih nested loop.
-         * Karena stok disambung dengan INNER JOIN, menyaring sebelum atau
-         * sesudah penggabungan sama saja hasilnya.
-         */
         $sql = <<<SQL
             WITH {$cteAwalanUnit}{$cteSertipikatUnik}stok_terpilih AS (
                 SELECT
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
                 FROM public.sr_stok AS stok
-                /*
-                 * Cabang pertama membandingkan kolomnya apa adanya. Hasilnya
-                 * sama persis dengan cabang kedua, karena parameternya sudah
-                 * dibuat huruf besar tanpa spasi oleh normalizeText. Gunanya
-                 * memberi perencana query sebuah perbandingan kolom biasa
-                 * yang ada statistiknya.
-                 */
                 WHERE (
                         stok.{$stokPerusahaan} = :perusahaan_langsung
                         OR UPPER(BTRIM(COALESCE(
@@ -331,15 +216,6 @@ class dftr_jaminan_bank_m extends Model
                   {$tanggalFilterSql}
             ),
             lokasi_ref AS MATERIALIZED (
-                /*
-                 * Pengganti subquery NAMA_LOKASI. Subquery berkorelasi
-                 * dijalankan sekali untuk tiap baris keluaran, sedangkan
-                 * tabel bantu ini cukup sekali lalu disambung.
-                 *
-                 * DISTINCT ON memakai urutan fisik baris, meniru SQL Server
-                 * yang mengambil baris pertama yang ditemukannya ketika ada
-                 * lebih dari satu baris berkode sama.
-                 */
                 SELECT DISTINCT ON (kode)
                     kode, deskripsi
                 FROM (
@@ -354,7 +230,6 @@ class dftr_jaminan_bank_m extends Model
                 ORDER BY kode, urutan_fisik
             ),
             sektor_ref AS MATERIALIZED (
-                /* Pengganti subquery NAMA_SEKTOR, cara yang sama. */
                 SELECT DISTINCT ON (kode)
                     kode, deskripsi
                 FROM (
@@ -369,16 +244,6 @@ class dftr_jaminan_bank_m extends Model
                 ORDER BY kode, urutan_fisik
             ),
             ppjb_aktif AS MATERIALIZED (
-                /*
-                 * PPJB aktif dikumpulkan lebih dulu menjadi tabel bantu
-                 * berkunci sederhana. Sebelumnya sr_ppjb, sr_pembeli_ppjb,
-                 * dan sr_nasabah disambung langsung memakai
-                 * BTRIM(CAST(...)), dan perencana query tidak punya
-                 * statistik untuk ekspresi semacam itu sehingga menaksir
-                 * hasil gabungannya 24 miliar baris lalu memilih merge join
-                 * berlapis. Dengan dikumpulkan dulu, sambungannya menjadi
-                 * perbandingan kolom biasa antar tabel bantu yang kecil.
-                 */
                 SELECT
                     BTRIM(CAST(ppjb.stok_id AS TEXT)) AS kunci_stok,
                     BTRIM(CAST(ppjb.ppjb_id AS TEXT)) AS kunci_ppjb
@@ -391,11 +256,6 @@ class dftr_jaminan_bank_m extends Model
                   AND ppjb.parent_id IS NULL
             ),
             pembeli_nasabah AS MATERIALIZED (
-                /*
-                 * Satu baris per pembeli aktif, bukan digabung menjadi satu
-                 * teks, karena laporan desktop memang menampilkan satu baris
-                 * untuk tiap pembeli.
-                 */
                 SELECT
                     BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT)) AS kunci_ppjb,
                     nasabah.nama AS nama
@@ -410,11 +270,6 @@ class dftr_jaminan_bank_m extends Model
                       )
             ),
             plafond_kpr AS MATERIALIZED (
-                /*
-                 * Pengganti subquery PLAFOND_KPR. ISNULL(FLAG_KPR, 'T') = 'Y'
-                 * pada desktop berarti hanya baris bertanda Y yang dijumlah,
-                 * dan baris tanpa tanda tidak ikut.
-                 */
                 SELECT
                     BTRIM(CAST(jadwal.ppjb_id AS TEXT)) AS kunci_ppjb,
                     SUM(jadwal.jumlah) AS jumlah
@@ -509,7 +364,6 @@ class dftr_jaminan_bank_m extends Model
             'blok_awal_unit' => $blokAwal,
             'blok_akhir_unit' => $blokAkhir,
 
-            // Dipertahankan persis seperti query desktop: keduanya BLOK_AKHIR.
             'blok_akhir_blok_awal' => $blokAkhir,
             'blok_akhir_blok_akhir' => $blokAkhir,
 
@@ -533,41 +387,6 @@ class dftr_jaminan_bank_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Menyusun ulang SERTIPIKAT_ID milik sr_jaminan agar bisa disamakan
-     * dengan sr_sertipikat.sertipikat_id.
-     *
-     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-26099. Beberapa
-     * tabel hasil migrasi menyimpan kunci yang sama sebagai numeric sehingga
-     * awalannya terbuang; itu sudah terjadi pada sr_akta, sr_pengambilan,
-     * sr_biaya_ajb, sr_peralihan, dan sr_sertipikat_idk.
-     *
-     * Awalannya TIDAK BOLEH ditebak. Ada dua awalan yang dipakai bersamaan,
-     * DBPSA- dan DBPSS-, dan hampir seluruh angka muncul pada keduanya;
-     * diukur pada database DTSA, 19.465 dari 23.308 baris sr_sertipikat_idk
-     * angkanya ada di kedua keluarga. Salah pilih berarti data satu unit
-     * menempel ke unit lain, dan itu tidak kelihatan di layar.
-     *
-     * Karena itu dipakai tiga cara berjenjang, dari yang paling pasti:
-     *
-     * 1. Nilainya masih membawa awalan sendiri -> dipakai apa adanya.
-     *    Ini yang berlaku bila kolomnya ternyata bertipe teks.
-     *
-     * 2. sr_jaminan punya KD_PERUSAHAAN -> awalannya diambil dari unit itu
-     *    lewat peta unit ke awalan yang dibaca dari sr_stok. Pasti benar,
-     *    karena tiap unit hanya memakai satu awalan. Cara ini sudah terbukti
-     *    pada fitur Rekap Estimasi Biaya AJB.
-     *
-     * 3. Tidak ada keduanya -> hanya angka yang menunjuk ke TEPAT SATU
-     *    sertipikat yang dipakai. Barisnya bisa berkurang, tetapi yang
-     *    tampil dijamin tidak nyasar ke unit lain. Uji kelayakan tanggal
-     *    sengaja tidak dipakai di sini: jaminan bank terbit bertahun-tahun
-     *    setelah sertipikatnya, sehingga kedua keluarga sama-sama terlihat
-     *    masuk akal dan ujinya tidak memisahkan apa pun.
-     *
-     * Pemeriksaan skema pada berkas diagnostiknya akan menunjukkan cara
-     * mana yang sebenarnya berlaku pada database ini.
-     */
     private function kunciSertipikatJaminan(
         bool $pakaiUnit,
         bool $pakaiTunggal = false
@@ -590,25 +409,6 @@ class dftr_jaminan_bank_m extends Model
             SQL;
     }
 
-    /**
-     * Menentukan satu awalan untuk seluruh sr_jaminan, berdasarkan baris
-     * yang sudah pasti.
-     *
-     * Sebagian kecil angka pada sr_jaminan menunjuk ke TEPAT SATU
-     * sertipikat. Baris-baris itu tidak perlu ditebak, dan awalannya bisa
-     * dibaca langsung. Bila hampir seluruhnya menunjuk ke keluarga yang
-     * sama, wajar disimpulkan seluruh tabelnya memang satu keluarga, dan
-     * awalan itu bisa dipakai untuk semua baris.
-     *
-     * Ambang 95 persen dipasang supaya kesimpulan itu hanya diambil ketika
-     * buktinya memang kuat. Bila buktinya bercampur, method ini
-     * mengembalikan teks kosong dan model kembali memakai cara yang paling
-     * berhati-hati, yaitu hanya memakai angka yang tidak rancu. Lebih baik
-     * kehilangan sebagian baris daripada menempelkan data satu unit ke unit
-     * lain tanpa ketahuan.
-     *
-     * Hasilnya diingat supaya query penentu ini hanya jalan sekali.
-     */
     private function awalanJaminanDariYangPasti(): string
     {
         static $awalan = null;
@@ -655,15 +455,6 @@ class dftr_jaminan_bank_m extends Model
         return $awalan;
     }
 
-    /**
-     * Peta unit ke awalan kunci, dibaca dari STOK_ID pada sr_stok.
-     *
-     * Diukur pada database DTSA: kedua puluh enam kode perusahaan
-     * masing-masing hanya memakai satu awalan, misalnya DTSA dan SBKS
-     * memakai DBPSA- sedangkan SSPG dan SPCK memakai DBPSS-. DISTINCT ON
-     * mengambil yang terbanyak supaya tetap satu baris per unit seandainya
-     * suatu saat ada unit yang datanya bercampur.
-     */
     private function cteAwalanUnit(): string
     {
         return <<<SQL
@@ -683,17 +474,10 @@ class dftr_jaminan_bank_m extends Model
                 WHERE kode_unit <> ''
                 ORDER BY kode_unit, jumlah DESC, awalan
             ),
-            
+
         SQL;
     }
 
-    /**
-     * Angka yang menunjuk ke tepat satu sertipikat, beserta awalannya.
-     *
-     * Dipakai hanya bila sr_jaminan tidak membawa penanda unit. Angka yang
-     * muncul pada dua keluarga sekaligus sengaja tidak diikutkan, karena
-     * memilih salah satunya berarti menebak.
-     */
     private function cteSertipikatUnik(): string
     {
         return <<<SQL
@@ -713,13 +497,10 @@ class dftr_jaminan_bank_m extends Model
                 GROUP BY angka
                 HAVING COUNT(*) = 1
             ),
-            
+
         SQL;
     }
 
-    /**
-     * Memeriksa keberadaan sebuah kolom pada tabel hasil migrasi.
-     */
     private function adaKolom(string $tabel, string $kolom): bool
     {
         static $ingatan = [];
@@ -742,20 +523,6 @@ class dftr_jaminan_bank_m extends Model
         return in_array(strtolower($kolom), $ingatan[$tabel], true);
     }
 
-    /**
-     * SEMUA: tanpa filter AKTA.
-     * BELUM: persis query desktop -> tidak ada AKTA dengan NO_AKTA terisi.
-     * SUDAH: persis query desktop -> ada AKTA dengan NO_AKTA terisi.
-     *
-     * NOT IN pada query desktop diganti NOT EXISTS supaya tetap benar bila
-     * subquerynya berisi NULL; pada NOT IN satu NULL saja membuat seluruh
-     * hasilnya kosong.
-     *
-     * SERTIPIKAT_ID pada sr_akta bertipe numeric sehingga awalannya terbuang,
-     * sedangkan sr_sertipikat menyimpan teks lengkap berawalan. Awalan yang
-     * benar diambil dari PPJB_ID pada baris akta itu sendiri, sama seperti
-     * pada fitur Daftar Akta Jual Beli.
-     */
     private function buildAjbFilterSql(string $statusAjb): string
     {
         if ($statusAjb === 'SEMUA') {
@@ -797,14 +564,6 @@ AND NOT EXISTS (
 SQL;
     }
 
-    /**
-     * Query desktop mengizinkan kedua tanggal NULL. Pada web:
-     * - kedua tanggal diisi -> filter tanggal aktif;
-     * - keduanya kosong -> tidak memakai filter tanggal.
-     *
-     * Batas atas dipertahankan inklusif seperti query desktop, bukan
-     * diubah menjadi tanggal akhir + 1 hari.
-     */
     private function buildTanggalFilterSql(?string $tglAwalBank, ?string $tglAkhirBank): string
     {
         if ($tglAwalBank === null || $tglAkhirBank === null) {
@@ -817,11 +576,6 @@ AND jaminan.tgl_jaminan >= CAST(:tgl_awal_bank AS DATE)
 SQL;
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
-     * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
-     * unit. Sama seperti pada model lain yang sudah dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $ingatan = [];
@@ -854,10 +608,6 @@ SQL;
         return $ingatan[$kunci] = $kandidat[0];
     }
 
-    /**
-     * PostgreSQL memakai format tanggal ISO, bukan gaya CONVERT 112 milik
-     * SQL Server.
-     */
     private function normalizeDateNullable($value): ?string
     {
         $text = trim((string) $value);
@@ -891,11 +641,6 @@ SQL;
         return strtoupper(trim((string) $value));
     }
 
-    /**
-     * Mengubah pilihan dropdown menjadi kode satu karakter yang benar-benar
-     * tersimpan di kolom JENIS_JAMINAN. Lihat JENIS_JAMINAN_KODE untuk dasar
-     * pemetaannya.
-     */
     private function normalizeJenisJaminan($value): string
     {
         $normalized = $this->normalizeText($value);
@@ -904,30 +649,12 @@ SQL;
             return '*';
         }
 
-        /*
-         * INI JALUR UTAMANYA. Dropdown mengirim tulisan seperti pada
-         * combobox desktop, lalu di sini diterjemahkan menjadi kode satu
-         * karakter yang benar-benar tersimpan di kolom JENIS_JAMINAN.
-         *
-         * Penerjemahannya sengaja dikerjakan di sini, bukan di layar,
-         * supaya nilai yang dikirim tetap sama seperti sebelum pemetaan
-         * kode ini ada. Dropdown pernah diubah mengirim kodenya langsung,
-         * dan ditolak validasi controller dengan pesan "The selected jenis
-         * jaminan is invalid", karena daftar yang diizinkan di controller
-         * memang berisi tulisan tersebut.
-         */
         foreach (self::JENIS_JAMINAN_KODE as $tulisan => $kode) {
             if (strtoupper($tulisan) === $normalized) {
                 return $kode;
             }
         }
 
-        /*
-         * Kode apa adanya ikut diterima sebagai cadangan. Dibatasi satu
-         * huruf atau angka agar tidak ada teks bebas yang masuk ke query,
-         * sekaligus supaya kode lama A, H, P, dan T tetap bisa disaring
-         * bila suatu saat dibutuhkan.
-         */
         if (preg_match('/^[A-Z0-9]$/', $normalized) === 1) {
             return $normalized;
         }

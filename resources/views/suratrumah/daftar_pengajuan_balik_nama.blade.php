@@ -292,14 +292,6 @@
         }
     }
 
-
-    /* =========================================================
-       V2.1 MODERN BLUE MATCH
-       Menyamakan visual Daftar Pengajuan Balik Nama dengan
-       tampilan Daftar Sertipikat Pecahan V9.5.
-       Struktur HTML/ID/AJAX/render data lama tetap dipertahankan.
-       ========================================================= */
-
     .balik-nama-page {
         --bn-blue: #2563eb;
         --bn-blue-dark: #1d4ed8;
@@ -323,7 +315,6 @@
         font-family: Inter, "Segoe UI", Tahoma, Arial, sans-serif;
     }
 
-    /* Header modern dibuat lewat CSS supaya struktur view lama tidak perlu diubah. */
     .balik-nama-page::before {
         content: "LAND DOCUMENT CONTROL — PENGAJUAN BALIK NAMA";
         position: absolute;
@@ -431,15 +422,6 @@
         z-index: 1;
     }
 
-    /*
-     * V7 CLICK FIX
-     * Tombol PRINT berada 55px di bawah action stack dan secara visual
-     * masuk ke area baris filter kedua. Karena baris kedua dirender setelah
-     * baris pertama, box transparannya dapat menangkap klik.
-     *
-     * Naikkan stacking baris pertama/action button supaya PRINT benar-benar
-     * menjadi target pointer, bukan tertutup oleh .filter-row kedua.
-     */
     .filter-row:first-child {
         z-index: 20;
     }
@@ -544,7 +526,6 @@
         box-shadow: 0 7px 15px rgba(37, 99, 235, .12);
     }
 
-    /* OK dibuat seperti referensi: biru dan menempel di ujung kanan panel. */
     .ok-button {
         width: 82px;
         min-width: 82px;
@@ -723,14 +704,6 @@
         color: #1d4ed8;
     }
 
-
-    /* =========================================================
-       V2.2 INITIAL STATE
-       Sebelum tombol OK ditekan, area hasil hanya menampilkan
-       instruksi seperti halaman Daftar Sertipikat Pecahan.
-       Setelah OK ditekan, renderReport() mengganti area ini
-       dengan laporan/data tanpa mengubah endpoint atau query.
-       ========================================================= */
     .initial-report-state {
         display: flex;
         width: 100%;
@@ -801,20 +774,10 @@
         }
     }
 
-
-
-    /* =========================================================
-       V2.4 HEADER MATCH SERTIPIKAT PECAHAN
-       Header kiri atas dibuat memakai elemen nyata seperti
-       Daftar Sertipikat Pecahan, bukan pseudo-element halaman.
-       Fungsi/filter/AJAX tidak berubah.
-       ========================================================= */
-
     .balik-nama-page {
         padding: 18px 12px 32px !important;
     }
 
-    /* Matikan header pseudo versi lama agar tidak dobel. */
     .balik-nama-page::before,
     .balik-nama-page::after {
         display: none !important;
@@ -911,9 +874,6 @@
         }
     }
 
-
-
-    /* FONT STANDARD — MATCH DAFTAR SURAT PESANAN */
     .balik-nama-page,
     .balik-nama-page input,
     .balik-nama-page select,
@@ -942,10 +902,6 @@
         font-weight: 700 !important;
     }
 
-    /* =========================================================
-       V3 — STANDARD HASIL LAPORAN SAMA DENGAN SERTIPIKAT PECAHAN
-       Filter, ID elemen, AJAX, endpoint, dan struktur kolom tetap.
-       ========================================================= */
     .balik-nama-page .report-workspace {
         padding: 20px;
         overflow: hidden;
@@ -1174,15 +1130,6 @@
         }
     }
 
-
-
-    /* =========================================================
-       V6 PRINT STANDARD — KONSISTEN DENGAN JAMINAN BANK
-       - OK dan PRINT 82x42, menempel ke sisi kanan filter card.
-       - PRINT disabled sebelum laporan selesai dirender.
-       - Cetak A3 landscape, margin 8mm.
-       - Hasil cetak hitam-putih dan semua border tabel utuh.
-       ========================================================= */
     .bn-action-stack {
         position: relative;
         z-index: 30;
@@ -1381,7 +1328,6 @@
             color: #000 !important;
         }
 
-        /* Proporsi 17 kolom berdasarkan colgroup tampilan layar. */
         .balik-nama-page .report-table col:nth-child(1)  { width: 2.0% !important; }
         .balik-nama-page .report-table col:nth-child(2)  { width: 4.0% !important; }
         .balik-nama-page .report-table col:nth-child(3)  { width: 8.1% !important; }
@@ -1401,12 +1347,6 @@
         .balik-nama-page .report-table col:nth-child(17) { width: 6.8% !important; }
     }
 
-
-    /* =========================================================
-       ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-       Modal informasi yang tampil saat hasil laporan tidak
-       menghasilkan baris data sama sekali.
-       ========================================================= */
         #pengajuanBalikNamaNoDataAlertModal .modal-dialog {
             max-width: 380px;
         }
@@ -1464,7 +1404,6 @@
 
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="pengajuanBalikNamaNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1632,10 +1571,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1836,7 +1771,6 @@
             try {
                 localStorage.setItem(cacheKey, company);
             } catch (error) {
-                // Browser dapat menolak storage; nama tetap dipakai untuk render saat ini.
             }
         }
 
@@ -2049,11 +1983,6 @@
         });
     }
 
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     * Hanya menampilkan pesan; pengambilan data dan render laporan
-     * tetap memakai alur yang sudah ada.
-     */
     function showPengajuanBalikNamaNoDataAlert(message) {
         var text = message || 'Data tidak ditemukan......!';
 
@@ -2136,20 +2065,6 @@
         });
     }
 
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -2204,10 +2119,6 @@
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -2256,19 +2167,6 @@
     }
 
     function printBalikNamaReport() {
-        /*
-         * V8 PRINT + ORIENTATION FIX
-         *
-         * V7 sudah memperbaiki area klik tombol PRINT dengan z-index.
-         * Di V8 mekanisme print kembali memakai iframe TERISOLASI seperti
-         * fitur Daftar Undangan Surat Rumah yang menampilkan pilihan
-         * Portrait / Landscape pada dialog print.
-         *
-         * Penting:
-         * - Button click fix V7 tetap dipertahankan.
-         * - Tidak ada @page { size: ... } agar orientation tidak dikunci.
-         * - CSS layout/template utama tidak ikut masuk ke iframe.
-         */
 
         var $button = $('#balikNamaPrintButton');
 
@@ -2297,11 +2195,6 @@
         frame.id = 'balikNamaNativePrintFrame';
         frame.setAttribute('aria-hidden', 'true');
 
-        /*
-         * Jangan pakai display:none.
-         * Iframe tetap ada di DOM tetapi diletakkan di luar viewport.
-         * Ini lebih aman untuk Firefox dibanding iframe 0x0/display:none.
-         */
         frame.style.position = 'fixed';
         frame.style.left = '-10000px';
         frame.style.top = '0';
@@ -2317,11 +2210,6 @@
         var frameDocument = frame.contentDocument || frameWindow.document;
 
         var printCss = `
-            /*
-             * JANGAN menambahkan size: A3 landscape / landscape / portrait.
-             * Dengan size tidak dikunci, browser dapat menampilkan
-             * pilihan Orientation: Portrait / Landscape.
-             */
             @page {
                 margin: 8mm;
             }
@@ -2440,12 +2328,6 @@
                 line-height: 1.2;
             }
 
-            /*
-             * Hilangkan width pixel dari colgroup layar.
-             * Browser akan membagi tabel sesuai ukuran/orientasi kertas
-             * yang dipilih user pada dialog print.
-             */
-
             .report-table thead {
                 display: table-header-group;
             }
@@ -2493,27 +2375,7 @@
                 color: #000;
                 font-weight: 700;
             }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .report-table,
@@ -2528,7 +2390,6 @@
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .report-table th,
             .report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -2547,12 +2408,10 @@
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .report-table tbody tr[class*="sector-row"] > td,
             .report-table tbody tr[class*="sektor-row"] > td,
             .report-table tbody tr[class*="cluster-row"] > td,
@@ -2561,17 +2420,11 @@
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .report-table tbody tr[class*="total-row"] > td,
             .report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2593,11 +2446,6 @@
         frameDocument.close();
         applyPrintTableRules(frameDocument);
 
-        /*
-         * Tunggu document iframe selesai dibuat.
-         * Karena click-layer sudah diperbaiki di V7, event click benar-benar
-         * sampai ke fungsi ini. Iframe hanya dipakai untuk print isolation.
-         */
         window.setTimeout(function () {
             try {
                 frameWindow.focus();
@@ -2605,9 +2453,6 @@
             } catch (error) {
                 console.error('BALIK_NAMA_PRINT_V8: gagal membuka print', error);
 
-                /*
-                 * Fallback terakhir apabila browser menolak print iframe.
-                 */
                 try {
                     window.focus();
                     window.print();
@@ -2839,27 +2684,6 @@
         $('#balikNamaPrintButton').prop('disabled', false);
     }
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -2873,10 +2697,6 @@
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -2931,15 +2751,6 @@
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -2989,12 +2800,6 @@
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -3034,11 +2839,6 @@
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -3088,7 +2888,6 @@
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -3126,8 +2925,6 @@
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -3173,8 +2970,6 @@
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -3232,9 +3027,6 @@
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

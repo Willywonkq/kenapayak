@@ -286,16 +286,9 @@
         text-transform: uppercase;
     }
 
-    /* Wrapper ini sengaja menangani zoom browser: tabel tidak boleh keluar
-       atau menimpa halaman; pengguna dapat menggulir secara horizontal. */
     .report-scroll {
         width: 100%;
         max-width: 100%;
-        /*
-         * Tinggi kotaknya dibatasi supaya halaman tidak memanjang ke bawah
-         * ketika barisnya banyak. Kelebihannya di-scroll di dalam kotak,
-         * sama seperti Daftar Sertipikat Pecahan.
-         */
         max-height: calc(100vh - 285px);
         min-height: 320px;
         overflow-x: auto;
@@ -348,32 +341,6 @@
         border-bottom: 1px solid #344252;
     }
 
-    /*
-     * Header dibuat menempel supaya tetap terlihat saat isinya di-scroll.
-     *
-     * Kelas head-sticky baru dipasang oleh JavaScript setelah tabelnya
-     * jadi, karena posisi menempel baris kedua harus sama persis dengan
-     * tinggi baris pertama, dan tinggi itu tidak bisa dikunci dari CSS:
-     * browser tetap memakai tinggi isinya. Diukur pada contoh nyata,
-     * baris pertama 57px padahal CSS meminta 36px, sehingga kalau
-     * angkanya ditebak header baris kedua naik terlalu tinggi dan data di
-     * belakangnya tembus.
-     *
-     * Tanpa JavaScript, tabelnya tampil persis seperti sebelumnya, hanya
-     * tanpa header menempel. Pembatasan tinggi kotaknya tetap jalan.
-     *
-     * Tabel ini memakai border-collapse: collapse, dan garis pada sel yang
-     * menempel tidak ikut terbawa. Garisnya karena itu digambar ulang
-     * memakai inset box-shadow supaya tampilannya tetap sama.
-     */
-    /*
-     * Saat header menempel, garis tabel harus digambar oleh selnya sendiri.
-     * Dengan border-collapse: collapse, garis dan latar digambar oleh tabel
-     * pada posisi aslinya, sehingga ada sisa tipis di bawah header tempat
-     * data di belakangnya tembus. Terbukti pada percobaan di browser: dengan
-     * collapse datanya terlihat menembus header, dengan separate tidak.
-     * Cara ini sama dengan yang dipakai Daftar Sertipikat Pecahan.
-     */
     .report-table.head-sticky {
         border-collapse: separate;
         border-spacing: 0;
@@ -672,14 +639,6 @@
         transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
     }
 
-    /*
-     * Birunya disamakan dengan tombol View di halaman lain, yang semuanya
-     * berangkat dari #2563eb. Berkas ini satu-satunya yang berangkat dari
-     * #3b82f6 sehingga terlihat lebih muda daripada tetangganya.
-     *
-     * Ketebalan bayangannya sengaja dibiarkan apa adanya, supaya tetap
-     * seimbang dengan tombol Print di sebelahnya yang memakai ukuran sama.
-     */
     .ok-button {
         background: linear-gradient(135deg, #2563eb, #1d4ed8);
         box-shadow: 0 11px 22px rgba(37, 99, 235, .28);
@@ -942,13 +901,6 @@
         }
     }
 
-    /* =========================================================
-       PRINT FIX — SERTIPIKAT BERAKHIR HAK
-       - Setiap TH/TD memiliki border penuh, bukan hanya kanan+bawah.
-       - Border terakhir tidak lagi dihapus saat print.
-       - Colgroup pixel dioverride ke persentase agar tabel fit di A3 landscape.
-       - Header tabel diulang jika hasil print lebih dari satu halaman.
-       ========================================================= */
     @media print {
         @page {
             margin: 9mm;
@@ -1006,12 +958,6 @@
             background: #fff !important;
         }
 
-        /*
-         * Wrapper tidak diberi border saat print.
-         * Border luar berasal langsung dari table agar tidak terjadi
-         * double-line / garis terputus di PDF viewer.
-         */
-        /* Saat dicetak, header tidak boleh menempel. */
         .report-table.head-sticky {
             border-collapse: collapse !important;
         }
@@ -1034,12 +980,6 @@
             box-shadow: none !important;
         }
 
-        /*
-         * FIX UTAMA.
-         * Versi sebelumnya hanya mengganti border-color menjadi hitam,
-         * padahal CSS layar hanya memiliki border-right + border-bottom,
-         * dan last-child bahkan menghapus border-right.
-         */
         .report-table,
         .report-table.with-gabungan {
             width: 100% !important;
@@ -1099,11 +1039,6 @@
             background: #fff !important;
         }
 
-        /*
-         * Normal report = 10 kolom.
-         * Inline width pixel pada buildColgroup() dioverride khusus print.
-         * Total tepat 100%.
-         */
         .report-table:not(.with-gabungan) col:nth-child(1)  { width: 4% !important; }
         .report-table:not(.with-gabungan) col:nth-child(2)  { width: 7% !important; }
         .report-table:not(.with-gabungan) col:nth-child(3)  { width: 16% !important; }
@@ -1115,10 +1050,6 @@
         .report-table:not(.with-gabungan) col:nth-child(9)  { width: 7% !important; }
         .report-table:not(.with-gabungan) col:nth-child(10) { width: 6% !important; }
 
-        /*
-         * Report dengan Sertipikat Penggabungan = 13 kolom.
-         * Total tepat 100%.
-         */
         .report-table.with-gabungan col:nth-child(1)  { width: 3% !important; }
         .report-table.with-gabungan col:nth-child(2)  { width: 6% !important; }
         .report-table.with-gabungan col:nth-child(3)  { width: 12% !important; }
@@ -1140,11 +1071,6 @@
         }
     }
 
-    /* =========================================================
-       ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-       Modal informasi yang tampil saat hasil laporan tidak
-       menghasilkan baris data sama sekali.
-       ========================================================= */
         #berakhirNoDataAlertModal .modal-dialog {
             max-width: 380px;
         }
@@ -1202,7 +1128,6 @@
 
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="berakhirNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1334,10 +1259,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1475,20 +1396,6 @@
         );
     }
 
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -1543,10 +1450,6 @@
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -1626,11 +1529,6 @@
         var frameWindow = frame.contentWindow;
         var frameDocument = frame.contentDocument || frameWindow.document;
 
-        /*
-         * Print dibuat terisolasi seperti fitur yang sudah benar.
-         * @page hanya mengatur margin dan TIDAK mengunci size/orientation,
-         * sehingga browser tetap dapat menampilkan pilihan Portrait/Landscape.
-         */
         var printCss = `
             @page { margin: 8mm; }
 
@@ -1786,27 +1684,7 @@
             .signature-box { text-align: center; }
             .signature-space { height: 58px; }
             .signature-line { white-space: nowrap; }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .report-table,
@@ -1821,7 +1699,6 @@
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .report-table th,
             .report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -1840,12 +1717,10 @@
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .report-table tbody tr[class*="sector-row"] > td,
             .report-table tbody tr[class*="sektor-row"] > td,
             .report-table tbody tr[class*="cluster-row"] > td,
@@ -1854,17 +1729,11 @@
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .report-table tbody tr[class*="total-row"] > td,
             .report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2018,13 +1887,6 @@
         return true;
     }
 
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     * Hanya menampilkan pesan; pengambilan data dan render laporan
-     * tetap memakai alur yang sudah ada. Jika plugin modal tidak
-     * tersedia pada halaman ini, modal ditampilkan secara manual
-     * sehingga tampilannya tetap sama.
-     */
     function showBerakhirNoDataAlert(message) {
         var $modal = $('#berakhirNoDataAlertModal');
 
@@ -2228,14 +2090,6 @@
         $('#printButton').prop('disabled', false);
     }
 
-    /*
-     * Menempelkan header tabel pada kotak yang di-scroll.
-     *
-     * Posisi baris kedua diambil dari tinggi baris pertama yang benar-benar
-     * dirender, bukan dari angka tetap, karena tinggi itu berubah mengikuti
-     * isi kolom, ukuran font, dan tingkat zoom. Dipanggil ulang saat ukuran
-     * jendela berubah supaya tetap pas.
-     */
     function pasangHeaderMenempel() {
         var tabel = document.querySelector('#mainDisplay .report-table');
 
@@ -2360,7 +2214,6 @@
             try {
                 localStorage.setItem(cacheKey, company);
             } catch (error) {
-                // Browser dapat menolak storage; nama tetap dipakai untuk render saat ini.
             }
         }
 
@@ -2454,27 +2307,6 @@
         alert(message);
     }
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -2488,10 +2320,6 @@
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -2546,15 +2374,6 @@
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -2604,12 +2423,6 @@
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -2649,11 +2462,6 @@
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -2703,7 +2511,6 @@
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -2741,8 +2548,6 @@
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -2788,8 +2593,6 @@
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -2847,9 +2650,6 @@
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

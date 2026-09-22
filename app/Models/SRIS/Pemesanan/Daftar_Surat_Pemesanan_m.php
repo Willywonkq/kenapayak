@@ -15,11 +15,6 @@ class Daftar_Surat_Pemesanan_m extends Model
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
-
-    /**
-     * Metadata kolom disimpan hanya di memory object selama request berjalan.
-     * Tidak menggunakan Laravel Cache dan tidak menulis apa pun ke database.
-     */
     private array $columnMap = [];
 
     private function tableColumns(string $table): array
@@ -58,14 +53,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return isset($this->tableColumns($table)[strtolower($column)]);
     }
 
-    /**
-     * Apakah kolom bertipe angka pada database yang sedang dipakai.
-     *
-     * Tipe kolom kunci berbeda antar hasil migrasi. Contohnya
-     * sr_uang_muka.uang_muka_id bertipe varchar sementara
-     * sr_biaya_dp.uang_muka_id bertipe numeric, dan PostgreSQL menolak
-     * perbandingan langsung antara keduanya.
-     */
     private function isNumericColumn(string $table, string $column): bool
     {
         $type = $this->tableColumns($table)[strtolower($column)] ?? '';
@@ -76,13 +63,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         ], true);
     }
 
-    /**
-     * Ekspresi kunci join yang seragam untuk satu kolom.
-     *
-     * Ketika salah satu sisi bertipe angka, kedua sisi disamakan ke ranah
-     * numeric supaya nol di depan tidak membuat nilai yang sebenarnya sama
-     * menjadi tidak cocok. Selain itu keduanya disamakan sebagai teks.
-     */
     private function idKeyExpr(string $table, string $alias, string $column, bool $asNumeric): string
     {
         $qualified = $alias === '' ? $column : "{$alias}.{$column}";
@@ -99,10 +79,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             . " THEN CAST(BTRIM(CAST({$qualified} AS text)) AS numeric) END)";
     }
 
-    /**
-     * Perbandingan kolom kunci sebuah tabel dengan kolom hasil CTE yang sudah
-     * menyediakan bentuk teks maupun numeric sekaligus.
-     */
     private function idJoinPrepared(
         string $table,
         string $alias,
@@ -114,18 +90,9 @@ class Daftar_Surat_Pemesanan_m extends Model
             return "{$alias}.{$column} = {$numericColumn}";
         }
 
-        /*
-         * Kolomnya dibiarkan mentah. PostgreSQL menerima perbandingan
-         * character varying dengan text, dan dengan begitu index pada kolom
-         * tersebut tetap dapat dipakai.
-         */
         return "{$alias}.{$column} = {$textColumn}";
     }
 
-    /**
-     * Syarat pendamping idJoinPrepared() agar sisi CTE yang tidak dapat
-     * dipetakan tidak ikut terbawa.
-     */
     private function idJoinPreparedGuard(
         string $table,
         string $column,
@@ -139,14 +106,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return "NULLIF({$textColumn}, '') IS NOT NULL";
     }
 
-    /**
-     * Bentuk perbandingan kolom kunci dengan daftar nilai dari PHP.
-     *
-     * Kolomnya sengaja dibiarkan mentah dan justru daftar nilainya yang
-     * disesuaikan tipenya. Bila kolom yang dibungkus ekspresi, PostgreSQL
-     * tidak dapat memakai index dan tabel sebesar sr_angsuran maupun
-     * sr_pembeli_dp akan dipindai seluruhnya.
-     */
     private function idAnyArray(string $table, string $alias, string $column, string $placeholder): string
     {
         $tipe = $this->isNumericColumn($table, $column) ? 'numeric' : 'text';
@@ -154,15 +113,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return "{$alias}.{$column} = ANY({$placeholder}::{$tipe}[])";
     }
 
-    /**
-     * Sambungan ke daftar nilai dari PHP dalam bentuk JOIN, bukan
-     * WHERE ... = ANY(...).
-     *
-     * Tanpa index, "= ANY(daftar)" memaksa PostgreSQL membandingkan setiap
-     * baris tabel dengan seluruh isi daftar, sehingga biayanya jumlah baris
-     * dikali jumlah nilai. Bentuk JOIN ke unnest() membuat perencana memakai
-     * hash join, yang biayanya hanya jumlah baris ditambah jumlah nilai.
-     */
     private function idJoinArray(
         string $table,
         string $alias,
@@ -176,10 +126,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             . "\n                    ON {$alias}.{$column} = {$joinAlias}.nilai";
     }
 
-    /**
-     * Daftar nilai untuk idAnyArray(). Ketika kolomnya bertipe angka, hanya
-     * nilai yang benar-benar berupa angka yang dikirim supaya cast tidak gagal.
-     */
     private function pgArrayForColumn(string $table, string $column, array $values): string
     {
         if ($this->isNumericColumn($table, $column)) {
@@ -193,23 +139,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return $this->pgTextArray($values);
     }
 
-
-    /**
-     * Syarat "kolom kunci ini kosong", ditulis agar PostgreSQL tetap dapat
-     * memperkirakan jumlah barisnya.
-     *
-     * Bentuk lama, NULLIF(BTRIM(COALESCE(CAST(x AS text), '')), '') IS NULL,
-     * adalah ekspresi buram bagi perencana. Statistik kolom tidak terpakai,
-     * sehingga perkiraannya jatuh ke nilai bawaan yang sangat kecil. Ketika
-     * beberapa syarat buram dikalikan, perkiraannya menjadi satu baris,
-     * perencana memilih nested loop, dan tabel di sisi dalam dipindai
-     * berulang kali sebanyak jumlah baris di sisi luar.
-     *
-     * Bentuk baru ini persis sama artinya. Kolom angka tidak mungkin berisi
-     * teks kosong sehingga cukup IS NULL, sedangkan kolom teks tetap
-     * memeriksa keduanya. Bagian IS NULL dapat diperkirakan lewat statistik
-     * null_frac, dan itu sudah cukup untuk mengembalikan rencana hash join.
-     */
     private function kunciKosongExpr(string $table, string $alias, string $column): string
     {
         $qualified = "{$alias}.{$column}";
@@ -221,19 +150,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return "({$qualified} IS NULL OR BTRIM(CAST({$qualified} AS text)) = '')";
     }
 
-
-    /**
-     * Syarat "kolom kode ini bernilai X", ditulis agar perkiraan barisnya
-     * tetap masuk akal bagi perencana.
-     *
-     * Bentuk UPPER(BTRIM(COALESCE(CAST(x AS text), ''))) = 'A' bersifat buram,
-     * sehingga PostgreSQL memakai perkiraan bawaan yang jauh lebih kecil
-     * daripada kenyataan lalu memilih nested loop. Bagian IN di depan memakai
-     * kolom apa adanya sehingga statistik nilai tersering dapat dipakai.
-     *
-     * Artinya persis sama: setiap nilai yang memenuhi bagian IN pasti juga
-     * memenuhi bagian sesudah OR, jadi kumpulan barisnya tidak berubah.
-     */
     private function kodeSamaExpr(string $table, string $alias, string $column, string $nilai): string
     {
         $qualified = "{$alias}.{$column}";
@@ -249,9 +165,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return "({$qualified} IN ('{$hurufBesar}', '{$hurufKecil}') OR {$umum})";
     }
 
-    /**
-     * Bentuk perbandingan dua kolom kunci antar tabel dengan tipe apa pun.
-     */
     private function idJoin(
         string $tableA,
         string $aliasA,
@@ -268,11 +181,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             return "{$aliasA}.{$columnA} = {$aliasB}.{$columnB}";
         }
 
-        /*
-         * Ranah 'angka' hanya boleh dipakai untuk kunci yang isinya pasti
-         * bilangan bulat. Untuk kunci beraksara seperti stok_id, mengubahnya
-         * menjadi angka akan menghasilkan NULL dan barisnya hilang diam-diam.
-         */
         if ($ranah === 'angka') {
             $sisiAngka = $numerikA ? "{$aliasA}.{$columnA}" : "{$aliasB}.{$columnB}";
             $sisiTeks = $numerikA ? "{$aliasB}.{$columnB}" : "{$aliasA}.{$columnA}";
@@ -287,11 +195,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return "CAST({$sisiDicast} AS text) = BTRIM(CAST({$sisiMentah} AS text))";
     }
 
-    /**
-     * Membuat COALESCE dari kolom fisik yang benar-benar tersedia.
-     * Hasilnya sama dengan fallback to_jsonb lama, tetapi PostgreSQL tidak
-     * perlu mengubah seluruh row menjadi JSONB pada setiap evaluasi filter.
-     */
     private function directTextExpr(
         string $table,
         string $alias,
@@ -349,10 +252,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         );
     }
 
-    /**
-     * Ekspresi hydrate pembayaran menggunakan kolom fisik bila tersedia.
-     * Urutan fallback tetap: jumlah_bayar -> jumlah -> nilai_bayar -> nominal.
-     */
     private function angsuranNumericExpr(string $alias = 'angsuran'): string
     {
         $parts = [];
@@ -382,9 +281,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             : '0::numeric';
     }
 
-    /**
-     * Urutan tanggal tetap sama seperti model sebelumnya.
-     */
     private function angsuranDateExpr(
         string $alias,
         array $columns
@@ -410,14 +306,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             : 'NULL::date';
     }
 
-    /**
-     * Master lokasi untuk dropdown Daftar Surat Pesanan.
-     *
-     * Deskripsi lokasi tidak tersedia pada database web, sehingga pasangan
-     * kode dan deskripsi dipelihara di aplikasi. Nilai KD_LOKASI harus tetap
-     * berupa kode karena nilai tersebut dipakai sebagai parameter filter
-     * laporan.
-     */
     private const LOKASI_LIST = [
         ['KD_LOKASI' => 'BB',    'DESKRIPSI' => 'Bulevar Barat'],
         ['KD_LOKASI' => 'BG',    'DESKRIPSI' => 'Bukit Gading Villa'],
@@ -467,14 +355,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         ['KD_LOKASI' => 'WG',    'DESKRIPSI' => 'Wisma Gading Permai'],
     ];
 
-    /**
-     * Mengambil daftar sektor/cluster untuk lookup pada form.
-     *
-     * Kode sektor berasal dari sr_stok karena tabel yang sama juga dipakai
-     * sebagai sumber filter laporan. Master sr_sektor/sr_lokasi hanya
-     * melengkapi deskripsi. Dengan pola ini, kode yang masih memiliki stok
-     * tetapi belum mempunyai master DTSA, seperti CLA dan EMC, tetap muncul.
-     */
     public function obtainSektor($kdPerusahaan): Collection
     {
         $kdPerusahaan = strtoupper(trim((string) $kdPerusahaan));
@@ -573,14 +453,6 @@ class Daftar_Surat_Pemesanan_m extends Model
 
                     UNION ALL
 
-                    /*
-                     * Cluster yang belum memiliki stok tetap harus bisa dipilih.
-                     * Sebelumnya daftar sektor hanya diambil dari kode yang
-                     * muncul di sr_stok, sehingga cluster seperti CHELIA
-                     * RESIDENCE, EMERALD COMMERCIAL, dan VANICA RESIDENCE tidak
-                     * ikut tampil. Desktop mengambil daftarnya langsung dari
-                     * master sektor, dan itu yang ditiru di sini.
-                     */
                     SELECT
                         {$smKode} AS kode,
                         {$smPerusahaan} AS kd_perusahaan
@@ -691,11 +563,6 @@ class Daftar_Surat_Pemesanan_m extends Model
 
         $query = DB::connection(self::CONNECTION)
             ->table(self::SCHEMA . '.sr_sales as sales')
-            /*
-             * Setiap kolom dilewatkan CAST(... AS text) lebih dulu supaya
-             * tetap jalan pada database yang menyimpan kode sebagai angka.
-             * BTRIM dan COALESCE hanya menerima teks.
-             */
             ->leftJoin(self::SCHEMA . '.sr_agen as agen', function ($join) {
                 $join->on(
                     DB::raw('BTRIM(CAST(sales.kd_agen AS text))'),
@@ -754,10 +621,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             'no_bayar',
         ];
 
-        /*
-         * tableColumns() membaca information_schema satu kali per tabel lalu
-         * menyimpannya di memory object selama request. Tidak ada write/cache DB.
-         */
         foreach ($candidates as $column) {
             if ($this->hasColumn('sr_bayar_uang_muka', $column)) {
                 return 'CAST(bum.' . $column . ' AS TEXT)';
@@ -806,7 +669,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         }
 
         if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $value, $m)) {
-            // Format datepicker di layar: MM/DD/YYYY.
             return sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[1], (int) $m[2]);
         }
 
@@ -824,12 +686,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return implode(',', array_fill(0, count($items), '?'));
     }
 
-
-    /**
-     * Encode array PHP menjadi literal text[] PostgreSQL.
-     * Dipakai supaya query besar tidak membuat ratusan/ribuan placeholder VALUES.
-     * Isi ID tidak diubah, hanya cara pengiriman parameter ke PostgreSQL.
-     */
     private function pgTextArray(array $items): string
     {
         $encoded = [];
@@ -859,32 +715,17 @@ class Daftar_Surat_Pemesanan_m extends Model
         return array_keys($result);
     }
 
-    /**
-     * Resolve kode/deskripsi sektor sekali di PHP supaya query utama tidak harus
-     * LEFT JOIN sr_sektor hanya untuk membandingkan deskripsi seperti VIOLA RESIDENCE.
-     */
     private function resolveSektorValues(string $sektor, string $perusahaan): array
     {
         if ($sektor === '*' || $sektor === '') {
             return ['*'];
         }
 
-        /*
-         * Popup mengirim kode sektor. Pemetaan ini juga menjaga filter tetap
-         * bekerja apabila integrasi lama masih mengirim teks deskripsinya.
-         */
         $fallbackCode = [
             'CHELIA RESIDENCE' => 'CLA',
             'EMERALD COMMERCIAL' => 'EMC',
         ][$sektor] ?? null;
 
-        /*
-         * Fast path: popup sektor sudah memanggil obtainSektor(). Hasilnya di-cache,
-         * sehingga deskripsi seperti VIOLA RESIDENCE dapat dipetakan ke kode tanpa
-         * menjalankan lima scan sr_sektor lagi sebelum get_summary.
-         * Jika tidak ada match, SQL fallback lama tetap dijalankan agar kompatibilitas
-         * data lama tidak berubah.
-         */
         $resolvedFromLookup = [];
 
         if (preg_match('/^[A-Z0-9_-]{1,30}$/', $sektor)) {
@@ -900,7 +741,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                     }
                 }
             } catch (\Throwable $e) {
-                // Resolver SQL lama di bawah tetap menjadi fallback penuh.
             }
         }
 
@@ -994,11 +834,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             return ['*'];
         }
 
-        /*
-         * Master lokasi sudah tersedia di LOKASI_LIST. Gunakan itu lebih dulu agar
-         * get_summary tidak perlu query sr_lokasi hanya untuk kode/deskripsi normal.
-         * SQL lama tetap dipertahankan sebagai fallback untuk nilai legacy.
-         */
         $lokasiMatches = [];
 
         foreach (self::LOKASI_LIST as $item) {
@@ -1136,15 +971,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return count($where) ? "\n                  AND " . implode("\n                  AND ", $where) : '';
     }
 
-    /**
-     * Bangun sumber candidate uang muka langsung sebagai CTE untuk query utama.
-     *
-     * Versi sebelumnya menjalankan SELECT kandidat lebih dulu lalu query utama
-     * membaca sr_uang_muka lagi berdasarkan daftar ID tersebut. Pada rentang tanggal
-     * panjang ini berarti tabel uang muka dan stok dibaca dua kali.
-     *
-     * Method ini hanya membentuk SQL + binding. Tidak melakukan write apa pun.
-     */
     private function buildCandidateUangMukaSource(
         string $flagTgl,
         string $tglAwal,
@@ -1305,10 +1131,6 @@ class Daftar_Surat_Pemesanan_m extends Model
 
         $schema = self::SCHEMA;
         $noBuktiTahap1Sql = $this->getBuktiTahap1Sql();
-        /*
-         * View dan Excel tetap memakai kumpulan data penuh yang sama.
-         * Candidate sekarang menjadi CTE di query utama agar tabel besar tidak dibaca dua kali.
-         */
         $lokasiValues = $this->resolveLokasiValues($lokasi);
         $sektorValues = $this->resolveSektorValues($sektor, $perusahaan);
 
@@ -1335,26 +1157,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         $candidateBindings = $candidateSource['bindings'];
         $perfCandidateMs = (microtime(true) - $candidateBuildStartedAt) * 1000;
 
-        /*
-         * Optimasi v21 READ ONLY SINGLE-PASS tanpa mengurangi data laporan:
-         * - Join STOK_ID kandidat/PPJB memakai kolom asli tanpa CAST/BTRIM agar
-         *   index PostgreSQL tetap dapat digunakan.
-         * - Kondisi status kandidat dibentuk langsung sesuai pilihan user agar
-         *   PostgreSQL tidak merencanakan banyak EXISTS/NOT EXISTS yang tidak dipakai.
-         * - Enrichment stok/lokasi/sektor/model dihitung sekali per STOK_ID kandidat,
-         *   bukan diulang untuk setiap baris pembayaran pada CTE base.
-         * - Fallback pembeli PPJB hanya dihitung bila nama dari DP belum tersedia.
-         * - Fallback pembeli inline hanya dihitung bila DP dan PPJB sama-sama kosong.
-         * - Lookup pembayaran tetap mempertahankan exact + fallback digit, tetapi
-         *   duplikasi lookup identik dihindari.
-         * - Seluruh prioritas/fallback data tetap sama sehingga data yang sudah tampil
-         *   tidak sengaja dikurangi.
-         */
-        /*
-         * Normalisasi kode stok/master dibangun satu kali.
-         * Master kecil dimaterialisasi sekali, bukan dipindai ulang lewat LATERAL
-         * dengan to_jsonb() untuk setiap STOK_ID kandidat.
-         */
         $stokSektorKeySql = $this->stokSektorExpr('stok');
         $stokLokasiKeySql = $this->stokLokasiExpr('stok');
         $stokPerusahaanKeySql = $this->stokPerusahaanExpr('stok');
@@ -1490,13 +1292,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                 WHERE um.stok_id IS NOT NULL
             ),
 
-            /*
-             * Enrichment master stok dilakukan satu kali per STOK_ID kandidat.
-             * Sebelumnya lookup LATERAL lokasi/sektor/model berada di CTE base dan
-             * bisa dieksekusi berulang ketika satu uang muka memiliki beberapa baris
-             * pembayaran. Pemindahan ini tidak mengubah isi data, hanya mengurangi
-             * pekerjaan berulang.
-             */
             candidate_stock_rows AS MATERIALIZED (
                 SELECT
                     stok.*,
@@ -1545,16 +1340,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                 WHERE {$modelMasterKeySql} <> ''
             ),
 
-            /*
-             * MATERIALIZED pada CTE di bawah bukan sekadar gaya penulisan.
-             *
-             * CTE yang hanya dirujuk sekali akan disisipkan oleh PostgreSQL ke
-             * dalam query induknya. Ketika perencana menempatkannya di sisi
-             * dalam sebuah nested loop, isinya dihitung ulang untuk setiap
-             * baris di sisi luar. Pada rencana sebelumnya ppjb_selected dan
-             * stok_enriched masing-masing dihitung ulang ribuan kali.
-             * MATERIALIZED memastikan keduanya dihitung tepat satu kali.
-             */
             stok_enriched AS MATERIALIZED (
                 SELECT
                     stok.*,
@@ -1616,11 +1401,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             ),
 
             ppjb_candidates AS MATERIALIZED (
-                /*
-                 * Prioritas 1: PPJB yang memang berasal dari uang_muka_id yang sama.
-                 * Prioritas 2: fallback PPJB aktif terbaru berdasarkan stok_id.
-                 * Ini lebih dekat dengan desktop dan mengurangi risiko salah PPJB.
-                 */
                 SELECT
                     um.uang_muka_id AS um_key,
                     0 AS prioritas,
@@ -1727,10 +1507,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                     ppjb.kd_agen AS ppjb_kd_agen,
                     ppjb.kd_sales AS ppjb_kd_sales,
 
-                    /*
-                     * Fallback inline tetap sama, tetapi memakai kolom fisik yang
-                     * tersedia agar row kandidat tidak perlu diubah ke JSONB.
-                     */
                     COALESCE(
                         NULLIF({$umInlineNameSql}, ''),
                         NULLIF({$ppjbInlineNameSql}, ''),
@@ -1745,15 +1521,6 @@ class Daftar_Surat_Pemesanan_m extends Model
 
                 FROM candidate_um AS um
 
-                /*
-                 * LEFT JOIN, bukan INNER JOIN.
-                 *
-                 * Dengan INNER JOIN, surat pesanan yang belum punya baris
-                 * pembayaran sama sekali di sr_bayar_uang_muka ikut hilang dari
-                 * laporan, padahal unitnya tetap harus tampil dengan kolom
-                 * Jumlah Bayar / Tanggal Bayar kosong. Inilah penyebab jumlah
-                 * unit di web jauh lebih sedikit daripada desktop.
-                 */
                 LEFT JOIN {$schema}.sr_bayar_uang_muka AS bum
                     ON {$this->idJoin('sr_bayar_uang_muka', 'bum', 'uang_muka_id', 'sr_uang_muka', 'um', 'uang_muka_id', 'angka')}
 
@@ -1852,12 +1619,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                 GROUP BY bp.ppjb_id
             ),
 
-            /*
-             * TOTAL_BAYAR tidak dihitung di SQL utama.
-             * Perhitungan angsuran dipindahkan ke hydrateTotalBayarColumns()
-             * supaya query utama tidak timeout akibat scan sr_angsuran.
-             */
-
             npv_latest AS MATERIALIZED (
                 SELECT DISTINCT ON (bp.ppjb_id)
                     bp.ppjb_id,
@@ -1871,7 +1632,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                     bp.ppjb_id,
                     n.npv_id DESC
             )
-
 
             SELECT
                 b.tgl_uang_muka AS "TGL_UANG_MUKA",
@@ -1931,29 +1691,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                 ON jadwal.ppjb_id = b.ppjb_id
             LEFT JOIN npv_latest AS npv
                 ON npv.ppjb_id = b.ppjb_id
-            /*
-             * Urutan mengikuti hasil desktop.
-             *
-             * Query desktop tidak memiliki ORDER BY sama sekali; ia berupa
-             * UNION (bukan UNION ALL) dari tiga SELECT, jadi tidak ada
-             * ORDER BY di sisi query. Urutan yang terlihat pada laporan
-             * dibentuk oleh report desktop sendiri: dikelompokkan menurut
-             * TGL_UANG_MUKA lalu diurutkan menurut BLOK_NOMOR di dalam tiap
-             * tanggal.
-             *
-             * Contoh dari laporan desktop untuk tanggal 04-06-2026:
-             * AP6/B15, AP6/B16, AP6/B17, ... AP6/B28, AP6/C07, AP6/C15, ...
-             * AP6/C22, lalu BOM/020. Nomor surat pesanan pada baris tersebut
-             * melompat-lompat (0108, 0107, 0111, 0118, ...), jadi NO_UANG_MUKA
-             * jelas bukan kunci urutan kedua.
-             *
-             * Karena pengelompokan memakai TGL_UANG_MUKA, urutan tetap sama
-             * baik filter memakai Tgl. Entry Surat Pesanan maupun Tgl. Surat
-             * Pesanan; pilihan tanggal hanya menentukan baris mana yang ikut.
-             *
-             * NULLS FIRST dipakai karena PostgreSQL menaruh NULL di akhir pada
-             * urutan menaik, sedangkan SQL Server menaruhnya di awal.
-             */
             ORDER BY
                 b.tgl_uang_muka NULLS FIRST,
                 b.blok_nomor NULLS FIRST,
@@ -1976,26 +1713,12 @@ class Daftar_Surat_Pemesanan_m extends Model
 
         $hydrateStartedAt = microtime(true);
 
-        /*
-         * Nama pembeli diambil pada pipeline SELECT terpisah agar query utama
-         * tidak membawa CTE pembeli/nasabah besar. Prioritas tetap:
-         * DP -> PPJB -> INLINE.
-         */
         $this->hydrateNasabahNames($rows);
 
         $this->hydrateTotalBayarColumns($rows, $tglBayar);
         $perfHydrateMs = (microtime(true) - $hydrateStartedAt) * 1000;
 
         if (config('app.debug')) {
-            /*
-             * candidate_count menjawab pertanyaan "baris hilang di tahap
-             * kandidat atau sesudahnya". Seluruh join sesudah candidate_um
-             * bersifat LEFT JOIN, jadi bila candidate_count sudah sama dengan
-             * row_count berarti penyaringan terjadi di tahap kandidat, dan
-             * daftar filter di bawah menunjukkan nilai mana yang menyebabkan.
-             *
-             * Hitungan ini hanya berjalan ketika APP_DEBUG aktif.
-             */
             $candidateCount = null;
 
             try {
@@ -2016,11 +1739,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                 'total_ms' => round((microtime(true) - $perfStartedAt) * 1000, 2),
                 'candidate_count' => $candidateCount,
                 'row_count' => count($rows),
-                /*
-                 * Nama database ikut dicatat agar terlihat bila aplikasi
-                 * ternyata menunjuk database yang berbeda dari yang dipakai
-                 * saat memeriksa data secara manual.
-                 */
                 'koneksi' => self::CONNECTION,
                 'database' => DB::connection(self::CONNECTION)->getDatabaseName(),
                 'flag_tgl' => $flagTgl,
@@ -2043,14 +1761,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         return $rows;
     }
 
-
-    /**
-     * Hydrate NASABAH_NAMA secara terpisah.
-     *
-     * Semua query di sini bersifat SELECT.
-     * Hasil tetap memakai prioritas yang sama dengan query lama:
-     * sr_pembeli_dp -> sr_pembeli_ppjb -> data inline.
-     */
     private function hydrateNasabahNames(array &$rows): void
     {
         if (count($rows) < 1) {
@@ -2071,10 +1781,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         if (count($uangMukaIds)) {
             $umArray = $this->pgArrayForColumn('sr_pembeli_dp', 'uang_muka_id', array_keys($uangMukaIds));
 
-            /*
-             * Exact match terlebih dahulu. Pada data normal jalur ini cukup
-             * dan PostgreSQL tidak perlu menjalankan REGEXP_REPLACE ke seluruh tabel.
-             */
             $sql = <<<SQL
                 SELECT
                     BTRIM(CAST(pd.uang_muka_id AS text)) AS uang_muka_id,
@@ -2127,10 +1833,6 @@ class Daftar_Surat_Pemesanan_m extends Model
                 }
             }
 
-            /*
-             * Digit fallback HANYA dijalankan untuk uang muka yang belum
-             * mendapatkan nama dari exact match.
-             */
             $unmatched = [];
             foreach (array_keys($uangMukaIds) as $id) {
                 if (empty($namaByUangMuka[$id])) {
@@ -2228,9 +1930,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             }
         }
 
-        /*
-         * PPJB fallback hanya untuk row tanpa nama DP.
-         */
         $ppjbNeeded = [];
 
         foreach ($rows as $row) {
@@ -2299,9 +1998,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             }
         }
 
-        /*
-         * INLINE fallback hanya untuk row yang masih tidak mempunyai nama.
-         */
         $inlineIds = [];
 
         foreach ($rows as $row) {
@@ -2322,18 +2018,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             ? $this->fetchNasabahNames(array_keys($inlineIds))
             : [];
 
-        /*
-         * Bentuk output sama seperti STRING_AGG(DISTINCT UPPER(...) ORDER BY ...).
-         *
-         * Baris tanpa nama pembeli TIDAK dibuang.
-         *
-         * Query desktop memanggil dbo.F_GET_PEMBELI_DP(UANG_MUKA_ID) hanya pada
-         * daftar SELECT dan tidak pernah menyaring berdasarkan hasilnya, jadi
-         * surat pesanan yang datanya belum lengkap tetap muncul dengan kolom
-         * Nama Pembeli berisi '-'. Pembuangan baris di sini membuat laporan web
-         * kehilangan sebagian besar unit dibanding desktop, misalnya tanggal
-         * 04-06-2026 hanya menampilkan 5 dari 21 surat pesanan.
-         */
         foreach ($rows as $row) {
             $umId = trim((string) ($row->UANG_MUKA_ID_INTERNAL ?? ''));
             $ppjbId = trim((string) ($row->PPJB_ID_INTERNAL ?? ''));
@@ -2377,9 +2061,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         }
     }
 
-    /**
-     * Ambil nama nasabah hanya untuk NASABAH_ID yang dibutuhkan.
-     */
     private function fetchNasabahNames(array $nasabahIds): array
     {
         $nasabahIds = array_values(array_unique(array_filter(array_map(
@@ -2394,11 +2075,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         $result = [];
         $exactArray = $this->pgArrayForColumn('sr_nasabah', 'nasabah_id', $nasabahIds);
 
-        /*
-         * NASABAH_ID pada database ini varchar. Exact equality dikerjakan lebih dulu
-         * tanpa fungsi di sisi kolom sehingga PostgreSQL dapat memakai index yang
-         * sudah mungkin tersedia di database, tanpa kita membuat index baru.
-         */
         $exactSql = <<<SQL
             SELECT
                 UPPER(BTRIM(CAST(nasabah.nasabah_id AS text))) AS nasabah_id,
@@ -2425,10 +2101,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             }
         }
 
-        /*
-         * Jika ada data lama dengan spasi/case berbeda, jalur normalized lama tetap
-         * dijalankan hanya untuk ID yang belum ketemu. Tidak ada data yang dihapus.
-         */
         $unmatched = array_values(array_filter(
             $nasabahIds,
             static fn ($id) => empty($result[$id])
@@ -2520,11 +2192,6 @@ class Daftar_Surat_Pemesanan_m extends Model
         $lookupIdKeys = [];
         $lookupValues = [];
 
-        /*
-         * Ketika sr_angsuran.ppjb_id bertipe angka, pasangan yang nilainya
-         * bukan angka dibuang bersama kunci pasangannya agar kedua array tetap
-         * sejajar dan cast ke numeric tidak gagal.
-         */
         $angsuranNumerik = $this->isNumericColumn('sr_angsuran', 'ppjb_id');
         $lookupTipe = $angsuranNumerik ? 'numeric' : 'text';
 
@@ -2556,10 +2223,6 @@ class Daftar_Surat_Pemesanan_m extends Model
 
         $schema = self::SCHEMA;
 
-        /*
-         * Semua ekspresi ini hanya dibangun dari metadata information_schema.
-         * Tidak ada perubahan data. Fallback nilainya tetap sama.
-         */
         $nominalBayarSql = $this->angsuranNumericExpr('angsuran');
         $tanggalBayarSql = $this->angsuranDateExpr(
             'angsuran',
@@ -2582,11 +2245,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             ? "NULLIF(BTRIM(COALESCE(CAST(angsuran.tgl_cair AS text), '')), '') IS NOT NULL"
             : 'FALSE';
 
-        /*
-         * Query ini sengaja dipisah dari query utama.
-         * Join ke sr_angsuran memakai kolom asli angsuran.ppjb_id tanpa BTRIM/CAST
-         * di sisi tabel, supaya index sr_angsuran_ppjb_id_aktif_idx bisa tetap dipakai.
-         */
         $sql = <<<SQL
             WITH lookup(id_key, ppjb_lookup) AS (
                 SELECT *
@@ -2677,7 +2335,6 @@ class Daftar_Surat_Pemesanan_m extends Model
             FROM hasil
         SQL;
 
-        // tglBayar dipakai 4 kali pada SQL hydrate.
         $bindings[] = $tglBayar;
         $bindings[] = $tglBayar;
 
@@ -2696,11 +2353,6 @@ class Daftar_Surat_Pemesanan_m extends Model
 
             $row->TOTAL_BAYAR = $totalBayar;
 
-            /*
-             * Desktop menampilkan persen bayar maksimal 100.
-             * Di PostgreSQL total bayar bisa sedikit lebih besar dari harga jual PPJB
-             * karena pembulatan/selisih komponen pembayaran, jadi persen dikunci 0..100.
-             */
             $persenBayar = $hargaJualPpjb > 0
                 ? ($totalBayar / $hargaJualPpjb) * 100
                 : 0;

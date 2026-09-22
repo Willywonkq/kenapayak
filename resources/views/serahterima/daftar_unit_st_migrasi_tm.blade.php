@@ -95,7 +95,6 @@
         padding: 18px;
     }
 
-    /* Menjaga posisi tombol View dan Print tetap di kanan pada zoom berbeda */
     .dst-filter-grid {
         grid-template-columns: minmax(420px, 1.35fr) minmax(300px, .95fr) 40px 120px;
         min-width: 980px;
@@ -199,15 +198,6 @@
         z-index: 1;
     }
 
-    /*
-     * Tombol teropong. Warna, garis tepi, dan gerak angkatnya mengikuti
-     * .undangan-lookup-button pada Daftar Undangan Surat Rumah.
-     *
-     * Ukurannya sengaja 36, bukan 42 seperti halaman lain, karena seluruh
-     * isian di halaman ini setinggi 36. Memaksa 42 akan membuat tombolnya
-     * menjulang di atas kotak isian dan justru terlihat tidak seragam.
-     * Sudutnya pun diturunkan seimbang, dari 13 menjadi 11.
-     */
     .dst-lookup-button {
         display: inline-flex;
         width: 36px;
@@ -254,11 +244,6 @@
         transform: none;
     }
 
-    /*
-     * Ikonnya sekarang huruf ikon, bukan gambar SVG, jadi aturan berputar
-     * saat memuat ikut diarahkan ke sana. Kalau ini terlewat, tanda sedang
-     * memuat akan diam saja tanpa ada yang menyadari.
-     */
     .dst-lookup-button.is-loading svg,
     .dst-lookup-button.is-loading i {
         animation: dst-spin .7s linear infinite;
@@ -420,11 +405,6 @@
         background: #e7f7ec;
     }
 
-    /*
-     * Tombol Print mati selama laporannya belum tampil. Rupanya harus ikut
-     * menyatakan itu, sebab tombol yang mati tetapi terlihat hidup lebih
-     * membingungkan daripada tombol yang menolak ditekan disertai pesan.
-     */
     .dst-button:disabled,
     .dst-button[disabled] {
         border-color: #e2e8f0;
@@ -623,13 +603,6 @@
         gap: 9px;
     }
 
-
-    /*
-     * V2 Loading State Fix
-     * Saat request berjalan, panel initial/report disembunyikan seluruhnya.
-     * Dengan begitu icon fa-table + teks "Silakan pilih filter..." tidak
-     * tetap terlihat di bawah bar "Memuat data...".
-     */
     .dst-report-shell.dst-report-shell--loading {
         display: none !important;
     }
@@ -661,12 +634,6 @@
             var(--dst-background);
     }
 
-    /*
-     * .dst-paper kini hanya pembungkus layout polos. Kartu laporan yang
-     * sebenarnya (border, radius, shadow, garis aksen atas) disediakan oleh
-     * .report-wrapper — sama seperti fitur-fitur lain — supaya tidak ada
-     * dua lapis kartu yang bertumpuk.
-     */
     .dst-paper {
         width: 100%;
         margin: 0 auto;
@@ -879,8 +846,6 @@
         }
     }
 
-
-    /* Hero judul mengikuti Daftar Serah Terima, tanpa ilustrasi rumah. */
     .dst-page-hero {
 
     display: flex;
@@ -953,15 +918,8 @@
         .dst-page-unit-badge { display: none; }
     }
 
-
-
-    /* =========================================================
-       HEADER ICON MATCH — DAFTAR SERTIPIKAT PECAHAN
-       Hanya ikon kiri atas yang disamakan. Struktur/fungsi lain tetap.
-       ========================================================= */
     .dst-page-heading-icon.sertipikat-style-heading-icon {
 
-        
         width: 34px !important;
         height: 34px !important;
         min-width: 34px !important;
@@ -985,9 +943,6 @@
         }
     }
 
-
-
-    /* FONT STANDARD — MATCH DAFTAR SURAT PESANAN */
     .dst-page,
     .dst-page input,
     .dst-page select,
@@ -1008,12 +963,6 @@
         font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif !important;
     }
 
-    /* =========================================================
-       TAMPILAN HASIL LAPORAN — MENGIKUTI DAFTAR SERTIFIKAT PECAHAN
-       Struktur: 3 grid (header → subtitle → tabel).
-       Catatan: HANYA tampilan/gaya. Kolom, urutan kolom, dan isi
-       data laporan tidak diubah sama sekali.
-       ========================================================= */
     .dst-page .report-wrapper {
         position: relative;
         min-height: 0 !important;
@@ -1039,7 +988,6 @@
         background: linear-gradient(90deg, transparent, #38bdf8, #2563eb, #6366f1, transparent);
     }
 
-    /* --- GRID 1 : HEADER LAPORAN --- */
     .dst-page .report-header {
         display: grid;
         grid-template-columns: minmax(150px, 1fr) minmax(260px, 1.4fr) minmax(180px, 1fr);
@@ -1081,7 +1029,6 @@
         line-height: 1.55;
     }
 
-    /* --- GRID 2 : BARIS SEKTOR/CLUSTER --- */
     .dst-page .report-subtitle {
         display: grid;
         grid-template-columns: 1fr auto 1fr;
@@ -1143,7 +1090,6 @@
         box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.10);
     }
 
-    /* --- GRID 3 : TABEL LAPORAN --- */
     .dst-page .report-table-container {
         width: 100%;
         max-width: 100%;
@@ -1272,7 +1218,6 @@
         }
     }
 
-    /* Modal alert data kosong, mengikuti Daftar Surat Pesanan. */
     #daftarUnitSTNoDataAlertModal .modal-dialog {
         max-width: 380px;
     }
@@ -1327,7 +1272,6 @@
         transform: translateY(-1px);
         box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
     }
-
 
 </style>
 
@@ -1614,10 +1558,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1643,7 +1583,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const printButton = document.getElementById('btn-print');
     let sektorLastFocus = null;
 
-    /* Label sektor bersih (tanpa kode) untuk grid 2 hasil laporan. */
     let sektorLabel = 'Semua Sektor';
 
     resetPageState();
@@ -1721,11 +1660,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 '</span>' +
             '</div>';
 
-        /*
-         * Dipanggil SESUDAH isi awal dipasang, bukan sebelumnya. setLoading di
-         * atas sudah menyelaraskan tombol, tetapi saat itu layar masih memuat
-         * laporan lama, jadi keadaannya belum tentu benar.
-         */
         syncUnitSTPrintState(false);
     }
 
@@ -1972,14 +1906,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    /*
-     * ================================================================
-     * RESOLVER NAMA PERUSAHAAN — versi vanilla JS, setara dengan
-     * resolveReportCompany() pada Daftar Surat Pesanan dkk (jQuery).
-     * Logika dan urutan sumbernya sengaja disamakan agar hasilnya
-     * konsisten di semua fitur.
-     * ================================================================
-     */
     function extractCompanyName(value) {
         const raw = String(value || '').replace(/\u00a0/g, ' ');
         const locationMatch = raw.match(/Lokasi\s*:[^\r\n|]*?-\s*([^\r\n|]+)/i);
@@ -2151,13 +2077,6 @@ document.addEventListener('DOMContentLoaded', function () {
         let html = '';
         html += '<div class="report-wrapper">';
 
-        /*
-         * GRID 1 — HEADER LAPORAN
-         * Kiri: identitas perusahaan unit aktif. Tengah: judul laporan.
-         * Kanan: periode PPJB, periode realisasi, blok, status BAST, dan
-         * catatan "[Blok/Nomor] = PPJB Batal" (isi sama seperti keterangan
-         * yang sebelumnya berdiri sendiri di atas tabel).
-         */
         html += '<div class="report-header">';
         html += '<div class="report-company">' + escapeHtml(companyText) + '</div>';
         html += '<div class="report-title">' + escapeHtml(title) + '</div>';
@@ -2170,20 +2089,12 @@ document.addEventListener('DOMContentLoaded', function () {
         html += '</div>';
         html += '</div>';
 
-        /*
-         * GRID 2 — BARIS SEKTOR/CLUSTER
-         * Label di kiri, nilai sektor di tengah, badge status di kanan.
-         */
         html += '<div class="report-subtitle">';
         html += '<span class="report-subtitle-label">Sektor/Cluster:</span>';
         html += '<span class="report-subtitle-value">' + escapeHtml(sektorLabel) + '</span>';
         html += '<span class="report-live-badge">Live data</span>';
         html += '</div>';
 
-        /*
-         * GRID 3 — TABEL LAPORAN
-         * Kolom, urutan, dan isi data tidak diubah.
-         */
         html += '<div class="report-table-container">';
         html += '<table class="table table-bordered report-table" style="min-width:1100px;">';
         html += '<thead><tr>';
@@ -2237,20 +2148,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -2305,10 +2202,6 @@ document.addEventListener('DOMContentLoaded', function () {
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -2366,10 +2259,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const reportHtml = report.innerHTML;
 
-        /*
-         * Print terisolasi mengikuti Daftar Sertifikat Pecahan.
-         * Tidak mengunci orientation ataupun paper size.
-         */
         const oldFrame = document.getElementById('unitSTNativePrintFrame');
 
         if (oldFrame) {
@@ -2431,7 +2320,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 display: none !important;
             }
 
-            /* GRID 1 — HEADER */
             .report-header {
                 display: grid !important;
                 grid-template-columns: 1fr 1.45fr 1fr !important;
@@ -2472,7 +2360,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 line-height: 1.35 !important;
             }
 
-            /* GRID 2 — BARIS SEKTOR/CLUSTER */
             .report-subtitle {
                 display: grid !important;
                 grid-template-columns: 1fr auto 1fr !important;
@@ -2533,8 +2420,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 box-shadow: none !important;
             }
 
-
-            /* GRID 3 — TABEL */
             .report-table-container {
                 width: 100% !important;
                 max-width: 100% !important;
@@ -2630,27 +2515,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 text-align: center !important;
                 font-style: italic !important;
             }
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
 
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .report-table,
@@ -2665,7 +2530,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .report-table th,
             .report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -2684,12 +2548,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .report-table tbody tr[class*="sector-row"] > td,
             .report-table tbody tr[class*="sektor-row"] > td,
             .report-table tbody tr[class*="cluster-row"] > td,
@@ -2698,17 +2560,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .report-table tbody tr[class*="total-row"] > td,
             .report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2741,7 +2597,6 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             frameWindow.onafterprint = cleanupPrintFrame;
         } catch (error) {
-            // Fallback cleanup di bawah.
         }
 
         window.setTimeout(function () {
@@ -2757,7 +2612,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         window.setTimeout(cleanupPrintFrame, 30000);
     }
-
 
     async function postForm(url, data) {
         const body = new URLSearchParams();
@@ -2806,15 +2660,6 @@ document.addEventListener('DOMContentLoaded', function () {
         syncUnitSTPrintState(isLoading);
     }
 
-    /*
-     * Tombol Print hanya hidup ketika laporannya benar-benar ada di layar.
-     *
-     * Sebelumnya keadaannya diikatkan langsung pada setLoading, sehingga
-     * begitu pemuatan selesai tombolnya hidup lagi walaupun yang tampil
-     * ternyata pesan galat. Sekarang tandanya diambil dari DOM, yaitu
-     * keberadaan .report-wrapper di dalam #main-display, syarat yang persis
-     * sama dengan yang dipakai printReport sebelum mencetak.
-     */
     function syncUnitSTPrintState(sedangMemuat) {
         const siap = sedangMemuat !== true
             && !!mainDisplay.querySelector('.report-wrapper');
@@ -2875,27 +2720,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -2909,10 +2733,6 @@ document.addEventListener('DOMContentLoaded', function () {
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -2967,15 +2787,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -3025,12 +2836,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -3070,11 +2875,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -3124,7 +2924,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -3162,8 +2961,6 @@ document.addEventListener('DOMContentLoaded', function () {
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -3209,8 +3006,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -3268,9 +3063,6 @@ document.addEventListener('DOMContentLoaded', function () {
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

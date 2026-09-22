@@ -1,8 +1,3 @@
-{{-- FONT STANDARD SURAT PESANAN V1-20260812 --}}
-{{-- HEADER ICON EXACT SERTIPIKAT V2-20260812 --}}
-{{-- INITIAL ICON VERSION V1-20260812-TABLE-CONSISTENT --}}
-{{-- UI REFRESH V1-20260901-VISUAL-ONLY --}}
-{{-- NOTICE REDESIGN V1-20260901-VISUAL-ONLY --}}
 @extends('layouts.template')
 
 @section('content')
@@ -109,14 +104,6 @@
         white-space: nowrap;
     }
 
-    /*
-     * Dulu tiga kotak berjajar dan tingginya dipaksa sama. Akibatnya kotak
-     * Pilih dan Email, yang isinya hanya dua tombol, menyisakan ruang kosong
-     * sekitar dua pertiga tingginya, sementara kotak penyaring justru sesak.
-     *
-     * Sekarang keduanya ditumpuk dalam satu kolom di kanan, dan tingginya
-     * mengikuti isinya sendiri.
-     */
     .lampiran-st-formrow {
         display: grid;
         grid-template-columns: minmax(650px, 1fr) minmax(236px, 0.3fr);
@@ -246,11 +233,6 @@
         white-space: nowrap;
     }
 
-    /*
-     * Setelah Cluster dipilih, badge validasi berubah menjadi deskripsi
-     * Cluster seperti pada aplikasi desktop. Data deskripsi berasal dari
-     * response DESKRIPSI endpoint get_sektor; tidak ada query tulis database.
-     */
     .lampiran-st-required.is-cluster-description {
         max-width: 250px;
         min-width: 150px;
@@ -306,15 +288,6 @@
         white-space: nowrap;
     }
 
-    /*
-     * Tombol teropong. Warna, garis tepi, dan gerak angkatnya mengikuti
-     * .undangan-lookup-button pada Daftar Undangan Surat Rumah.
-     *
-     * Ukurannya tetap 36, bukan 42 seperti halaman lain, karena seluruh
-     * isian di halaman ini setinggi 36. Memaksa 42 akan membuat tombolnya
-     * menjulang di atas kotak isian dan justru terlihat tidak seragam.
-     * Sudutnya diturunkan seimbang, dari 13 menjadi 11.
-     */
     .lampiran-st-lookup {
         display: inline-flex;
         width: 36px;
@@ -417,16 +390,6 @@
         padding: 15px;
     }
 
-    /*
-     * Keduanya dijadikan sepasang berdampingan supaya terbaca sebagai satu
-     * pilihan, bukan dua baris yang tidak berhubungan.
-     *
-     * Bentuk aslinya tetap tombol radio, tidak diganti tombol biasa, karena
-     * dua alasan. Pertama, getLampiranData() mengembalikannya ke Uncheck All
-     * lewat pemilih input[name="check_mode"], jadi menggantinya akan
-     * memutus pemulihan itu tanpa ada yang menyadari. Kedua, titik radionya
-     * masih berguna sebagai penanda mana yang terakhir dipakai.
-     */
     .lampiran-st-choicebox .lampiran-st-choicerow {
         display: flex;
         gap: 8px;
@@ -801,7 +764,6 @@
         background: #eff6ff;
     }
 
-    /* LOOKUP BLOK V1: Column Criteria 20 kolom seperti desktop */
     .lampiran-st-blok-criteria {
         display: grid;
         grid-template-columns: minmax(250px, 1.2fr) minmax(240px, 1fr) auto auto;
@@ -843,10 +805,6 @@
     @media (max-width:920px) { .lampiran-st-blok-criteria { grid-template-columns:1fr 1fr; } }
     @media (max-width:640px) { .lampiran-st-blok-criteria { grid-template-columns:1fr; } }
 
-
-    /* LOOKUP BLOK V2
-       Filter = pilih kolom -> langsung sort, criteria opsional dan live.
-       Search = filter selector + criteria disembunyikan, diganti 1 field pencarian lebar. */
     .lampiran-st-blok-criteria {
         grid-template-columns: minmax(280px, 1.2fr) minmax(280px, 1fr) auto auto;
         align-items: end;
@@ -1048,10 +1006,6 @@
             grid-template-columns: 1fr;
         }
 
-        /*
-         * Sempit ke bawah, kolom kanan justru dibentangkan menyamping supaya
-         * kedua kotaknya tidak memanjang sendiri-sendiri di bawah penyaring.
-         */
         .lampiran-st-sidecol {
             flex-direction: row;
         }
@@ -1113,8 +1067,6 @@
         }
     }
 
-
-    /* Hero judul mengikuti Daftar Serah Terima, tanpa ilustrasi rumah. */
     .lampiran-st-page-hero {
 
     display: flex;
@@ -1187,15 +1139,8 @@
         .lampiran-st-page-unit-badge { display: none; }
     }
 
-
-
-    /* =========================================================
-       HEADER ICON MATCH — DAFTAR SERTIPIKAT PECAHAN
-       Hanya ikon kiri atas yang disamakan. Struktur/fungsi lain tetap.
-       ========================================================= */
     .lampiran-st-page-heading-icon.sertipikat-style-heading-icon {
 
-        
         width: 34px !important;
         height: 34px !important;
         min-width: 34px !important;
@@ -1219,9 +1164,6 @@
         }
     }
 
-
-
-    /* FONT STANDARD — MATCH DAFTAR SURAT PESANAN */
     .lampiran-st-page,
     .lampiran-st-page input,
     .lampiran-st-page select,
@@ -1248,15 +1190,6 @@
         font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif !important;
     }
 
-    /* =========================================================
-       UI REFRESH V1-20260901 — VISUAL ONLY
-       Blok ini hanya menimpa tampilan (warna, radius, bayangan,
-       spasi). Tidak ada perubahan struktur HTML, id, class, atau
-       logika JavaScript. Palet mengikuti fitur Daftar Surat
-       Pesanan / Daftar Serah Terima / Approval agar konsisten.
-       ========================================================= */
-
-    /* --- Kanvas halaman --- */
     .lampiran-st-page {
         background:
             radial-gradient(1100px 340px at 12% -10%, rgba(37, 99, 235, 0.10), transparent 62%),
@@ -1264,7 +1197,6 @@
             #f4f7fc;
     }
 
-    /* --- Hero judul --- */
     .lampiran-st-page .lampiran-st-page-hero {
         position: relative;
         border: 1px solid #e2e8f0;
@@ -1292,7 +1224,6 @@
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
-    /* --- Frame utama --- */
     .lampiran-st-page .lampiran-st-frame {
         border-color: #e2e8f0;
         border-radius: 16px;
@@ -1306,7 +1237,6 @@
         background: linear-gradient(180deg, #f7faff 0%, #ffffff 100%);
     }
 
-    /* --- Kartu filter / pilih / email --- */
     .lampiran-st-page .lampiran-st-box,
     .lampiran-st-page .lampiran-st-choicebox,
     .lampiran-st-page .lampiran-st-emailbox {
@@ -1352,7 +1282,6 @@
         padding: 16px 16px 15px;
     }
 
-    /* --- Label seksi jadi chip ikon --- */
     .lampiran-st-page .lampiran-st-section-label {
         gap: 9px;
         color: #1e293b;
@@ -1385,7 +1314,6 @@
         border-bottom: 1px dashed #e4ebf5;
     }
 
-    /* --- Kontrol input --- */
     .lampiran-st-page .lampiran-st-label {
         color: #334155;
         font-weight: 700;
@@ -1438,14 +1366,6 @@
         box-shadow: 0 7px 15px rgba(37, 99, 235, 0.12);
     }
 
-    /* --- Parameter jadi mini-card --- */
-    /*
-     * Empat angka kecil ini sebelumnya masing-masing dibungkus kotak
-     * bergaris. Bobot rupanya jadi jauh lebih besar daripada bobot isinya,
-     * dan barisnya terlihat lebih ramai daripada baris Cluster dan Blok di
-     * atasnya, padahal kepentingannya tidak lebih besar. Kotaknya dilepas,
-     * tulisan kecilnya saja yang menjadi pengelompok.
-     */
     .lampiran-st-page .lampiran-st-parameter-item {
         padding: 0;
         border: 0;
@@ -1467,7 +1387,6 @@
         border-top: 1px dashed #e4ebf5;
     }
 
-    /* --- Tombol --- */
     .lampiran-st-page .lampiran-st-button {
         border-color: #d7e0ec;
         border-radius: 10px;
@@ -1505,7 +1424,6 @@
         box-shadow: 0 10px 22px rgba(5, 150, 105, 0.28);
     }
 
-    /* --- Pilihan Check All / Uncheck All --- */
     .lampiran-st-page .lampiran-st-choicebox label {
         border-color: #e6ecf5;
         border-radius: 10px;
@@ -1533,7 +1451,6 @@
         accent-color: #2563eb;
     }
 
-    /* --- Checkbox baris tabel --- */
     .lampiran-st-page .lampiran-st-table input[type="checkbox"] {
         width: 17px;
         height: 17px;
@@ -1559,7 +1476,6 @@
         box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
     }
 
-    /* --- Area tabel --- */
     .lampiran-st-page .lampiran-st-tablearea {
         padding: 18px 20px 20px;
         background: linear-gradient(180deg, #f7faff 0%, #f4f7fc 100%);
@@ -1625,7 +1541,6 @@
         background: #9fb6d4;
     }
 
-    /* Header tabel biru — samakan dengan Daftar Surat Pesanan dkk. */
     .lampiran-st-page .lampiran-st-table th {
         height: 42px;
         border-right: 1px solid #dbe3ef;
@@ -1665,7 +1580,6 @@
         color: #475569;
     }
 
-    /* --- Empty state --- */
     .lampiran-st-page .lampiran-st-empty {
         min-height: 280px;
         margin: 18px;
@@ -1700,7 +1614,6 @@
         font-size: 12px;
     }
 
-    /* --- Loading & alert --- */
     .lampiran-st-page .lampiran-st-loading {
         border-color: #cfe0fb;
         border-radius: 999px;
@@ -1715,7 +1628,6 @@
         box-shadow: 0 4px 12px rgba(220, 38, 38, 0.08);
     }
 
-    /* --- Modal lookup --- */
     .lampiran-st-page .lampiran-st-modal-dialog {
         border-radius: 16px;
         box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
@@ -1743,7 +1655,6 @@
         color: #64748b;
     }
 
-    /* --- Notice dialog --- */
     .lampiran-st-page .lampiran-st-notice-dialog {
         border-radius: 16px;
         box-shadow: 0 24px 60px rgba(15, 23, 42, 0.30);
@@ -1765,14 +1676,6 @@
             padding: 26px 16px;
         }
     }
-
-    /* =========================================================
-       NOTICE REDESIGN V1-20260901 — VISUAL ONLY
-       Alert dibuat lebih modern: warna mengikuti jenis pesan
-       (warning/error/info/success) lewat custom property, sehingga
-       ikon, garis aksen, panel pesan, dan tombol selalu senada.
-       Tidak ada perubahan struktur HTML maupun JavaScript.
-       ========================================================= */
 
     .lampiran-st-page .lampiran-st-notice,
     .lampiran-st-notice {
@@ -1820,7 +1723,6 @@
         --nt-glow: rgba(16, 185, 129, 0.26);
     }
 
-    /* --- Latar gelap --- */
     .lampiran-st-page .lampiran-st-notice,
     .lampiran-st-notice {
         padding: 20px;
@@ -1838,7 +1740,6 @@
         to { opacity: 1; }
     }
 
-    /* --- Kartu dialog --- */
     .lampiran-st-page .lampiran-st-notice-dialog,
     .lampiran-st-notice-dialog {
         position: relative;
@@ -1869,7 +1770,6 @@
         to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* --- Kepala: ikon + judul --- */
     .lampiran-st-page .lampiran-st-notice-top,
     .lampiran-st-notice-top {
         align-items: center;
@@ -1906,7 +1806,6 @@
         color: #ffffff;
     }
 
-    /* Lingkaran halo yang memudar saat dialog muncul. */
     .lampiran-st-notice-icon::after {
         position: absolute;
         inset: -5px;
@@ -1941,7 +1840,6 @@
         text-transform: uppercase;
     }
 
-    /* --- Isi pesan jadi panel lembut --- */
     .lampiran-st-page .lampiran-st-notice-body,
     .lampiran-st-notice-body {
         margin: 0 22px;
@@ -1956,7 +1854,6 @@
         line-height: 1.6;
     }
 
-    /* --- Tombol --- */
     .lampiran-st-page .lampiran-st-notice-actions,
     .lampiran-st-notice-actions {
         padding: 18px 22px 22px;
@@ -2036,7 +1933,6 @@
             <div class="lampiran-st-modal-body" id="modal-content"></div>
         </div>
     </div>
-
 
     <div id="lampiranNotice" class="lampiran-st-notice is-warning" aria-hidden="true">
         <div class="lampiran-st-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="lampiranNoticeTitle">
@@ -2133,7 +2029,6 @@
                     </div>
                 </div>
 
-
                 <div class="lampiran-st-sidecol">
                     <div class="lampiran-st-choicebox">
                     <div class="lampiran-st-section-label">
@@ -2222,15 +2117,10 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
 
-    // LOOKUP_BLOK_FILTER_VERSION=V2-20260811-AUTO-SORT-DYNAMIC-SEARCH
     var blokLookupTarget = 'awal';
     var blokLookupXhr = null;
     var blokLookupCache = {};
@@ -2460,7 +2350,6 @@
             .attr('aria-hidden', show ? 'false' : 'true');
     }
 
-
     function showLampiranNotice(message, type, title, subtitle) {
         type = type || 'warning';
 
@@ -2588,11 +2477,6 @@
         html += '<div id="blokCriteriaPanel" class="lampiran-st-blok-criteria' +
             (blokCriteriaMode === 'search' ? ' is-search-mode' : '') + '">';
 
-        /*
-         * MODE FILTER
-         * Memilih kolom langsung mengurutkan tabel.
-         * Criteria hanya opsional untuk mempersempit isi kolom aktif.
-         */
         html += '<div class="lampiran-st-criteria-group lampiran-st-criteria-filter-field">';
         html += '<span class="lampiran-st-criteria-label">Column Criteria</span>';
         html += '<div class="lampiran-st-criteria-column-wrap">';
@@ -2619,11 +2503,6 @@
             'oninput="applyBlokFilterLive()">';
         html += '</div>';
 
-        /*
-         * MODE SEARCH
-         * Satu field membentang dari posisi paling kiri Column Criteria
-         * sampai ujung kanan Criteria. Pemilihan 20 kolom disembunyikan.
-         */
         html += '<div class="lampiran-st-criteria-group lampiran-st-criteria-search-group">';
         html += '<span class="lampiran-st-criteria-label">Search</span>';
         html += '<input type="text" id="blokSearchKeyword" class="lampiran-st-criteria-search-input" ' +
@@ -2658,10 +2537,6 @@
 
         syncBlokCriteriaCounter();
 
-        /*
-         * Tidak menunggu tombol OK.
-         * Begitu field berubah, tabel langsung diurutkan berdasarkan kolom aktif.
-         */
         applyBlokFilterLive();
     }
 
@@ -2675,10 +2550,6 @@
             .removeClass('blok-criteria-hit');
 
         if (blokCriteriaMode === 'search') {
-            /*
-             * Saat Search aktif, selection filter + criteria hilang.
-             * Search bekerja terhadap seluruh kolom dan langsung aktif saat mengetik.
-             */
             $('.lampiran-st-modal-table--blok tbody tr[data-lookup-row="1"]').show();
             applyBlokSearchLive();
 
@@ -2686,9 +2557,6 @@
                 $('#blokSearchKeyword').trigger('focus');
             }, 20);
         } else {
-            /*
-             * Saat kembali ke Filter, langsung gunakan sort/filter terakhir.
-             */
             applyBlokFilterLive();
 
             setTimeout(function () {
@@ -2824,10 +2692,6 @@
                 return compared;
             }
 
-            /*
-             * Stable fallback: Blok/Nomor menjaga urutan konsisten
-             * bila nilai kolom yang dipilih sama.
-             */
             return compareBlokLookupValues(
                 getBlokCriteriaCellText($a, 'BLOK_NOMOR'),
                 getBlokCriteriaCellText($b, 'BLOK_NOMOR'),
@@ -2857,10 +2721,6 @@
 
         blokCriteriaField = field;
 
-        /*
-         * POIN UTAMA V2:
-         * sort SELALU dijalankan walaupun criteria kosong.
-         */
         sortBlokRowsByField(field);
 
         var $rows = $('.lampiran-st-modal-table--blok tbody tr[data-lookup-row="1"]');
@@ -2903,10 +2763,6 @@
                     return;
                 }
 
-                /*
-                 * Search mode mencari seluruh isi baris,
-                 * bukan hanya salah satu dari 20 field.
-                 */
                 var rowText = String($row.text() || '')
                     .toLocaleLowerCase('id-ID');
 
@@ -2933,18 +2789,10 @@
             .show()
             .removeClass('blok-criteria-hit');
 
-        /*
-         * Kondisi awal desktop: urut berdasarkan Blok/Nomor.
-         */
         applyBlokFilterLive();
     }
 
     function refreshActiveBlokFilter() {
-        /*
-         * Nama Pembeli / Email dimuat asynchronous.
-         * Setelah batch masuk, sort/filter/search aktif dihitung ulang agar
-         * posisi tabel langsung benar tanpa user menekan tombol apa pun.
-         */
         if (blokCriteriaMode === 'search') {
             applyBlokSearchLive();
         } else {
@@ -2957,12 +2805,6 @@
         return base.replace(/\/+$/, '') + '/' + String(path || '').replace(/^\/+/, '');
     }
 
-    /**
-     * Mengubah teks di sebelah field Cluster.
-     * - Belum dipilih: tampilkan "*) Harus diisi".
-     * - Sudah dipilih: tampilkan DESKRIPSI Cluster, misalnya
-     *   "VIOLA RESIDENCE", seperti perilaku aplikasi desktop.
-     */
     function setClusterDescription(kode, deskripsi) {
         var clusterCode = String(kode || '').trim();
         var clusterDescription = String(deskripsi || '').trim();
@@ -3026,7 +2868,6 @@
                 html += '<th>Deskripsi</th>';
                 html += '<th>Perusahaan</th>';
                 html += '</tr></thead><tbody>';
-
 
                 $.each(rows, function (index, item) {
                     var kode = getRowValue(item, 'KD_SEKTOR', 'kd_sektor');
@@ -3174,10 +3015,6 @@
             return;
         }
 
-        /*
-         * Popup blok menampilkan semua blok dalam Cluster terpilih.
-         * Filter blok yang sudah dipilih user tidak membatasi isi modal.
-         */
         data.blok_awal = 'A';
         data.blok_akhir = 'ZZ';
         data.lookup_all = 'Y';
@@ -3185,12 +3022,6 @@
         var cacheKey = getBlokCacheKey(data);
         var cachedRows = getCachedBlokRows(cacheKey);
 
-        /*
-         * Jangan membatalkan request lalu langsung membuat request baru.
-         * Abort AJAX hanya menghentikan browser; query PostgreSQL pada server
-         * dapat tetap berjalan. Pada php artisan serve, request berikutnya akan
-         * mengantre dan terlihat sebagai Queued/Blocked selama beberapa menit.
-         */
         if (isBlokLookupRunning()) {
             showLampiranNotice(
                 'Permintaan data blok masih diproses. Mohon tunggu sampai proses sebelumnya selesai.',
@@ -3403,10 +3234,6 @@
             return;
         }
 
-        /*
-         * Request nama pembeli dipecah per 150 PPJB dan maksimal dua request
-         * paralel. Modal dapat tampil lebih cepat tanpa membanjiri database.
-         */
         var batches = [];
         var batchSize = 150;
 
@@ -3783,27 +3610,6 @@
         return message;
     }
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -3817,10 +3623,6 @@
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -3875,15 +3677,6 @@
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -3933,12 +3726,6 @@
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -3978,11 +3765,6 @@
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -4032,7 +3814,6 @@
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -4070,8 +3851,6 @@
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -4117,8 +3896,6 @@
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -4176,9 +3953,6 @@
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

@@ -1,10 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - REKAP PPAT/AKTA JUAL BELI
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260916
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-
 namespace App\Models\SRIS\AktaJualBeli;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,16 +12,9 @@ class rekap_ajb_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
-    /**
-     * Master lokasi, sama dengan fitur Daftar Akta Jual Beli.
-     */
     public function obtainLokasi($kdPerusahaan)
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -56,13 +44,6 @@ class rekap_ajb_m extends Model
         );
     }
 
-    /**
-     * Master sektor.
-     *
-     * Kode perusahaan yang kosong ikut ditampilkan. Pada hasil migrasi
-     * sebagian baris master tidak membawa kode perusahaan, sedangkan desktop
-     * tetap memakai sektornya lewat STOK.
-     */
     public function obtainSektor($kdPerusahaan)
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -106,18 +87,6 @@ class rekap_ajb_m extends Model
         );
     }
 
-    /**
-     * Laporan Rekapitulasi PPAT/Akta Jual Beli.
-     *
-     * Checkbox "Belum Ttd Akta" memilih salah satu dari dua query desktop:
-     *
-     * - Tidak dicentang: baris berasal dari tabel AKTA dan disaring memakai
-     *   rentang Tgl. Akta Jual Beli.
-     * - Dicentang: baris berasal dari PPJB yang belum punya AKTA, atau sudah
-     *   punya AKTA tetapi NO_AKTA masih kosong. Query desktop untuk keadaan
-     *   ini tidak memakai rentang tanggal sama sekali, sehingga isian tanggal
-     *   diabaikan. Kolom akta dan harga ikut kosong.
-     */
     public function obtainRekapAktaJualBeli($request): array
     {
         $perusahaan = $this->normalizeText(
@@ -173,19 +142,6 @@ class rekap_ajb_m extends Model
         );
     }
 
-    /**
-     * Query saat "Belum Ttd Akta" tidak dicentang.
-     *
-     * Join implisit pada FROM diubah menjadi JOIN eksplisit. Relasi antar
-     * tabel dan seluruh kondisi WHERE tidak berubah, kecuali dua hal yang
-     * dijelaskan pada komentar di dalam SQL.
-     *
-     * Padanan dialek yang dipakai: ISNULL -> COALESCE, + -> ||,
-     * GETDATE() -> CURRENT_TIMESTAMP, SELECT TOP (1) -> DISTINCT ON,
-     * OUTER APPLY -> ekspresi CASE di dalam CTE, ISDATE() -> kawal regex,
-     * NOT LIKE '%[^0-9]%' -> ~ '^[0-9]+$',
-     * RIGHT(REPLICATE('0',50)+x,50) -> LPAD(x,50,'0').
-     */
     private function obtainSudahAdaAkta(
         string $perusahaan,
         string $lokasi,
@@ -298,12 +254,6 @@ class rekap_ajb_m extends Model
                 ON BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT))
                  = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
 
-            /*
-             * Desktop memakai INNER JOIN ke NASABAH. Di PostgreSQL sebagian
-             * pasangannya belum ikut tersalin, sehingga INNER JOIN akan
-             * menghapus unit yang di desktop tetap tampil. Sama seperti pada
-             * model Daftar Akta Jual Beli.
-             */
             LEFT JOIN public.sr_nasabah AS nasabah
                 ON BTRIM(CAST(nasabah.nasabah_id AS TEXT))
                  = BTRIM(CAST(pembeli_ppjb.nasabah_id AS TEXT))
@@ -365,12 +315,6 @@ class rekap_ajb_m extends Model
         ]);
     }
 
-    /**
-     * Query saat "Belum Ttd Akta" dicentang.
-     *
-     * Sumbernya PPJB, bukan AKTA, sehingga kolom akta dan harga bernilai
-     * NULL. Query desktop untuk keadaan ini tidak memakai rentang tanggal.
-     */
     private function obtainBelumTtdAkta(
         string $perusahaan,
         string $lokasi,
@@ -481,16 +425,6 @@ class rekap_ajb_m extends Model
                     = 'Y'
               AND ppjb.parent_id IS NULL
 
-              /*
-               * Dasar pengecekan berdasarkan PPJB, karena satu unit dapat
-               * memiliki lebih dari satu sertipikat. Mengikuti catatan pada
-               * query desktop tertanggal 14 Jan 25.
-               *
-               * Bentuk NOT IN / IN pada query asli ditulis ulang menjadi
-               * NOT EXISTS / EXISTS dengan arti yang sama persis: baris ikut
-               * bila PPJB belum punya baris AKTA sama sekali, atau punya
-               * baris AKTA yang NO_AKTA-nya masih kosong.
-               */
               AND (
                     NOT EXISTS (
                         SELECT 1
@@ -536,14 +470,6 @@ class rekap_ajb_m extends Model
         ]);
     }
 
-    /**
-     * CTE unit yang sudah disaring unit, lokasi, sektor, dan blok.
-     *
-     * Kunci pada database ini harus dibandingkan lewat BTRIM dan CAST, dan
-     * perbandingan semacam itu tidak bisa memakai index. Karena itu stok
-     * disaring lebih dulu supaya yang dijoin tinggal sedikit, sama seperti
-     * pada model Daftar Akta Jual Beli.
-     */
     private function cteStokTerpilih(
         string $stokPerusahaan,
         string $stokLokasi,
@@ -587,21 +513,6 @@ class rekap_ajb_m extends Model
         SQL;
     }
 
-    /**
-     * Tabel bantu pengganti subquery berkorelasi.
-     *
-     * Query desktop memakai SELECT TOP (1) tanpa ORDER BY, jadi barisnya
-     * dipilih sekenanya: yang pertama ditemukan saat tabel dibaca berurutan,
-     * yaitu yang letak fisiknya paling awal. DISTINCT ON di sini juga
-     * mengurutkan lewat ctid supaya baris yang terpilih sama persis.
-     *
-     * Bentuk ini juga jauh lebih ringan. Subquery berkorelasi dijalankan
-     * sekali untuk setiap baris hasil, sedangkan tabel bantu dibaca sekali.
-     *
-     * Ketiga kolom sertipikat pada query desktop diambil lewat tiga subquery
-     * terpisah dengan syarat yang sama persis, sehingga ketiganya menunjuk
-     * baris yang sama. Di sini ketiganya diambil sekaligus dari satu baris.
-     */
     private function cteTabelBantu(string $lokasiKode): string
     {
         return <<<SQL
@@ -682,11 +593,6 @@ class rekap_ajb_m extends Model
         SQL;
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
-     * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
-     * unit. Sama seperti pada model lain yang sudah dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $kolomTabel = [];
@@ -718,9 +624,6 @@ class rekap_ajb_m extends Model
         );
     }
 
-    /**
-     * Menormalisasi tanggal request menjadi format Y-m-d.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);

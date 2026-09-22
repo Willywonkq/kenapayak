@@ -1,10 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - DAFTAR SERTIPIKAT YANG BERAKHIR HAKNYA
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260917
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-
 namespace App\Models\SRIS\Suratrumah;
 
 use DateTimeImmutable;
@@ -17,16 +12,9 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
-    /**
-     * Mengambil sektor aktif berdasarkan unit/perusahaan yang sedang dipilih.
-     */
     public function obtainSektor($kdPerusahaan)
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -65,21 +53,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
         );
     }
 
-    /**
-     * Laporan Daftar Sertipikat yang Berakhir Haknya.
-     *
-     * Pemetaan pilihan desktop:
-     * - Semua AJB  : tanpa filter AKTA.
-     * - Belum AJB  : tidak memiliki AKTA dengan NO_AKTA terisi.
-     * - Sudah AJB  : memiliki AKTA dengan NO_AKTA terisi.
-     * - Apartemen  : KD_JENIS APT/KTR; sektor tidak dipakai, sedangkan pilihan
-     *                 Semua/Sudah/Belum AJB tetap diterapkan.
-     * - Nonapartemen: KD_JENIS selain APT/KTR.
-     *
-     * Checkbox tampil_penggabungan hanya mengatur kolom pada view. Query tetap
-     * mengembalikan semua kolom yang diperlukan agar perubahan tampilan tidak
-     * perlu meminta ulang data.
-     */
     public function obtainDaftarSertipikatBerakhirHaknya($request): array
     {
         $perusahaan = $this->normalizeText(
@@ -153,14 +126,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
                 FROM public.sr_stok AS stok
-                /*
-                 * Cabang pertama membandingkan kolomnya apa adanya. Hasilnya
-                 * sama persis dengan cabang kedua, karena parameternya sudah
-                 * dibuat huruf besar tanpa spasi oleh normalizeText. Gunanya
-                 * memberi perencana query sebuah perbandingan kolom biasa yang
-                 * ada statistiknya, supaya jumlah barisnya tidak ditaksir 1
-                 * padahal ribuan.
-                 */
                 WHERE (
                         stok.{$k['stokPerusahaan']} = :perusahaan_langsung
                         OR UPPER(BTRIM(COALESCE(
@@ -177,13 +142,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
                   {$sektorFilterSql}
             ),
             sertipikat_terpilih AS (
-                /*
-                 * Padanan OUTER APPLY TANGGAL_REF pada query desktop.
-                 * Tanggal dibuat aman karena pada database legacy kolom
-                 * tanggal dapat berisi teks yang bukan tanggal; ini padanan
-                 * ISDATE() desktop. Sertipikat disaring tanggal lebih dulu
-                 * supaya yang dijoin tinggal sedikit.
-                 */
                 SELECT
                     s.*,
                     CASE
@@ -205,10 +163,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
                       END < CAST(:tgl_akhir_eksklusif AS DATE)
             ),
             ppjb_aktif AS MATERIALIZED (
-                /*
-                 * Pengganti OUTER APPLY ... SELECT TOP (1) PPJB.
-                 * Urutannya dipertahankan: PPJB terbaru lebih dulu.
-                 */
                 SELECT DISTINCT ON (kunci_stok)
                     kunci_stok, ppjb_id, user_entry
                 FROM (
@@ -225,11 +179,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
                 ORDER BY kunci_stok, tgl_ppjb DESC NULLS LAST, ppjb_id DESC
             ),
             pembeli_nama AS MATERIALIZED (
-                /*
-                 * Pengganti F_GET_PEMBELI. Seluruh pembeli aktif pada satu
-                 * PPJB digabung menjadi satu teks, sama seperti keluaran
-                 * fungsi desktopnya.
-                 */
                 SELECT
                     BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT)) AS kode,
                     STRING_AGG(
@@ -247,11 +196,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
                 GROUP BY 1
             ),
             sektor_ref AS MATERIALIZED (
-                /*
-                 * Pengganti OUTER APPLY ... SELECT TOP (1) SEKTOR.
-                 * Urutannya dipertahankan: sektor milik unit yang sama lebih
-                 * dulu, lalu yang bertanda aktif.
-                 */
                 SELECT DISTINCT ON (kode)
                     kode, deskripsi
                 FROM (
@@ -374,11 +318,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
             'blok_akhir_blok' => $blokAkhir,
         ];
 
-        /*
-         * Query apartemen desktop tidak memakai sektor. Binding sektor hanya
-         * dikirim bila penampungnya memang ada di dalam query, karena PDO
-         * menolak parameter yang tidak terpakai.
-         */
         if ($apartemen !== 'Y') {
             $bindings['sektor_filter'] = $sektor;
             $bindings['sektor_semua'] = $sektor;
@@ -387,19 +326,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Menyusun ulang SERTIPIKAT_ID milik sr_sertipikat_idk agar bisa
-     * disamakan dengan sr_sertipikat.sertipikat_id.
-     *
-     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-21857, sedangkan
-     * sr_sertipikat_idk bertipe numeric sehingga awalannya terbuang dan
-     * hanya menyisakan 21857. Tanpa disusun ulang, sambungan kedua tabel
-     * menghasilkan 0 baris dan laporannya selalu kosong.
-     *
-     * Bila nilainya ternyata sudah membawa awalan sendiri, nilainya dipakai
-     * apa adanya, sehingga tetap benar bila kolomnya suatu saat diperbaiki
-     * menjadi teks.
-     */
     private function kunciSertipikatIdk(): string
     {
         return <<<SQL
@@ -412,24 +338,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
             SQL;
     }
 
-    /**
-     * Menentukan awalan sr_sertipikat_idk dari datanya sendiri.
-     *
-     * Awalannya tidak boleh sekadar dibuang dari sisi sr_sertipikat, karena
-     * ada dua awalan yang dipakai bersamaan, DBPSA- dan DBPSS-, dan hampir
-     * seluruh angka muncul pada keduanya. Diukur pada database DTSA, 19.465
-     * dari 23.308 baris idk angkanya ada di kedua keluarga.
-     *
-     * Penentunya memakai isi datanya sendiri. Kedua tabel menyimpan data
-     * pemisahan yang sama dari dua sisi, sehingga pasangan yang benar isinya
-     * sama dan pasangan yang salah tidak. Diukur pada database DTSA, DBPSS-
-     * tidak pernah sama satu baris pun pada SU_PISAH, NO_SERTIPIKAT,
-     * TGL_SU_PISAH, TGL_SERTIPIKAT, maupun TGL_INPUT, sedangkan DBPSA- sama
-     * pada 13.293 baris. Dihitung baris per baris, 16.619 baris hanya cocok
-     * DBPSA- dan tidak satu baris pun yang hanya cocok DBPSS-.
-     *
-     * Cara yang sama dipakai pada fitur Daftar Sertipikat Pecahan.
-     */
     private function awalanSertipikatIdk(): string
     {
         static $awalan = null;
@@ -438,10 +346,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
             return $awalan;
         }
 
-        /*
-         * Kedua sisi dibuat berkunci "angka" lebih dulu supaya syarat join
-         * hanya menyangkut dua tabel dan bisa memakai hash join.
-         */
         $sql = <<<SQL
             SELECT
                 ser.awalan AS awalan,
@@ -483,17 +387,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
         return $awalan;
     }
 
-    /**
-     * Syarat rentang blok, dipasang setelah penggabungan tabel.
-     *
-     * Bentuknya memakai UPPER, BTRIM, dan penyambungan teks, sehingga
-     * perencana query tidak punya statistik apa pun untuk menaksirnya dan
-     * menduga sr_stok hanya berisi 1 baris padahal ribuan. Dugaan itu membuat
-     * PostgreSQL memilih nested loop yang membaca sr_sertipikat berulang kali.
-     *
-     * Hasilnya tidak berubah karena stok disambung dengan INNER JOIN, jadi
-     * menyaring sebelum atau sesudah penggabungan sama saja.
-     */
     private function syaratBlok(string $blok, string $nomor): string
     {
         return <<<SQL
@@ -521,10 +414,6 @@ class daftar_sertifikat_berakhir_haknya_m extends Model
             'stokSektor' => $this->kolomKode('sr_stok', [
                 'kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2',
             ]),
-            /*
-             * Pada hasil migrasi kolom jenis bangunan di sr_stok bernama
-             * kd_jenis_bgn, bukan kd_jenis seperti pada query desktop.
-             */
             'stokJenis' => $this->kolomKode('sr_stok', [
                 'kd_jenis_bgn', 'kd_jenis',
             ]),
@@ -563,17 +452,6 @@ SQL;
         return "AND {$ekspresi} NOT IN ('APT', 'KTR')";
     }
 
-    /**
-     * Filter AJB mengikuti tabel AKTA dari query desktop.
-     * SUDAH = NO_AKTA terisi.
-     * BELUM = belum ada baris AKTA atau NO_AKTA masih NULL.
-     * SEMUA = tanpa filter AKTA.
-     *
-     * SERTIPIKAT_ID pada sr_akta bertipe numeric sehingga awalannya terbuang,
-     * sedangkan sr_sertipikat menyimpan teks lengkap berawalan. Awalan yang
-     * benar diambil dari PPJB_ID pada baris akta itu sendiri, sama seperti
-     * pada fitur Daftar Akta Jual Beli.
-     */
     private function buildAjbFilterSql(string $statusAjb): string
     {
         if ($statusAjb === 'SEMUA') {
@@ -604,8 +482,6 @@ AND EXISTS (
 SQL;
         }
 
-        /* Setara dengan NOT IN pada query desktop, tetapi aman bila
-           subquerynya berisi NULL. */
         return <<<SQL
 AND NOT EXISTS (
                   SELECT 1
@@ -617,11 +493,6 @@ AND NOT EXISTS (
 SQL;
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
-     * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
-     * unit. Sama seperti pada model lain yang sudah dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $ingatan = [];
@@ -654,10 +525,6 @@ SQL;
         return $ingatan[$kunci] = $kandidat[0];
     }
 
-    /**
-     * PostgreSQL memakai format tanggal ISO, bukan gaya CONVERT 112 milik
-     * SQL Server.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);

@@ -1,10 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - DAFTAR/REKAP PERALIHAN HAK
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260916
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-
 namespace App\Models\SRIS\PeralihanHak;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,20 +12,9 @@ class dftr_peralihan_hak_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
-    /**
-     * Master cluster, sama dengan fitur Rekap Estimasi Biaya AJB.
-     *
-     * Kode perusahaan yang kosong ikut ditampilkan. Pada hasil migrasi
-     * sebagian baris master tidak membawa kode perusahaan, sedangkan desktop
-     * tetap memakai sektornya lewat STOK.
-     */
     public function obtainCluster($kdPerusahaan)
     {
         $kdPerusahaan = $this->normalizeText($kdPerusahaan);
@@ -76,13 +60,6 @@ class dftr_peralihan_hak_m extends Model
         );
     }
 
-    /**
-     * Entry utama data laporan.
-     *
-     * Query desktop untuk seluruh kombinasi Status Entry dan Status Approve
-     * isinya sama persis; yang membedakan hanya nilai kedua parameternya.
-     * Karena itu di sini cukup satu query dengan dua parameter tersebut.
-     */
     public function obtainRekapPeralihanHak($request): array
     {
         $perusahaan = $this->normalizeText(
@@ -113,18 +90,6 @@ class dftr_peralihan_hak_m extends Model
         );
     }
 
-    /**
-     * Query laporan.
-     *
-     * Penyesuaian terhadap query desktop dijelaskan pada komentar di dalam
-     * SQL.
-     *
-     * Padanan dialek yang dipakai: ISNULL -> COALESCE, + -> ||,
-     * GETDATE() -> CURRENT_TIMESTAMP, SELECT TOP (1) -> DISTINCT ON,
-     * OUTER APPLY -> ekspresi CASE di dalam CTE, ISDATE() -> kawal regex,
-     * NOT LIKE '%[^0-9]%' -> ~ '^[0-9]+$',
-     * RIGHT(REPLICATE('0',50)+x,50) -> LPAD(x,50,'0').
-     */
     private function obtainPeralihan(
         string $perusahaan,
         string $cluster,
@@ -143,32 +108,15 @@ class dftr_peralihan_hak_m extends Model
             'kd_sektor', 'kd_proyek', 'kd_cluster', 'kd_lokasi', 'kd_lv2',
         ]);
 
-        /*
-         * Pada hasil migrasi kolom jenis dan tipe bangunan di sr_stok bernama
-         * kd_jenis_bgn dan kd_tipe_bgn, sedangkan di sr_tipe tetap kd_jenis
-         * dan kd_tipe. Sudah terbukti pada fitur Rekap Estimasi Biaya AJB.
-         */
         $stokJenis = $this->kolomKode('sr_stok', ['kd_jenis_bgn', 'kd_jenis']);
         $stokTipe = $this->kolomKode('sr_stok', ['kd_tipe_bgn', 'kd_tipe']);
 
-        /*
-         * Tiga kolom ini ada pada query desktop tetapi tidak ikut tersalin
-         * ke sr_peralihan. Diagnostik pada database DTSA memastikannya:
-         * nm_agen, nm_sales, dan no_telp tidak ditemukan. Kolom yang tidak
-         * ada akan membuat seluruh query gagal, jadi bila memang tidak ada
-         * nilainya diisi NULL dan susunan kolom keluaran tetap utuh.
-         */
         $nmAgen = $this->kolomOpsional('sr_peralihan', 'peralihan', 'nm_agen');
         $nmSales = $this->kolomOpsional('sr_peralihan', 'peralihan', 'nm_sales');
         $noTelp = $this->kolomOpsional('sr_peralihan', 'peralihan', 'no_telp');
 
         $sql = <<<SQL
             WITH nasabah_kunci AS (
-                /*
-                 * Hal yang sama terjadi pada NASABAH_ID: sr_pembeli_lama dan
-                 * sr_pembeli_baru bertipe numeric sedangkan sr_nasabah
-                 * varchar berawalan.
-                 */
                 SELECT
                     REGEXP_REPLACE(BTRIM(CAST(nasabah_id AS TEXT)), '^[^0-9]+', '')
                         AS angka,
@@ -179,29 +127,6 @@ class dftr_peralihan_hak_m extends Model
                 GROUP BY 1
             ),
             peralihan_terpilih AS (
-                /*
-                 * Peralihan disaring tanggal lebih dulu supaya yang dijoin
-                 * tinggal sedikit. Kunci pada database ini dibandingkan lewat
-                 * BTRIM dan CAST, dan perbandingan semacam itu tidak bisa
-                 * memakai index, sehingga menyempitkan lebih dulu jauh lebih
-                 * murah daripada menyaring di belakang.
-                 *
-                 * Ekspresi CASE di sini padanan OUTER APPLY + ISDATE()
-                 * desktop: pada database legacy kolom tanggal dapat berisi
-                 * nilai yang tidak valid.
-                 *
-                 * PPJB_ID pada sr_peralihan bertipe numeric sehingga
-                 * awalannya terbuang, sedangkan sr_ppjb menyimpan teks
-                 * lengkap berawalan seperti DBPSA-18784. Awalan yang benar
-                 * ditentukan sekali oleh awalanPeralihan(), lalu disambung
-                 * di sini. Bila nilainya ternyata sudah membawa awalan
-                 * sendiri, nilainya dipakai apa adanya.
-                 *
-                 * Batas atas dibuat eksklusif (tanggal akhir + 1 hari) agar
-                 * baris yang jamnya bukan 00:00 pada tanggal akhir tetap
-                 * ikut. Query asli memakai <= tanggal akhir, sehingga baris
-                 * seperti itu terlewat.
-                 */
                 SELECT
                     peralihan.*,
                     CASE
@@ -247,19 +172,6 @@ class dftr_peralihan_hak_m extends Model
                       )
             ),
             angsuran_bph AS MATERIALIZED (
-                /*
-                 * Pengganti subquery TGL_KUITANSI_BPH.
-                 *
-                 * Query desktop memakai SELECT TOP (1) tanpa ORDER BY, jadi
-                 * barisnya dipilih sekenanya: yang pertama ditemukan saat
-                 * tabel dibaca berurutan, yaitu yang letak fisiknya paling
-                 * awal. DISTINCT ON di sini juga mengurutkan lewat ctid
-                 * supaya baris yang terpilih sama persis.
-                 *
-                 * Bentuk tabel bantu juga jauh lebih ringan. Subquery
-                 * berkorelasi dijalankan sekali untuk setiap baris hasil,
-                 * dan sr_angsuran termasuk tabel besar.
-                 */
                 SELECT DISTINCT ON (kode) kode, tgl_kuitansi
                 FROM (
                     SELECT
@@ -317,11 +229,6 @@ class dftr_peralihan_hak_m extends Model
                 stok.{$stokPerusahaan} AS "KD_PERUSAHAAN",
                 CURRENT_TIMESTAMP AS "TGL_CETAK"
 
-            /*
-             * Join implisit pada FROM diubah menjadi JOIN eksplisit. Relasi
-             * antar tabel tidak berubah, termasuk PEMBELI_LAMA dan
-             * PEMBELI_BARU yang tetap dipasangkan lewat PERALIHAN_ID.
-             */
             FROM peralihan_terpilih AS peralihan
 
             INNER JOIN public.sr_ppjb AS ppjb
@@ -338,13 +245,6 @@ class dftr_peralihan_hak_m extends Model
             INNER JOIN stok_terpilih AS stok
                 ON stok.kunci_stok = BTRIM(CAST(ppjb.stok_id AS TEXT))
 
-            /*
-             * Desktop memakai INNER JOIN ke NASABAH lewat subquery
-             * SELECT TOP (1). Di sini dipakai LEFT JOIN langsung ke
-             * sr_nasabah, karena nasabah_id adalah kuncinya sehingga satu
-             * baris saja yang cocok, dan pasangannya yang belum ikut
-             * tersalin tidak ikut menghapus barisnya.
-             */
             LEFT JOIN nasabah_kunci AS kunci_nasabah_lama
                 ON kunci_nasabah_lama.angka
                  = REGEXP_REPLACE(
@@ -373,14 +273,6 @@ class dftr_peralihan_hak_m extends Model
                        ELSE kunci_nasabah_baru.id_lengkap
                    END
 
-            /*
-             * Desktop memakai INNER JOIN ke TIPE dan SEKTOR. Di PostgreSQL
-             * pasangan KD_JENIS dengan KD_TIPE belum lengkap, sudah terukur
-             * pada model Serah Terima sebanyak 1.292 dari 3.036 pasangan
-             * yang dipakai sr_stok. INNER JOIN akan menghapus unit yang di
-             * desktop tetap tampil, sehingga di sini memakai LEFT JOIN.
-             * Unitnya tetap ada dan hanya kolom tipe atau clusternya kosong.
-             */
             LEFT JOIN public.sr_tipe AS tipe
                 ON BTRIM(CAST(tipe.kd_jenis AS TEXT))
                  = BTRIM(CAST(stok.{$stokJenis} AS TEXT))
@@ -394,12 +286,6 @@ class dftr_peralihan_hak_m extends Model
             LEFT JOIN angsuran_bph
                 ON angsuran_bph.kode = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
 
-            /*
-             * Status approval. Bentuk ISNULL((SELECT COUNT(*) ...), 0) > 0
-             * pada query asli ditulis ulang menjadi EXISTS dengan arti yang
-             * sama persis: COUNT(*) pada subquery skalar tidak pernah NULL,
-             * dan "lebih dari nol" sama dengan "ada barisnya".
-             */
             WHERE (
                     (
                         'T' = :sts_approve_belum
@@ -436,11 +322,6 @@ class dftr_peralihan_hak_m extends Model
                     )
                   )
 
-            /*
-             * Query asli tidak memiliki ORDER BY. Urutan ditambahkan supaya
-             * baris dapat dikelompokkan per cluster pada laporan, persis
-             * seperti tampilan desktop.
-             */
             ORDER BY
                 BTRIM(COALESCE(CAST(sektor.deskripsi AS TEXT), '')) ASC,
                 UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) ASC,
@@ -474,9 +355,6 @@ class dftr_peralihan_hak_m extends Model
         ]);
     }
 
-    /**
-     * Label status untuk header laporan.
-     */
     public function getStatusEntryLabel(string $status): string
     {
         return match ($this->normalizeStatus($status)) {
@@ -495,9 +373,6 @@ class dftr_peralihan_hak_m extends Model
         };
     }
 
-    /**
-     * Status hanya mengenal tiga nilai: 'Y', 'T', dan '*' untuk semua.
-     */
     private function normalizeStatus($value): string
     {
         $status = strtoupper(trim((string) $value));
@@ -505,33 +380,6 @@ class dftr_peralihan_hak_m extends Model
         return in_array($status, ['Y', 'T'], true) ? $status : '*';
     }
 
-    /**
-     * Menentukan awalan yang dipakai PPJB_ID pada sr_peralihan.
-     *
-     * sr_peralihan.ppjb_id bertipe numeric sehingga awalannya terbuang,
-     * sedangkan sr_ppjb menyimpan teks lengkap berawalan. Angkanya saja
-     * tidak cukup: pada database DTSA, 2.991 dari 3.069 baris peralihan
-     * cocok dengan DUA PPJB sekaligus, karena rentang angka DBPSA- dan
-     * DBPSS- bertumpang tindih. Berbeda dengan sr_biaya_ajb, sr_peralihan
-     * juga tidak membawa KD_PERUSAHAAN yang bisa menunjukkan awalannya.
-     *
-     * Penentunya memakai kelayakan tanggal, yang tidak bergantung pada
-     * nama awalan: peralihan hak terjadi SETELAH PPJB, jadi pasangan yang
-     * benar tidak mungkin tanggal peralihannya mendahului tanggal PPJB.
-     * Diukur pada database DTSA:
-     *
-     *     DBPSA-   3.068 pasangan   3.064 layak   0 melanggar
-     *     DBPSS-   2.991 pasangan   1.795 layak   1.192 melanggar
-     *
-     * DBPSA- tidak melanggar sama sekali sedangkan DBPSS- melanggar pada
-     * 40 persen pasangannya, jadi kecocokan DBPSS- hanyalah tabrakan
-     * angka. Sebaran unitnya ikut sejalan: di bawah DBPSA- seluruhnya
-     * unit berawalan DBPSA-, dipimpin SBKS 1.552 dan SKLG 721.
-     *
-     * Awalannya tidak ditulis mati di sini, melainkan dihitung dari data
-     * sehingga tetap benar bila suatu saat sumbernya berubah. Hasilnya
-     * diingat supaya query penentu ini hanya jalan sekali.
-     */
     private function awalanPeralihan(): string
     {
         static $awalan = null;
@@ -540,13 +388,6 @@ class dftr_peralihan_hak_m extends Model
             return $awalan;
         }
 
-        /*
-         * Kedua sisi dibuat berkunci "angka" lebih dulu supaya syarat
-         * join hanya menyangkut dua tabel dan bisa memakai hash join.
-         * Menyusun awalan di dalam syarat join membuatnya menyangkut tiga
-         * tabel, dan PostgreSQL jatuh ke nested loop yang membaca habis
-         * sr_ppjb berulang kali.
-         */
         $sql = <<<SQL
             SELECT
                 pp.awalan AS awalan,
@@ -598,12 +439,6 @@ class dftr_peralihan_hak_m extends Model
         return $awalan;
     }
 
-    /**
-     * Menyebut kolom yang boleh saja tidak ada pada hasil migrasi.
-     *
-     * Mengembalikan acuan kolomnya bila ada, atau NULL bila tidak, sehingga
-     * susunan kolom keluaran tetap utuh dan query tidak gagal.
-     */
     private function kolomOpsional(
         string $tabel,
         string $alias,
@@ -623,11 +458,6 @@ class dftr_peralihan_hak_m extends Model
         );
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil migrasi.
-     * Hanya dipakai untuk kolom kode, karena penamaannya berbeda-beda antar
-     * unit. Sama seperti pada model lain yang sudah dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         $tersedia = $this->kolomTabel($tabel);
@@ -644,9 +474,6 @@ class dftr_peralihan_hak_m extends Model
         );
     }
 
-    /**
-     * Daftar nama kolom pada satu tabel, dibaca sekali lalu diingat.
-     */
     private function kolomTabel(string $tabel): array
     {
         static $ingatan = [];
@@ -669,9 +496,6 @@ class dftr_peralihan_hak_m extends Model
         return $ingatan[$tabel];
     }
 
-    /**
-     * Menormalisasi tanggal request menjadi format Y-m-d.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);

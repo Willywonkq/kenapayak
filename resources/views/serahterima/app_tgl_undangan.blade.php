@@ -85,11 +85,6 @@
         color: #1e40af;
     }
 
-    /*
-     * Checkbox direstyle jadi kotak modern bercentang biru, konsisten
-     * dengan Approval Entry Final QC. Elemen <input type="checkbox">
-     * dan id/class yang dipakai JS tidak diubah sama sekali.
-     */
     .approval-undangan-checkbar input[type="checkbox"],
     .approval-undangan-table input[type="checkbox"] {
         appearance: none;
@@ -283,7 +278,6 @@
         font-variant-numeric: tabular-nums;
     }
 
-    /* Dipertahankan karena pada tampilan desktop terdapat satu kolom tanpa judul. */
     .approval-undangan-table .legacy-empty-col {
         width: 118px;
         min-width: 118px;
@@ -449,10 +443,6 @@
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -521,10 +511,6 @@
         return value === null || value === undefined ? '' : value;
     }
 
-    /*
-     * Model lama menggunakan APPROVE1 = 'T', sedangkan view referensi
-     * menggunakan 'Y'. Keduanya diterima agar kompatibel.
-     */
     function isApproved(value) {
         var status = String(value || '').toUpperCase().trim();
 
@@ -625,7 +611,6 @@
                 html += '<tr data-ppjb-id="' + ppjbId + '" data-urut="' + urut + '">';
                 html += '<td class="no-col">' + (index + 1) + '</td>';
 
-                /* Approval #1 pada halaman desktop dipasangkan dengan APPROVE2. */
                 html += '<td class="approval-col">';
                 html += '<input type="checkbox" class="approval-check approval-1" ';
                 html += 'name="approval_1[]" value="' + ppjbId + '" ';
@@ -634,7 +619,6 @@
                 html += '>';
                 html += '</td>';
 
-                /* Approval #2 pada halaman desktop dipasangkan dengan APPROVE3. */
                 html += '<td class="approval-col">';
                 html += '<input type="checkbox" class="approval-check approval-2" ';
                 html += 'name="approval_2[]" value="' + ppjbId + '" ';
@@ -663,7 +647,6 @@
                     escapeHtml(formatDateIndo(item.TANGGAL3)) +
                     '</td>';
 
-                /* Kolom kosong mengikuti struktur grid aplikasi desktop. */
                 html += '<td class="legacy-empty-col"></td>';
 
                 html += '<td class="user-col">' +

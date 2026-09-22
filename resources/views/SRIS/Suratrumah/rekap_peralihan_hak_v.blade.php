@@ -1,9 +1,5 @@
 @extends('layouts.template')
 
-{{-- VIEW VERSION V1-20260904-DESKTOP-LAYOUT --}}
-{{-- Tata letak filter dan kolom laporan mengikuti tampilan desktop SRIS. --}}
-{{-- Hasil laporan dikelompokkan per cluster di dalam satu tabel. --}}
-
 @section('content')
 <style>
 .rph-page,
@@ -753,11 +749,6 @@
     color: #1d4ed8;
 }
 
-/* =========================================================
-   ALERT DATA KOSONG — SAMA DENGAN DAFTAR SERTIFIKAT PECAHAN
-   Modal informasi yang tampil saat hasil laporan tidak
-   menghasilkan baris data sama sekali.
-   ========================================================= */
 #rphNoDataAlertModal .modal-dialog {
     max-width: 380px;
 }
@@ -813,11 +804,6 @@
     box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
 }
 
-/* =========================================================
-   KELOMPOK CLUSTER PADA LAPORAN
-   Seluruh baris tetap berada pada satu tabel. Setiap kali
-   cluster berganti, sebuah baris judul disisipkan di atasnya.
-   ========================================================= */
 .rph-cluster-row td {
     padding: 9px 10px;
     background: linear-gradient(90deg, #eff6ff 0%, #f8fbff 62%, #ffffff 100%) !important;
@@ -850,12 +836,6 @@
     font-weight: 800;
 }
 
-/* =========================================================
-   STATUS APPROVE
-   Tiga pilihan berdampingan, mengikuti radio pada desktop.
-   Hanya tampil saat Status Entry berisi Sudah Entry Pembeli
-   Baru, sama seperti desktop.
-   ========================================================= */
 .rph-field.is-hidden {
     display: none !important;
 }
@@ -961,7 +941,6 @@ select.rph-input {
 }
 </style>
 
-<!-- MODAL ALERT DATA KOSONG -->
 <div class="modal fade" id="rphNoDataAlertModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1135,10 +1114,6 @@ select.rph-input {
 
 @section('js')
 <script>
-    /*
-     * Peramban memulihkan posisi gulir halaman setelah refresh. Karena laporan
-     * selalu digambar ulang dari awal, pemulihan itu justru menyesatkan.
-     */
     if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
     }
@@ -1146,12 +1121,6 @@ select.rph-input {
     var lastRphRows = null;
 
     $(document).ready(function () {
-        /*
-         * Browser memulihkan isi form saat halaman di-refresh, sehingga
-         * pilihan status dan cluster dapat terbawa dari kunjungan
-         * sebelumnya. Reset dipanggil bertahap karena pemulihan itu dapat
-         * terjadi setelah DOMContentLoaded.
-         */
         resetRphInitialState();
         window.setTimeout(resetRphInitialState, 10);
         window.setTimeout(resetRphInitialState, 100);
@@ -1184,10 +1153,6 @@ select.rph-input {
         }
     });
 
-    /*
-     * Mengembalikan seluruh filter dan area laporan ke keadaan awal,
-     * seperti saat fitur ini baru dibuka.
-     */
     function resetRphInitialState() {
         $('#rphCluster').val('*');
         $('#rphClusterEntry').text('Semua Cluster');
@@ -1228,11 +1193,6 @@ select.rph-input {
         return (nilai === 'Y' || nilai === 'T') ? nilai : '*';
     }
 
-    /*
-     * Status Approve hanya berlaku saat Status Entry berisi Sudah Entry
-     * Pembeli Baru. Pada pilihan Status Entry yang lain isiannya
-     * disembunyikan dan dikembalikan ke Semua, mengikuti desktop.
-     */
     function syncRphStsApproveState() {
         var tampil = rphStsEntry() === 'Y';
 
@@ -1256,7 +1216,6 @@ select.rph-input {
         return (nilai === 'Y' || nilai === 'T') ? nilai : '*';
     }
 
-    /* Label status untuk header laporan, sama dengan desktop. */
     function rphStsEntryLabel() {
         var nilai = rphStsEntry();
 
@@ -1285,7 +1244,6 @@ select.rph-input {
         return 'Semua';
     }
 
-    /* Kolom luas ditampilkan dua angka di belakang koma, seperti desktop. */
     function rphFormatLuas(value) {
         if (value === null || value === undefined || String(value).trim() === '') {
             return '';
@@ -1316,9 +1274,6 @@ select.rph-input {
         hideRphNoDataAlert();
     }
 
-    /*
-     * Alert data kosong, mengikuti Daftar Sertifikat Pecahan.
-     */
     function showRphNoDataAlert(message) {
         var $modal = $('#rphNoDataAlertModal');
 
@@ -1416,7 +1371,6 @@ select.rph-input {
         return text;
     }
 
-    /* Kolom rupiah memakai pemisah ribuan tanpa desimal, seperti desktop. */
     function rphFormatCurrency(value) {
         if (value === null || value === undefined || String(value).trim() === '') {
             return '';
@@ -1434,7 +1388,6 @@ select.rph-input {
         });
     }
 
-    /* Nama PT untuk header laporan, sama dengan fitur lain. */
     function rphExtractCompanyName(value) {
         var raw = String(value || '').replace(/\u00a0/g, ' ');
         var locationMatch = raw.match(/Lokasi\s*:[^\r\n|]*?-\s*([^\r\n|]+)/i);
@@ -1511,7 +1464,6 @@ select.rph-input {
             try {
                 localStorage.setItem(cacheKey, company);
             } catch (error) {
-                // Browser dapat menolak storage; nama tetap dipakai saat ini.
             }
         }
 
@@ -1613,10 +1565,6 @@ select.rph-input {
         });
     }
 
-    /* ==============================================
-       DATA LAPORAN
-       ============================================== */
-
     function validateRphFilter() {
         if (!$('#rphTglAwal').val() || !$('#rphTglAkhir').val()) {
             alert('Periode tanggal wajib diisi.');
@@ -1708,11 +1656,6 @@ select.rph-input {
         });
     }
 
-    /*
-     * Mengelompokkan baris per cluster dengan tetap menjaga urutan yang
-     * dikirim server. Baris tanpa cluster dikumpulkan pada satu kelompok
-     * sendiri supaya tidak hilang dari laporan.
-     */
     function groupRphRows(rows) {
         var groups = [];
         var index = {};
@@ -1741,34 +1684,30 @@ select.rph-input {
         return groups;
     }
 
-    /*
-     * Tabel dibuat selebar area laporan, dengan batas minimum supaya
-     * ke-18 kolomnya tetap terbaca dan dapat digeser ke samping.
-     */
     function rphTableStyle() {
         return 'style="width:100%;min-width:2260px;"';
     }
 
     function rphColgroup() {
         var lebar = [
-            42,   /* No. */
-            96,   /* Blok Nomor */
-            70,   /* Luas Tanah */
-            80,   /* Luas Bangunan */
-            110,  /* Tipe Bangunan */
-            92,   /* Tanggal Peralihan */
-            210,  /* Peralihan Notaris */
-            92,   /* Tanggal Notaris */
-            140,  /* Harga Jual Inc. PPN */
-            140,  /* Harga Pasar */
-            120,  /* Kuitansi - Nomor */
-            92,   /* Kuitansi - Tanggal */
-            140,  /* Kuitansi - Jumlah */
-            210,  /* Pembeli Lama */
-            210,  /* Pembeli Baru */
-            100,  /* Tgl. Kuitansi BPH */
-            158,  /* Nama Agen Baru */
-            158   /* Nama Sales Baru */
+            42,   
+            96,   
+            70,   
+            80,   
+            110,  
+            92,   
+            210,  
+            92,   
+            140,  
+            140,  
+            120,  
+            92,   
+            140,  
+            210,  
+            210,  
+            100,  
+            158,  
+            158   
         ];
 
         var html = '<colgroup>';
@@ -1865,11 +1804,6 @@ select.rph-input {
             html += '</td></tr>';
         }
 
-        /*
-         * Seluruh baris berada pada satu tabel. Setiap kali cluster
-         * berganti, sebuah baris judul disisipkan di atasnya, dan nomor
-         * urut dimulai lagi dari satu seperti tampilan desktop.
-         */
         $.each(groups, function (posisi, group) {
             html += '<tr class="rph-cluster-row"><td colspan="18">';
             html += '<span class="rph-cluster-label">Cluster :</span>';
@@ -1942,24 +1876,6 @@ select.rph-input {
         $('#rphMainDisplay').html(html);
     }
 
-/* ==============================================
-       PRINT
-       ============================================== */
-
-    /*
-     * Penyesuaian tabel pada dokumen cetak.
-     *
-     * 1. Lebar kolom dihitung dari colgroup laporan supaya proporsinya sama
-     *    dengan tampilan layar. Tanpa ini setiap kolom mendapat lebar yang
-     *    sama, sehingga kolom nama terpotong menjadi dua baris sementara
-     *    kolom nomor menyisakan ruang kosong.
-     * 2. Kolom yang seluruh isinya berupa tanggal atau angka diberi
-     *    white-space nowrap, supaya nilai seperti 1,572,346,080 tidak pecah
-     *    menjadi dua baris.
-     *
-     * Dijalankan pada dokumen frame cetak sehingga tidak bergantung pada
-     * nama kelas maupun struktur pembungkus laporan tiap fitur.
-     */
     function applyPrintTableRules(doc) {
         if (!doc || !doc.querySelectorAll) {
             return;
@@ -2014,10 +1930,6 @@ select.rph-input {
         return css;
     }
 
-    /*
-     * Baris yang memuat sel bergabung dilewati karena urutan selnya tidak
-     * lagi sejajar dengan urutan kolom.
-     */
     function printTableNowrapCss(tabel, penanda, polaAngka) {
         var baris = tabel.querySelectorAll('tbody > tr');
         var jumlahIsi = [];
@@ -2098,10 +2010,6 @@ select.rph-input {
         var frameWindow = frame.contentWindow;
         var frameDocument = frame.contentDocument || frameWindow.document;
 
-        /*
-         * @page hanya mengatur margin dan tidak mengunci size/orientation,
-         * sehingga pilihan Portrait/Landscape tetap tersedia.
-         */
         var printCss = `
             @page { margin: 8mm; }
 
@@ -2207,13 +2115,6 @@ select.rph-input {
                 font-size: 10px;
             }
 
-            /*
-             * Lebar kolom tidak lagi dipaksa auto. Dengan auto setiap kolom
-             * mendapat lebar yang sama, sehingga kolom nama terpotong
-             * menjadi dua baris sementara kolom nomor menyisakan ruang
-             * kosong. Persentase per kolom dihasilkan oleh
-             * applyPrintTableRules() dari colgroup laporan.
-             */
             .rph-report-table thead { display: table-header-group; }
             .rph-report-table tbody { display: table-row-group; }
 
@@ -2239,35 +2140,10 @@ select.rph-input {
 
             .rph-report-table th { text-align: center; font-weight: 700; }
 
-            /*
-             * Tanggal dan angka tidak boleh dipenggal di tengah. Dengan
-             * table-layout otomatis, lebar kolomnya yang menyesuaikan.
-             */
             .rph-center { text-align: center; white-space: nowrap; }
             .rph-left { text-align: left; }
             .rph-number { text-align: right; white-space: nowrap; }
 
-        
-            /* =========================================================
-               GAYA CETAK SERAGAM
-
-               Menyeragamkan RUPA hasil cetak antar fitur: warna garis,
-               warna latar, dan kerenggangan baris. Susunan kolom, isi,
-               maupun urutan laporan tiap fitur tidak disentuh.
-
-               Jarak mendatar sengaja tidak diubah, karena jarak itulah
-               yang menentukan lebar kolom. Mengubahnya berisiko membuat
-               lebar kolom dihitung ulang per halaman, sehingga halaman
-               kedua dan seterusnya tidak lagi sejajar dengan halaman
-               pertama.
-               ========================================================= */
-
-            /*
-             * Peramban bawaannya tidak ikut mencetak warna latar, karena
-             * pilihan Background graphics pada kotak dialog print dalam
-             * keadaan mati. Tanpa dua baris ini seluruh pewarnaan di
-             * bawah tidak akan terlihat sama sekali di kertas.
-             */
             html,
             body,
             .rph-report-table,
@@ -2282,7 +2158,6 @@ select.rph-input {
                 border: 1px solid #9a9a9a !important;
             }
 
-            /* Garis kisi abu-abu tipis, bukan hitam pekat. */
             .rph-report-table th,
             .rph-report-table td {
                 border: 1px solid #d5d5d5 !important;
@@ -2301,12 +2176,10 @@ select.rph-input {
                 padding-bottom: 4px !important;
             }
 
-            /* Selang-seling yang sangat muda agar mata tidak lompat baris. */
             .rph-report-table tbody tr:nth-child(even) > td {
                 background: #fbfcfe !important;
             }
 
-            /* Baris pengelompokan: sektor, cluster, atau judul grup. */
             .rph-report-table tbody tr[class*="sector-row"] > td,
             .rph-report-table tbody tr[class*="sektor-row"] > td,
             .rph-report-table tbody tr[class*="cluster-row"] > td,
@@ -2315,17 +2188,11 @@ select.rph-input {
                 background: #f1f3f5 !important;
             }
 
-            /*
-             * Baris total keseluruhan. Ditulis lebih dulu karena kata
-             * "subtotal" juga memuat "total-row", sehingga aturan subtotal
-             * di bawahnya harus menimpa aturan ini untuk baris subtotal.
-             */
             .rph-report-table tbody tr[class*="total-row"] > td,
             .rph-report-table tbody tr[class*="grand-total"] > td {
                 background: #eff6ff !important;
             }
 
-            /* Baris subtotal per kelompok. */
             .rph-report-table tbody tr[class*="subtotal"] > td {
                 background: #f8fafc !important;
             }
@@ -2354,27 +2221,6 @@ select.rph-input {
         }, 180);
     }
 
-    /* =========================================================
-       PENGURUT DAN RUPA LOOKUP
-
-       Dua hal sekaligus untuk setiap tabel lookup:
-
-       1. Satu dropdown Urutkan di atas tabel, meniru Column Criteria
-          pada kotak Search aplikasi desktop. Daftar pilihannya
-          dibangun dari judul kolom tabel itu sendiri, sehingga tiap
-          lookup otomatis memperoleh pilihan yang sesuai dengan kolom
-          yang memang ditampilkannya.
-
-       2. Rupa yang seragam, mengikuti lookup pada modul Surat Rumah
-          SRIS: pembungkus bersudut tumpul, judul kolom melekat di atas
-          dengan latar biru muda, garis pemisah tipis, dan seluruh
-          tulisan rata tengah. Hanya rupanya; kolom yang ditampilkan
-          tiap lookup tetap milik lookup itu sendiri.
-
-       Blok ini memasang dirinya sendiri lewat MutationObserver karena
-       isi lookup dibentuk belakangan oleh AJAX, dan setiap fitur
-       membentuknya dengan cara yang berbeda-beda.
-       ========================================================= */
     (function () {
         var PILIH_TABEL = 'table[class*="modal-table"], table[class*="lookup-table"]';
         var gayaUmumTerpasang = false;
@@ -2388,10 +2234,6 @@ select.rph-input {
             (document.head || document.documentElement).appendChild(gaya);
         }
 
-        /*
-         * Gaya yang tidak bersaing dengan aturan bawaan fitur: pembungkus
-         * tabel, kotak pencarian, dan dropdown pengurut.
-         */
         function pasangGayaUmum() {
             if (gayaUmumTerpasang) {
                 return;
@@ -2446,15 +2288,6 @@ select.rph-input {
             return /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : '';
         }
 
-        /*
-         * Gaya tabel dipasang per wadah dan diberi awalan id wadahnya.
-         *
-         * Sebagian fitur menulis aturannya sendiri dengan pemilih ber-id,
-         * misalnya #suratPesananModal .modal-table th, lengkap dengan
-         * penanda !important. Aturan seperti itu hanya bisa dikalahkan
-         * oleh pemilih yang juga memuat id. Karena id wadah berbeda-beda
-         * antar fitur, awalannya dibaca saat berjalan.
-         */
         function pasangGayaTabel(tabel) {
             var wadah = tabel.closest ? tabel.closest('[id]') : null;
             var id = idAman(wadah);
@@ -2504,12 +2337,6 @@ select.rph-input {
                 + gabung(' tbody tr td') + '{color:#344054!important;'
                 + 'background:#fff!important;font-weight:400!important}'
 
-                /*
-                 * Sebagian fitur mewarnai kolom pertama secara khusus lewat
-                 * td:first-child. Pemilih itu menambah satu bobot kelas,
-                 * sehingga perlu ditandingi pemilih yang juga memuat
-                 * pseudo-kelas, bukan hanya aturan td biasa.
-                 */
                 + gabung(' tbody tr td:first-child') + ','
                 + gabung(' tbody tr td:last-child')
                 + '{color:#344054!important;background:#fff!important;'
@@ -2549,11 +2376,6 @@ select.rph-input {
             });
         }
 
-        /*
-         * Baris "Semua ..." selalu ditahan di paling atas. Baris itu bukan
-         * data, melainkan pilihan untuk tidak menyaring, jadi tidak ikut
-         * diurutkan bersama isinya.
-         */
         function barisSemua(tr) {
             var sel = tr.querySelectorAll('td');
             var i;
@@ -2603,7 +2425,6 @@ select.rph-input {
                     var kiri = nilaiSel(a, indeks);
                     var kanan = nilaiSel(b, indeks);
 
-                    /* Sel kosong selalu di belakang supaya tidak menutupi isi. */
                     if (kiri === '' && kanan !== '') {
                         return 1;
                     }
@@ -2641,8 +2462,6 @@ select.rph-input {
             var judul = judulKolom(tabel);
             var baris = barisData(tabel);
 
-            /* Tabel tanpa judul kolom, atau yang isinya cuma satu baris,
-               tidak perlu pengurut. Rupanya tetap diseragamkan. */
             if (judul.length < 2 || baris.length < 2) {
                 return;
             }
@@ -2688,8 +2507,6 @@ select.rph-input {
 
             bar.appendChild(pilihan);
 
-            /* Toolbar diletakkan tepat di atas pembungkus tabel bila ada,
-               supaya tidak ikut tergulir bersama isinya. */
             var sasaran = tabel;
 
             while (
@@ -2747,9 +2564,6 @@ select.rph-input {
             mulai();
         }
     })();
-
-
-
 
 </script>
 @endsection

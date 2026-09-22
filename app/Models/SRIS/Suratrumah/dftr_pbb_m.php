@@ -1,26 +1,5 @@
 <?php
 
-// MODEL POSTGRESQL V1 - DAFTAR REKAP PBB
-
-// MODEL VERSION POSTGRES-WEB-SRIS-V1-20260918
-// Sumber query: aplikasi desktop SRIS / SQL Server, dialihkan ke PostgreSQL.
-//
-// Perbaikan terhadap query desktop yang sudah ada pada model SQL Server
-// sebelumnya dan tetap dipertahankan di sini:
-// 1. Alias join XPPJB yang salah tulis pada query desktop diperbaiki.
-// 2. Campuran comma JOIN dan LEFT JOIN diganti JOIN eksplisit.
-// 3. Kondisi blok kedua yang memakai BLOK_AKHIR dua kali diperbaiki
-//    menjadi BLOK_AWAL sampai BLOK_AKHIR.
-// 4. Mode "Belum Ada PBB" memakai NOT EXISTS agar aman terhadap NULL.
-// 5. Tanggal akhir dibuat eksklusif agar seluruh baris pada tanggal
-//    akhir tetap ikut ketika TGL_INPUT menyimpan jam.
-//
-// Penyesuaian khusus PostgreSQL:
-// - OUTER APPLY TOP (1) diganti tabel bantu ber-DISTINCT ON, supaya
-//   tidak dijalankan ulang untuk tiap baris keluaran;
-// - F_GET_PEMBELI diganti STRING_AGG, karena fungsi itu milik SQL Server;
-// - SERTIPIKAT_ID disusun ulang awalannya, lihat kunciSertipikat().
-
 namespace App\Models\SRIS\Suratrumah;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,10 +12,6 @@ class dftr_pbb_m extends Model
 {
     use HasFactory;
 
-    /**
-     * Koneksi PostgreSQL yang sudah ada pada config/database.php.
-     * Tabel hasil migrasi memakai awalan sr_ pada schema public.
-     */
     private const CONNECTION = 'pgsql';
     private const SCHEMA = 'public';
 
@@ -136,25 +111,6 @@ class dftr_pbb_m extends Model
             $blokAwal = 'A';
         }
 
-        /*
-         * Batas blok Z diperlakukan sebagai ZZ, mengikuti aplikasi desktop.
-         *
-         * Perbandingan blok dilakukan sebagai TEKS, sehingga batas atas Z
-         * membuang seluruh blok yang namanya lebih panjang dan diawali Z,
-         * misalnya ZAC dan ZCL, karena ZAC lebih besar daripada Z. Padahal
-         * unit SBKS banyak memakai blok semacam itu.
-         *
-         * Bahwa desktop memakai ZZ terbukti dari dua hal. Pertama, pada
-         * Daftar IMB header cetak desktop berbunyi "BLOK : A s/d ZZ"
-         * padahal kotak isiannya menampilkan Z. Kedua, pada Daftar PBB
-         * unit SBKS dengan batas A sampai Z desktop menampilkan 1.178
-         * baris, yaitu jumlah SEBELUM saringan blok; dengan batas Z
-         * seharusnya tinggal 309.
-         *
-         * Model Daftar IMB memang sudah memakai aturan ini sejak versi
-         * SQL Servernya. Daftar PBB terlewat, dan itulah sebabnya
-         * hasilnya berbeda jauh.
-         */
         if ($blokAkhir === '' || $blokAkhir === 'Z') {
             $blokAkhir = 'ZZ';
         }
@@ -173,19 +129,6 @@ class dftr_pbb_m extends Model
         );
     }
 
-    /**
-     * Tabel bantu yang dipakai bersama oleh ketiga mode laporan.
-     *
-     * OUTER APPLY TOP (1) milik SQL Server diganti DISTINCT ON. Keduanya
-     * sama-sama mengambil satu baris teratas menurut urutan tertentu,
-     * bedanya DISTINCT ON disusun sekali untuk seluruh tabel sedangkan
-     * OUTER APPLY dijalankan ulang untuk tiap baris keluaran.
-     *
-     * NULLS LAST dipasang pada TGL_PPJB karena SQL Server menaruh NULL
-     * paling akhir pada urutan menurun, sedangkan PostgreSQL menaruhnya
-     * paling awal. Tanpa itu, PPJB yang tanggalnya kosong justru akan
-     * terpilih sebagai yang terbaru.
-     */
     private function cteBersama(
         string $stokPerusahaan,
         string $stokSektor,
@@ -203,16 +146,6 @@ class dftr_pbb_m extends Model
                     stok.*,
                     BTRIM(CAST(stok.stok_id AS TEXT)) AS kunci_stok
                 FROM public.sr_stok AS stok
-                /*
-                 * Cabang pertama membandingkan kolomnya apa adanya.
-                 * Hasilnya sama persis dengan cabang kedua, karena
-                 * parameternya sudah dibuat huruf besar tanpa spasi oleh
-                 * normalizeText. Gunanya memberi perencana query sebuah
-                 * perbandingan kolom biasa yang ada statistiknya.
-                 *
-                 * FLAG_AKTIF sengaja TIDAK disaring, mengikuti query
-                 * desktop untuk laporan PBB yang memang tidak memakainya.
-                 */
                 WHERE (
                         stok.{$stokPerusahaan} = :perusahaan_langsung
                         OR UPPER(BTRIM(COALESCE(
@@ -240,14 +173,6 @@ class dftr_pbb_m extends Model
                 ORDER BY kode, urutan_fisik
             ),
             sektor_ref AS MATERIALIZED (
-                /*
-                 * Desktop memakai TOP (1) dengan urutan: sektor milik unit
-                 * yang sama didahulukan, baru yang kd_perusahaan-nya
-                 * kosong, lalu yang bertanda aktif. Karena laporan ini
-                 * selalu untuk satu unit, tabel bantunya langsung disusun
-                 * untuk unit itu saja sehingga cukup satu baris per kode
-                 * dan tidak ada baris laporan yang tergandakan.
-                 */
                 SELECT DISTINCT ON (kode) kode, deskripsi
                 FROM (
                     SELECT
@@ -268,7 +193,6 @@ class dftr_pbb_m extends Model
                 ORDER BY kode, urutan_unit, urutan_aktif, urutan_fisik
             ),
             ppjb_ref AS MATERIALIZED (
-                /* PPJB aktif terbaru untuk tiap stok, apa pun parent-nya. */
                 SELECT DISTINCT ON (kunci_stok)
                     kunci_stok, no_ppjb, tgl_ppjb
                 FROM (
@@ -288,7 +212,6 @@ class dftr_pbb_m extends Model
                          urut_id DESC NULLS LAST
             ),
             ppjb_induk AS MATERIALIZED (
-                /* PPJB aktif terbaru yang bukan turunan, untuk nama pembeli. */
                 SELECT DISTINCT ON (kunci_stok)
                     kunci_stok, kunci_ppjb
                 FROM (
@@ -309,14 +232,6 @@ class dftr_pbb_m extends Model
                          urut_id DESC NULLS LAST
             ),
             pembeli_gabung AS MATERIALIZED (
-                /*
-                 * Pengganti F_GET_PEMBELI milik SQL Server. Fungsi itu
-                 * menggabungkan nama seluruh pembeli sebuah PPJB menjadi
-                 * satu teks; di sini dikerjakan STRING_AGG.
-                 *
-                 * Urutannya memakai urutan fisik baris, meniru fungsi
-                 * aslinya yang membaca tabel apa adanya.
-                 */
                 SELECT
                     kunci_ppjb,
                     STRING_AGG(nama, ', ' ORDER BY urutan_fisik) AS nama
@@ -338,11 +253,6 @@ class dftr_pbb_m extends Model
                 GROUP BY kunci_ppjb
             ),
             pembeli_utama AS MATERIALIZED (
-                /*
-                 * Padanan OUTER APPLY XPPJB pada desktop: satu pembeli
-                 * teratas beserta data pribadinya, diambil dari PPJB aktif
-                 * yang bukan turunan dan paling baru.
-                 */
                 SELECT DISTINCT ON (kunci_stok)
                     kunci_stok, no_ppjb, tgl_ppjb, nama, alamat_ktp,
                     kota_ktp, kode_pos_ktp, no_identitas, npwp, no_hp
@@ -380,10 +290,6 @@ class dftr_pbb_m extends Model
         SQL;
     }
 
-    /**
-     * Susunan alamat pembeli, meniru penggabungan teks pada desktop:
-     * alamat KTP, lalu kota bila ada, lalu kode pos bila ada.
-     */
     private function alamatPembeli(string $alias): string
     {
         return <<<SQL
@@ -403,14 +309,6 @@ class dftr_pbb_m extends Model
         SQL;
     }
 
-    /**
-     * Pengurutan PPJB_ID sebagai angka.
-     *
-     * Pada SQL Server PPJB_ID bertipe angka sehingga ORDER BY PPJB_ID DESC
-     * membandingkannya sebagai angka. Pada PostgreSQL kolomnya teks
-     * berawalan, dan membandingkan teks memberi urutan berbeda. Jadi
-     * bagian angkanya diambil dulu.
-     */
     private function urutanPpjbId(string $kolom): string
     {
         return <<<SQL
@@ -424,14 +322,6 @@ class dftr_pbb_m extends Model
         SQL;
     }
 
-    /**
-     * Mode NORMAL dan mode NAMA_ALAMAT.
-     *
-     * Keduanya memakai sumber, penyaring, dan pengurutan yang sama persis;
-     * yang berbeda hanya kolom mengenai pembeli. Karena itu disatukan agar
-     * penyaringnya tidak perlu ditulis dua kali dan tidak bisa berbeda
-     * tanpa sengaja.
-     */
     private function obtainPbb(
         bool $denganNamaAlamatWp,
         string $perusahaan,
@@ -498,14 +388,6 @@ class dftr_pbb_m extends Model
                     ON pembeli_gabung.kunci_ppjb = ppjb_induk.kunci_ppjb';
         }
 
-        /*
-         * Saringan blok dipasang setelah penggabungan tabel, di belakang
-         * hasil_dasar. Bentuknya memakai BTRIM dan penyambungan teks,
-         * sehingga perencana query tidak punya statistik untuk
-         * menaksirnya dan menduga sr_stok hanya berisi satu baris padahal
-         * ribuan. Karena stok disambung dengan INNER JOIN, menyaring
-         * sebelum atau sesudah penggabungan sama saja hasilnya.
-         */
         $sql = <<<SQL
             WITH {$cteSertipikatUnik}{$cteBersama}
             pbb_terpilih AS (
@@ -629,14 +511,6 @@ class dftr_pbb_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Mode "Belum Ada PBB".
-     *
-     * Berangkat dari STOK, bukan dari PBB, lalu membuang stok yang sudah
-     * punya PBB pada rentang tahun yang diminta. Tgl. Input memang tidak
-     * dipakai pada mode ini, karena stok yang belum punya PBB tidak punya
-     * baris PBB sama sekali sehingga tidak ada tanggal untuk disaring.
-     */
     private function obtainBelumAdaPbb(
         string $perusahaan,
         string $sektor,
@@ -676,11 +550,6 @@ class dftr_pbb_m extends Model
         $sql = <<<SQL
             WITH {$cteSertipikatUnik}{$cteBersama}
             pbb_ada AS MATERIALIZED (
-                /*
-                 * Kunci sertipikat yang SUDAH punya PBB pada rentang tahun
-                 * yang diminta. Dikumpulkan lebih dulu supaya NOT EXISTS
-                 * berkorelasi pada desktop berubah menjadi satu kali baca.
-                 */
                 SELECT DISTINCT {$kunciPbbCek} AS kunci_sertipikat
                 FROM public.sr_pbb AS pbb_cek
                 {$joinSertipikatUnik}
@@ -717,10 +586,6 @@ class dftr_pbb_m extends Model
 
                 FROM stok_terpilih AS stok
 
-                /*
-                 * CROSS APPLY pada desktop bersifat wajib, jadi stok yang
-                 * tidak punya pembeli aktif memang tidak ikut tampil.
-                 */
                 INNER JOIN pembeli_utama
                     ON pembeli_utama.kunci_stok = stok.kunci_stok
 
@@ -792,9 +657,6 @@ class dftr_pbb_m extends Model
         return DB::connection(self::CONNECTION)->select($sql, $bindings);
     }
 
-    /**
-     * Nama kolom kode yang dipakai ketiga mode, dikumpulkan sekali.
-     */
     private function namaKolom(): array
     {
         return [
@@ -814,12 +676,6 @@ class dftr_pbb_m extends Model
         ];
     }
 
-    /**
-     * Master sektor pada sebagian hasil migrasi tidak membawa
-     * kd_perusahaan. Kalau begitu, pencocokan sektor cukup memakai
-     * kodenya saja, persis seperti cabang "SEKTOR.KD_PERUSAHAAN IS NULL"
-     * pada query desktop.
-     */
     private function sektorUnit(): array
     {
         $ada = $this->adaKolom('sr_sektor', 'kd_perusahaan');
@@ -850,32 +706,6 @@ class dftr_pbb_m extends Model
         return in_array($normalized, ['Y', '1', 'TRUE', 'ON'], true) ? 'Y' : 'T';
     }
 
-    /**
-     * Menyusun ulang SERTIPIKAT_ID agar bisa disamakan dengan
-     * sr_sertipikat.sertipikat_id.
-     *
-     * sr_sertipikat menyimpan teks lengkap seperti DBPSA-26099. Beberapa
-     * tabel hasil migrasi menyimpan kunci yang sama sebagai numeric
-     * sehingga awalannya terbuang; itu sudah terbukti terjadi pada
-     * sr_akta, sr_peralihan, sr_jaminan, dan sr_sertipikat_idk.
-     *
-     * Awalannya TIDAK BOLEH ditebak. Ada dua awalan yang dipakai
-     * bersamaan, DBPSA- dan DBPSS-, dan hampir seluruh angka muncul pada
-     * keduanya. Salah pilih berarti data satu unit menempel ke unit lain,
-     * dan itu tidak kelihatan di layar.
-     *
-     * Dipakai dua cara berjenjang:
-     *
-     * 1. Nilainya masih membawa awalan sendiri, dipakai apa adanya.
-     *    Ini yang berlaku bila kolomnya ternyata bertipe teks.
-     *
-     * 2. Awalan diambil dari UNIT YANG DIMINTA di layar, lewat peta unit
-     *    ke awalan yang dibaca dari sr_stok. Lihat awalanUnit().
-     *
-     * 3. Unitnya tidak ada di peta, hanya angka yang menunjuk ke TEPAT
-     *    SATU sertipikat yang dipakai. Barisnya bisa berkurang, tetapi
-     *    yang tampil dijamin tidak nyasar ke unit lain.
-     */
     private function kunciSertipikat(string $alias, bool $pakaiUnik): string
     {
         $awalan = $pakaiUnik ? 'sertipikat_unik.awalan' : ':awalan_sertipikat';
@@ -890,22 +720,6 @@ class dftr_pbb_m extends Model
         SQL;
     }
 
-    /**
-     * Awalan kunci milik satu unit, dibaca dari STOK_ID pada sr_stok.
-     *
-     * Cara ini lebih tepat daripada memilih satu awalan lewat suara
-     * terbanyak seluruh tabel, karena laporan ini memang selalu untuk
-     * SATU unit saja. Sudah diukur pada database hasil migrasi bahwa
-     * kedua puluh enam kode perusahaan masing-masing hanya memakai satu
-     * awalan; misalnya DTSA dan SBKS memakai DBPSA-, sedangkan SSPG dan
-     * SPCK memakai DBPSS-.
-     *
-     * Diambil yang terbanyak supaya tetap satu jawaban seandainya suatu
-     * saat ada unit yang datanya bercampur.
-     *
-     * Hasilnya diingat per unit supaya query penentu ini hanya jalan
-     * sekali untuk tiap unit.
-     */
     private function awalanUnit(string $kdPerusahaan): string
     {
         static $ingatan = [];
@@ -941,13 +755,6 @@ class dftr_pbb_m extends Model
             : '';
     }
 
-    /**
-     * Angka yang menunjuk ke tepat satu sertipikat, beserta awalannya.
-     *
-     * Hanya dipakai bila unitnya tidak ada di peta awalan. Angka yang
-     * muncul pada dua keluarga sekaligus sengaja tidak diikutkan, karena
-     * memilih salah satunya berarti menebak.
-     */
     private function cteSertipikatUnik(): string
     {
         return <<<SQL
@@ -967,18 +774,10 @@ class dftr_pbb_m extends Model
                 GROUP BY angka
                 HAVING COUNT(*) = 1
             ),
-            
+
         SQL;
     }
 
-    /**
-     * Pengurutan nomor rumah seperti pada desktop: nomor yang seluruhnya
-     * angka didahulukan dan diurutkan sebagai angka, sisanya menyusul.
-     *
-     * Padanan SQL Server:
-     *     NOT LIKE '%[^0-9]%'          -> ~ '^[0-9]+$'
-     *     RIGHT(REPLICATE('0',50)+x,50) -> LPAD(x, 50, '0')
-     */
     private function urutanNomor(string $kolom): string
     {
         return <<<SQL
@@ -996,9 +795,6 @@ class dftr_pbb_m extends Model
         SQL;
     }
 
-    /**
-     * Memeriksa keberadaan sebuah kolom pada tabel hasil migrasi.
-     */
     private function adaKolom(string $tabel, string $kolom): bool
     {
         static $ingatan = [];
@@ -1021,12 +817,6 @@ class dftr_pbb_m extends Model
         return in_array(strtolower($kolom), $ingatan[$tabel], true);
     }
 
-    /**
-     * Memilih nama kolom kode yang benar-benar ada pada tabel hasil
-     * migrasi. Hanya dipakai untuk kolom kode, karena penamaannya
-     * berbeda-beda antar tabel. Sama seperti pada model lain yang sudah
-     * dimigrasi.
-     */
     private function kolomKode(string $tabel, array $kandidat): string
     {
         static $ingatan = [];
@@ -1046,10 +836,6 @@ class dftr_pbb_m extends Model
         return $ingatan[$kunci] = $kandidat[0];
     }
 
-    /**
-     * PostgreSQL memakai format tanggal ISO, bukan gaya CONVERT 112
-     * milik SQL Server.
-     */
     private function normalizeDate($value, int $addDays = 0): string
     {
         $text = trim((string) $value);
@@ -1090,37 +876,6 @@ class dftr_pbb_m extends Model
         return strtoupper(trim((string) $value));
     }
 
-    /**
-     * Menolak menampilkan laporan untuk unit yang keluarga awalannya
-     * TIDAK ADA pada tabel sumber.
-     *
-     * Alasannya ditemukan waktu membandingkan hasil migrasi dengan
-     * sumbernya. Karena sertipikat_id kehilangan awalan, angkanya saja
-     * yang tersisa, dan hampir semua angka dipakai kedua keluarga awalan.
-     * Kalau sebuah unit diminta sedangkan tabel sumber tidak memuat satu
-     * pun baris dari keluarga awalan unit itu, penyusunan ulang tetap
-     * "berhasil" menemukan sertipikat, tetapi seluruh barisnya keliru:
-     * baris milik keluarga lain ditarik dan ditampilkan seolah milik unit
-     * yang diminta.
-     *
-     * Itu bukan kemungkinan di atas kertas. Diukur pada sr_imb, keenam
-     * unit berawalan DBPSS- akan menampilkan 20.140 baris yang seluruhnya
-     * tidak ada dasarnya, karena sr_imb ternyata hanya memuat baris dari
-     * SRIS_PUSAT.
-     *
-     * Laporan kosong masih bisa ditelusuri, sedangkan laporan yang salah
-     * tetapi kelihatan wajar tidak. Karena itu di sini dipilih berhenti
-     * dengan pesan, bukan menampilkan apa adanya.
-     *
-     * Pemeriksaannya membaca data, bukan daftar tetap, sehingga begitu
-     * migrasinya diperbaiki penjagaan ini membuka sendiri tanpa perlu
-     * mengubah kode.
-     *
-     * Dasar pemeriksaan: baris yang angkanya hanya dipakai SATU keluarga
-     * awalan. Baris semacam itu asal-usulnya pasti. Kalau keluarga yang
-     * diminta tidak punya satu pun baris pasti sedangkan keluarga lain
-     * punya, berarti keluarga itu memang tidak terwakili.
-     */
     private function pastikanKeluargaAda(string $tabel, string $awalan): void
     {
         static $ingatan = [];
@@ -1167,12 +922,6 @@ class dftr_pbb_m extends Model
             $jumlahPerKeluarga[(string) $item->awalan] = (int) $item->jumlah;
         }
 
-        /*
-         * Tidak ada satu pun baris yang asal-usulnya pasti berarti
-         * pemeriksaan ini tidak punya dasar untuk menyimpulkan apa pun.
-         * Dalam keadaan itu laporan dibiarkan jalan, supaya penjagaan ini
-         * tidak memblokir database yang isinya memang sedikit.
-         */
         if ($jumlahPerKeluarga === []) {
             $ingatan[$kunci] = true;
 
