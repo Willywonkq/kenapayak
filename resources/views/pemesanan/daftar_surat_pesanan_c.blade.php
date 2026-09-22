@@ -2128,11 +2128,10 @@
                 <div class="filter-label">Jenis Bgn</div>
                 <select id="jenis" class="form-control">
                     <option value="*">Semua</option>
-                    <option value="Rumah">Rumah</option>
-                    <option value="Kavling">Kavling</option>
-                    <option value="Rukan">Rukan</option>
-                    <option value="Apartemen">Apartemen</option>
-                    <option value="Kantor">Kantor</option>
+                    <option value="1">Rumah</option>
+                    <option value="2">Kavling</option>
+                    <option value="3">Rukan</option>
+                    <option value="4">Apartemen</option>
                 </select>
             </div>
 

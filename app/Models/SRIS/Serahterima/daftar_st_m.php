@@ -538,19 +538,25 @@ class daftar_st_m extends Model
     {
         return DB::connection(self::CONNECTION)
             ->table(self::SCHEMA . '.sr_jenis_bangunan as jenis_bangunan')
-            ->selectRaw('
-                BTRIM(CAST(jenis_bangunan.flag_laporan AS TEXT))
-                    AS "FLAG_LAPORAN",
-                BTRIM(CAST(jenis_bangunan.deskripsi AS TEXT))
-                    AS "DESKRIPSI"
-            ')
-            ->whereNotNull('jenis_bangunan.flag_laporan')
-            ->groupByRaw('
-                BTRIM(CAST(jenis_bangunan.flag_laporan AS TEXT)),
-                BTRIM(CAST(jenis_bangunan.deskripsi AS TEXT))
-            ')
+            ->selectRaw("
+                BTRIM(CAST(jenis_bangunan.flag_laporan AS text))
+                    AS \"FLAG_LAPORAN\",
+
+                CASE BTRIM(CAST(jenis_bangunan.flag_laporan AS text))
+                    WHEN '1' THEN 'Rumah'
+                    WHEN '2' THEN 'Kavling'
+                    WHEN '3' THEN 'Rukan'
+                    WHEN '4' THEN 'Apartemen'
+                END AS \"DESKRIPSI\"
+            ")
+            ->whereRaw("
+                BTRIM(
+                    COALESCE(CAST(jenis_bangunan.flag_laporan AS text), '')
+                ) IN ('1', '2', '3', '4')
+            ")
+            ->distinct()
             ->orderByRaw(
-                'BTRIM(CAST(jenis_bangunan.deskripsi AS TEXT)) ASC'
+                'BTRIM(CAST(jenis_bangunan.flag_laporan AS text)) ASC'
             )
             ->get();
     }

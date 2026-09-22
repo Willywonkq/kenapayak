@@ -443,14 +443,12 @@ class daftar_sp_sudah_ppjb_m extends Model
                     WHEN '2' THEN 'Kavling'
                     WHEN '3' THEN 'Rukan'
                     WHEN '4' THEN 'Apartemen'
-                    WHEN '5' THEN 'Kantor'
-                    ELSE BTRIM(CAST(jenis.deskripsi AS text))
                 END AS \"DESKRIPSI\"
             ")
             ->whereRaw("
                 BTRIM(
                     COALESCE(CAST(jenis.flag_laporan AS text), '')
-                ) IN ('1', '2', '3', '4', '5')
+                ) IN ('1', '2', '3', '4')
             ")
             ->distinct()
             ->orderByRaw('BTRIM(CAST(jenis.flag_laporan AS text)) ASC')
