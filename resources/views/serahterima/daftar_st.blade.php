@@ -899,6 +899,23 @@
         box-shadow: none;
     }
 
+
+    /*
+     * Tombol Print mati selama laporannya belum tampil. Rupanya harus ikut
+     * menyatakan itu, sebab tombol yang mati tetapi terlihat hidup lebih
+     * membingungkan daripada tombol yang menolak ditekan disertai pesan.
+     */
+    .serah-st-page .action-button:disabled,
+    .serah-st-page .action-button[disabled] {
+        color: #94a3b8 !important;
+        border-color: #e2e8f0 !important;
+        background: #f1f5f9 !important;
+        box-shadow: none !important;
+        cursor: not-allowed;
+        filter: none !important;
+        transform: none !important;
+    }
+
     .serah-st-page .excel-button:hover,
     .serah-st-page .excel-button:focus {
         color: #16a34a;
@@ -1571,7 +1588,14 @@
                         <i class="far fa-eye"></i>
                         <span>View</span>
                     </button>
-                    <button type="button" class="action-button excel-button" onclick="printSerahSTReport()">
+                    <button
+                        type="button"
+                        class="action-button excel-button"
+                        id="serahSTPrintButton"
+                        onclick="printSerahSTReport()"
+                        aria-disabled="true"
+                        disabled
+                    >
                         <i class="fas fa-print"></i>
                         <span>Print</span>
                     </button>
@@ -1650,6 +1674,7 @@
                 '<div>Silakan pilih filter lalu klik <strong>View</strong>.</div>' +
             '</div>'
         );
+        syncSerahSTPrintState();
 
         resetSummaryCards();
         syncFilterVisualState();
@@ -2094,6 +2119,7 @@
         $('#serahSTNoDataAlertModal').modal('hide');
         $('#loading-info').show();
         $('#main-display').html('');
+        syncSerahSTPrintState();
 
         $.ajax({
             method: 'POST',
@@ -2119,6 +2145,7 @@
                     escapeHtml(message) +
                     '</div>'
                 );
+                syncSerahSTPrintState();
             }
         });
     }
@@ -2467,6 +2494,7 @@
         html += '</tbody></table></div></div>';
 
         $('#main-display').html(html);
+        syncSerahSTPrintState();
 
         if (rows.length === 0) {
             $('#serahSTNoDataAlertModal').modal('show');
@@ -2591,6 +2619,22 @@
         }
 
         return css;
+    }
+
+    /*
+     * Tombol Print hanya hidup ketika laporannya benar-benar ada di layar.
+     *
+     * Tandanya diambil dari DOM, yaitu keberadaan .report-wrapper di dalam
+     * #main-display, bukan dari penanda terpisah. Syarat ini persis sama
+     * dengan yang dipakai printSerahSTReport sebelum mencetak, jadi keduanya
+     * tidak mungkin berselisih.
+     */
+    function syncSerahSTPrintState() {
+        var siap = $('#main-display .report-wrapper').length > 0;
+
+        $('#serahSTPrintButton')
+            .prop('disabled', !siap)
+            .attr('aria-disabled', siap ? 'false' : 'true');
     }
 
     function printSerahSTReport() {

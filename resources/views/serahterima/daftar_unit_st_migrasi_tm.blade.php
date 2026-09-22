@@ -420,6 +420,21 @@
         background: #e7f7ec;
     }
 
+    /*
+     * Tombol Print mati selama laporannya belum tampil. Rupanya harus ikut
+     * menyatakan itu, sebab tombol yang mati tetapi terlihat hidup lebih
+     * membingungkan daripada tombol yang menolak ditekan disertai pesan.
+     */
+    .dst-button:disabled,
+    .dst-button[disabled] {
+        border-color: #e2e8f0;
+        background: #f1f5f9;
+        color: #94a3b8;
+        box-shadow: none;
+        cursor: not-allowed;
+        transform: none;
+    }
+
     body.dst-modal-open {
         overflow: hidden;
     }
@@ -1563,6 +1578,8 @@
                     type="button"
                     id="btn-print"
                     class="dst-button dst-export-button"
+                    aria-disabled="true"
+                    disabled
                 >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M6 9V2h12v7"></path>
@@ -1703,6 +1720,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     'Silakan pilih filter lalu klik <strong>View</strong>.' +
                 '</span>' +
             '</div>';
+
+        /*
+         * Dipanggil SESUDAH isi awal dipasang, bukan sebelumnya. setLoading di
+         * atas sudah menyelaraskan tombol, tetapi saat itu layar masih memuat
+         * laporan lama, jadi keadaannya belum tentu benar.
+         */
+        syncUnitSTPrintState(false);
     }
 
     async function openSektorModal() {
@@ -1942,6 +1966,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             mainDisplay.innerHTML =
                 '<div class="dst-error">' + escapeHtml(error.message) + '</div>';
+            syncUnitSTPrintState(false);
         } finally {
             setLoading(false);
         }
@@ -2205,6 +2230,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         html += '</tbody></table></div></div>';
         mainDisplay.innerHTML = html;
+        syncUnitSTPrintState(false);
 
         if (rows.length === 0) {
             $('#daftarUnitSTNoDataAlertModal').modal('show');
@@ -2777,7 +2803,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         okButton.disabled = isLoading;
-        printButton.disabled = isLoading;
+        syncUnitSTPrintState(isLoading);
+    }
+
+    /*
+     * Tombol Print hanya hidup ketika laporannya benar-benar ada di layar.
+     *
+     * Sebelumnya keadaannya diikatkan langsung pada setLoading, sehingga
+     * begitu pemuatan selesai tombolnya hidup lagi walaupun yang tampil
+     * ternyata pesan galat. Sekarang tandanya diambil dari DOM, yaitu
+     * keberadaan .report-wrapper di dalam #main-display, syarat yang persis
+     * sama dengan yang dipakai printReport sebelum mencetak.
+     */
+    function syncUnitSTPrintState(sedangMemuat) {
+        const siap = sedangMemuat !== true
+            && !!mainDisplay.querySelector('.report-wrapper');
+
+        printButton.disabled = !siap;
+        printButton.setAttribute('aria-disabled', siap ? 'false' : 'true');
     }
 
     function reportTitle(value) {

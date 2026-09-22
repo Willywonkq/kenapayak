@@ -1008,6 +1008,23 @@
         box-shadow: none;
     }
 
+
+    /*
+     * Tombol Print mati selama laporannya belum tampil. Rupanya harus ikut
+     * menyatakan itu, sebab tombol yang mati tetapi terlihat hidup lebih
+     * membingungkan daripada tombol yang menolak ditekan disertai pesan.
+     */
+    .rencana-st-page .action-button:disabled,
+    .rencana-st-page .action-button[disabled] {
+        color: #94a3b8 !important;
+        border-color: #e2e8f0 !important;
+        background: #f1f5f9 !important;
+        box-shadow: none !important;
+        cursor: not-allowed;
+        filter: none !important;
+        transform: none !important;
+    }
+
     .rencana-st-page .excel-button:hover,
     .rencana-st-page .excel-button:focus {
         color: #16a34a;
@@ -1663,7 +1680,14 @@
                     </svg>
                     <span>View</span>
                 </button>
-                <button type="button" class="action-button excel-button" onclick="printRencanaSTReport()">
+                <button
+                        type="button"
+                        class="action-button excel-button"
+                        id="rencanaSTPrintButton"
+                        onclick="printRencanaSTReport()"
+                        aria-disabled="true"
+                        disabled
+                    >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M6 9V3h12v6"></path>
                         <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
@@ -1750,6 +1774,7 @@
                 '<div>Silakan pilih filter lalu klik <strong>View</strong>.</div>' +
             '</div>'
         );
+        syncRencanaSTPrintState();
 
         resetSummaryCards();
         syncConditionalFilters();
@@ -2394,6 +2419,7 @@
         $('#rencanaSTNoDataAlertModal').modal('hide');
         $('#loading-info').show();
         $('#main-display').html('');
+        syncRencanaSTPrintState();
 
         $.ajax({
             method: 'POST',
@@ -2421,6 +2447,7 @@
                     escapeHtml(message) +
                     '</div>'
                 );
+                syncRencanaSTPrintState();
             },
             complete: function () {
                 $('#loading-info').hide();
@@ -2711,6 +2738,7 @@
 
         html += '</tbody></table></div></div>';
         $('#main-display').html(html);
+        syncRencanaSTPrintState();
 
         if (rows.length === 0) {
             $('#rencanaSTNoDataAlertModal').modal('show');
@@ -2834,6 +2862,22 @@
         }
 
         return css;
+    }
+
+    /*
+     * Tombol Print hanya hidup ketika laporannya benar-benar ada di layar.
+     *
+     * Tandanya diambil dari DOM, yaitu keberadaan .report-wrapper di dalam
+     * #main-display, bukan dari penanda terpisah. Syarat ini persis sama
+     * dengan yang dipakai printRencanaSTReport sebelum mencetak, jadi keduanya
+     * tidak mungkin berselisih.
+     */
+    function syncRencanaSTPrintState() {
+        var siap = $('#main-display .report-wrapper').length > 0;
+
+        $('#rencanaSTPrintButton')
+            .prop('disabled', !siap)
+            .attr('aria-disabled', siap ? 'false' : 'true');
     }
 
     function printRencanaSTReport() {

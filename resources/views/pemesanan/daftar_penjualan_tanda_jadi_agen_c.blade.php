@@ -417,6 +417,21 @@
         transform: translateY(0);
     }
 
+    /*
+     * Tombol Print mati selama laporannya belum tampil. Rupanya harus ikut
+     * menyatakan itu, sebab tombol yang mati tetapi terlihat hidup lebih
+     * membingungkan daripada tombol yang menolak ditekan disertai pesan.
+     */
+    .penjualan-tanda-jadi-content .action-btn:disabled,
+    .penjualan-tanda-jadi-content .action-btn[disabled] {
+        color: #94a3b8 !important;
+        border-color: #e2e8f0 !important;
+        background: #f1f5f9 !important;
+        box-shadow: none !important;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
     .penjualan-tanda-jadi-content #loading-info {
         margin-bottom: 14px;
         padding: 12px 14px;
@@ -1554,7 +1569,14 @@
                             <span>View</span>
                         </button>
 
-                        <button type="button" class="btn action-btn action-btn-excel" onclick="printPenjualanTandaJadiReport()">
+                        <button
+                        type="button"
+                        class="btn action-btn action-btn-excel"
+                        id="penjualanTandaJadiPrintButton"
+                        onclick="printPenjualanTandaJadiReport()"
+                        aria-disabled="true"
+                        disabled
+                    >
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M6 9V3h12v6"></path>
                                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
@@ -1708,6 +1730,7 @@
                 '<div>Silakan tentukan periode dan filter, lalu klik <strong>View</strong>.</div>' +
             '</div>'
         );
+    syncPenjualanTandaJadiPrintState();
     }
 
     function cancelActiveSummaryRequest() {
@@ -2173,6 +2196,7 @@
 
         $('#loading-info').show();
         $('#main-display').html('');
+        syncPenjualanTandaJadiPrintState();
 
         activeSummaryRequest = $.ajax({
             url: '{{ url()->current() }}/get_summary',
@@ -2201,6 +2225,7 @@
                 activeSummaryRequest = null;
                 console.log(xhr.responseText);
                 $('#main-display').html('<div class="alert alert-danger">Gagal mengambil data. Cek console atau log Laravel.</div>');
+                syncPenjualanTandaJadiPrintState();
             }
         });
     }
@@ -2322,6 +2347,22 @@
         }
 
         return css;
+    }
+
+    /*
+     * Tombol Print hanya hidup ketika laporannya benar-benar ada di layar.
+     *
+     * Tandanya diambil dari DOM, yaitu keberadaan .report-wrapper di dalam
+     * #main-display, bukan dari penanda terpisah. Syarat ini persis sama
+     * dengan yang dipakai printPenjualanTandaJadiReport sebelum mencetak, jadi keduanya
+     * tidak mungkin berselisih.
+     */
+    function syncPenjualanTandaJadiPrintState() {
+        var siap = $('#main-display .report-wrapper').length > 0;
+
+        $('#penjualanTandaJadiPrintButton')
+            .prop('disabled', !siap)
+            .attr('aria-disabled', siap ? 'false' : 'true');
     }
 
     function printPenjualanTandaJadiReport() {
@@ -2837,6 +2878,7 @@
         html += '</div>';
 
         $('#main-display').html(html);
+        syncPenjualanTandaJadiPrintState();
 
         if (!data || data.length === 0) {
             $('#penjualanTandaJadiNoDataAlertModal').modal('show');
