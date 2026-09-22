@@ -604,6 +604,7 @@ class daftar_rencana_st_m extends Model
         $tipeKdJenis = "UPPER(BTRIM(COALESCE(CAST(tipe.kd_jenis AS TEXT), '')))";
         $tipeKdTipe = "UPPER(BTRIM(COALESCE(CAST(tipe.kd_tipe AS TEXT), '')))";
         $jenisKdJenis = "UPPER(BTRIM(COALESCE(CAST(jenis_bangunan.kd_jenis AS TEXT), '')))";
+        $jenisSambungan = "COALESCE(NULLIF({$tipeKdJenis}, ''), {$stokKdJenis})";
 
         $tglRencanaSb = $this->reportSafeTimestamp(
             $metadata,
@@ -828,7 +829,7 @@ class daftar_rencana_st_m extends Model
                     ON __TIPE_KD_JENIS__ = __STOK_KD_JENIS__
                     AND __TIPE_KD_TIPE__ = __STOK_KD_TIPE__
                 LEFT JOIN public.sr_jenis_bangunan AS jenis_bangunan
-                    ON __JENIS_KD_JENIS__ = __TIPE_KD_JENIS__
+                    ON __JENIS_KD_JENIS__ = __JENIS_SAMBUNGAN__
                 WHERE __BASE_WHERE__
             ),
 
@@ -1094,6 +1095,7 @@ class daftar_rencana_st_m extends Model
             '__TIPE_KD_JENIS__' => $tipeKdJenis,
             '__TIPE_KD_TIPE__' => $tipeKdTipe,
             '__JENIS_KD_JENIS__' => $jenisKdJenis,
+            '__JENIS_SAMBUNGAN__' => $jenisSambungan,
             '__BASE_WHERE__' => implode("\n                    AND ", $baseWhere),
             '__NAMA__' => $nama,
             '__TELP_RUMAH__' => $telpRumah,
