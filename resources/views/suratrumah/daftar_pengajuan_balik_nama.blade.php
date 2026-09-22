@@ -1549,7 +1549,7 @@
                     class="ok-button"
                     onclick="getData()"
                 >
-                    OK
+                    View
                 </button>
 
                 <button
@@ -1599,7 +1599,7 @@
                         <i class="fas fa-table"></i>
                     </div>
                     <div class="initial-report-text">
-                        Silahkan isi filter kemudian klik <strong>OK</strong>
+                        Silahkan isi filter kemudian klik <strong>View</strong>
                     </div>
                 </div>
             </div>
@@ -1894,7 +1894,7 @@
         html += '<i class="fas fa-table"></i>';
         html += '</div>';
         html += '<div class="initial-report-text">';
-        html += 'Silahkan isi filter kemudian klik <strong>OK</strong>';
+        html += 'Silahkan isi filter kemudian klik <strong>View</strong>';
         html += '</div>';
         html += '</div>';
         html += '</div>';

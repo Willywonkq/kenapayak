@@ -846,7 +846,7 @@
 
             {{-- Action Stack --}}
             <div class="dps-action-stack">
-                <button type="button" class="dps-submit" id="dpsSubmitButton">OK</button>
+                <button type="button" class="dps-submit" id="dpsSubmitButton">View</button>
                 <button type="button" class="dps-print-button" id="dpsPrintButton" disabled aria-disabled="true">
                     PRINT
                 </button>
@@ -1298,7 +1298,7 @@
         var button = document.getElementById('dpsSubmitButton');
         if (button) {
             button.disabled = busy;
-            button.textContent = busy ? 'Proses...' : 'OK';
+            button.textContent = busy ? 'Proses...' : 'View';
         }
     }
 

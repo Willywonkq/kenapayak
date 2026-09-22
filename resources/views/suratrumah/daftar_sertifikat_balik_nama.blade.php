@@ -690,7 +690,7 @@
     }
 
     .initial-report::after {
-        content: "Silahkan Isi filter kemudian klik OK";
+        content: "Silahkan Isi filter kemudian klik View";
         position: absolute;
         top: calc(50% + 34px);
         left: 50%;
@@ -1493,7 +1493,7 @@
                 class="ok-button"
                 onclick="getData()"
             >
-                Ok
+                View
             </button>
 
         </div>

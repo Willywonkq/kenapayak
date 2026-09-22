@@ -1021,7 +1021,7 @@
                     class="reba-action"
                     onclick="getRebaData()"
                 >
-                    Ok
+                    View
                 </button>
                 <button
                     type="button"
@@ -1056,7 +1056,7 @@
             <div class="reba-paper">
                 <div class="reba-initial">
                     <i class="fas fa-table reba-initial-icon" aria-hidden="true"></i>
-                    <div>Silahkan isi filter kemudian klik OK</div>
+                    <div>Silahkan isi filter kemudian klik View</div>
                 </div>
             </div>
         </div>
@@ -1169,7 +1169,7 @@
             '<div class="reba-paper">'
             + '<div class="reba-initial">'
             + '<i class="fas fa-table reba-initial-icon" aria-hidden="true"></i>'
-            + '<div>Silahkan isi filter kemudian klik OK</div>'
+            + '<div>Silahkan isi filter kemudian klik View</div>'
             + '</div></div>'
         );
     }

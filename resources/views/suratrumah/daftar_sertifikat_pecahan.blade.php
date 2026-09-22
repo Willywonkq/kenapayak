@@ -1432,7 +1432,7 @@
 
             <div class="sp-action-stack">
                 <button type="button" class="ok-button" onclick="getData()">
-                    OK
+                    View
                 </button>
                 <button
                     type="button"
@@ -1504,7 +1504,7 @@
         <div id="mainDisplay">
             <div class="initial-state">
                 <i class="fas fa-table initial-state-icon" aria-hidden="true"></i>
-                <div>Silahkan Isi filter kemudian klik OK</div>
+                <div>Silahkan Isi filter kemudian klik View</div>
             </div>
         </div>
     </section>
@@ -1970,7 +1970,7 @@
         $('#mainDisplay').html(
             '<div class="initial-state">'
             + '<i class="fas fa-table initial-state-icon" aria-hidden="true"></i>'
-            + '<div>Silahkan Isi filter kemudian klik OK</div>'
+            + '<div>Silahkan Isi filter kemudian klik View</div>'
             + '</div>'
         );
     }

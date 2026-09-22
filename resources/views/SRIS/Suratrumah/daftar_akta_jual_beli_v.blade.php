@@ -1225,7 +1225,7 @@
                     class="ajb-action"
                     onclick="getAjbData()"
                 >
-                    Ok
+                    View
                 </button>
                 <button
                     type="button"
@@ -1310,7 +1310,7 @@
             <div class="ajb-paper">
                 <div class="ajb-initial">
                     <i class="fas fa-table ajb-initial-icon" aria-hidden="true"></i>
-                    <div>Silahkan isi filter kemudian klik OK</div>
+                    <div>Silahkan isi filter kemudian klik View</div>
                 </div>
             </div>
         </div>
@@ -1434,7 +1434,7 @@
             '<div class="ajb-paper">'
             + '<div class="ajb-initial">'
             + '<i class="fas fa-table ajb-initial-icon" aria-hidden="true"></i>'
-            + '<div>Silahkan isi filter kemudian klik OK</div>'
+            + '<div>Silahkan isi filter kemudian klik View</div>'
             + '</div></div>'
         );
     }

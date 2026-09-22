@@ -1305,7 +1305,7 @@
             </div>
 
             <div class="rjb-action-stack">
-                <button type="button" class="rjb-ok-button" onclick="getData()">OK</button>
+                <button type="button" class="rjb-ok-button" onclick="getData()">View</button>
                 <button type="button" class="rjb-print-button" id="rjbPrintButton" onclick="printRjbReport()" disabled>PRINT</button>
             </div>
 

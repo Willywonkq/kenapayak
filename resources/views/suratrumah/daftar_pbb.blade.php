@@ -892,7 +892,7 @@
                     class="pbb-action"
                     onclick="getPbbData()"
                 >
-                    Ok
+                    View
                 </button>
                 <button
                     type="button"
@@ -991,7 +991,7 @@
                         aria-hidden="true"
                     ></i>
                     <div>
-                        Silahkan isi filter kemudian klik OK
+                        Silahkan isi filter kemudian klik View
                     </div>
                 </div>
             </div>

@@ -672,8 +672,16 @@
         transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
     }
 
+    /*
+     * Birunya disamakan dengan tombol View di halaman lain, yang semuanya
+     * berangkat dari #2563eb. Berkas ini satu-satunya yang berangkat dari
+     * #3b82f6 sehingga terlihat lebih muda daripada tetangganya.
+     *
+     * Ketebalan bayangannya sengaja dibiarkan apa adanya, supaya tetap
+     * seimbang dengan tombol Print di sebelahnya yang memakai ukuran sama.
+     */
     .ok-button {
-        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
         box-shadow: 0 11px 22px rgba(37, 99, 235, .28);
     }
 
@@ -685,7 +693,7 @@
     .ok-button:hover,
     .ok-button:focus-visible {
         border: 0;
-        background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
         color: #fff;
         filter: brightness(1.06);
         transform: translateY(-1px);
@@ -1262,7 +1270,7 @@
             </div>
 
             <div class="action-stack">
-                <button type="button" class="ok-button" id="okButton" onclick="getData()">OK</button>
+                <button type="button" class="ok-button" id="okButton" onclick="getData()">View</button>
                 <button type="button" class="print-button" id="printButton" onclick="printReport()" disabled>Print</button>
             </div>
 
@@ -1318,7 +1326,7 @@
             Mengambil data sertipikat...
         </div>
         <div id="mainDisplay">
-            <div class="initial-state">Silakan isi filter kemudian klik OK.</div>
+            <div class="initial-state">Silakan isi filter kemudian klik View.</div>
         </div>
     </section>
 </div>
@@ -1396,7 +1404,7 @@
         $('#loading-info').hide();
         hideBerakhirNoDataAlert();
         $('#mainDisplay').html(
-            '<div class="initial-state">Silakan isi filter kemudian klik OK.</div>'
+            '<div class="initial-state">Silakan isi filter kemudian klik View.</div>'
         );
     }
 

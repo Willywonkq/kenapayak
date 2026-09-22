@@ -924,7 +924,7 @@
                 class="imb-action-button"
                 onclick="getImbData()"
             >
-                OK
+                View
             </button>
             <button
                 type="button"
@@ -974,7 +974,7 @@
                         aria-hidden="true"
                     ></i>
                     <div>
-                        Silakan isi filter kemudian klik OK
+                        Silakan isi filter kemudian klik View
                     </div>
                 </div>
             </div>

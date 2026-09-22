@@ -1292,7 +1292,7 @@
                     class="rajb-action"
                     onclick="getRajbData()"
                 >
-                    Ok
+                    View
                 </button>
                 <button
                     type="button"
@@ -1392,7 +1392,7 @@
             <div class="rajb-paper">
                 <div class="rajb-initial">
                     <i class="fas fa-table rajb-initial-icon" aria-hidden="true"></i>
-                    <div>Silahkan isi filter kemudian klik OK</div>
+                    <div>Silahkan isi filter kemudian klik View</div>
                 </div>
             </div>
         </div>
@@ -1528,7 +1528,7 @@
             '<div class="rajb-paper">'
             + '<div class="rajb-initial">'
             + '<i class="fas fa-table rajb-initial-icon" aria-hidden="true"></i>'
-            + '<div>Silahkan isi filter kemudian klik OK</div>'
+            + '<div>Silahkan isi filter kemudian klik View</div>'
             + '</div></div>'
         );
     }

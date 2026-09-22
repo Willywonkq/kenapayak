@@ -1039,7 +1039,7 @@ select.rph-input {
                     class="rph-action"
                     onclick="getRphData()"
                 >
-                    Ok
+                    View
                 </button>
                 <button
                     type="button"
@@ -1108,7 +1108,7 @@ select.rph-input {
             <div class="rph-paper">
                 <div class="rph-initial">
                     <i class="fas fa-table rph-initial-icon" aria-hidden="true"></i>
-                    <div>Silahkan isi filter kemudian klik OK</div>
+                    <div>Silahkan isi filter kemudian klik View</div>
                 </div>
             </div>
         </div>
@@ -1206,7 +1206,7 @@ select.rph-input {
             '<div class="rph-paper">'
             + '<div class="rph-initial">'
             + '<i class="fas fa-table rph-initial-icon" aria-hidden="true"></i>'
-            + '<div>Silahkan isi filter kemudian klik OK</div>'
+            + '<div>Silahkan isi filter kemudian klik View</div>'
             + '</div></div>'
         );
     }
