@@ -22,7 +22,6 @@
         --sp-radius-sm: 12px;
     }
 
-    .page-panel,
     .filter-panel,
     .result-panel {
         border: 1px solid var(--sp-border);
@@ -31,49 +30,82 @@
         background: var(--sp-white);
     }
 
-    .page-panel {
-        padding: 18px 20px;
-        margin-bottom: 16px;
-    }
-
     .filter-panel,
     .result-panel {
         padding: 20px;
         margin-bottom: 16px;
     }
 
-    .page-title-wrap {
+    .sris-page-header {
+        position: relative;
         display: flex;
+        min-height: 78px;
         align-items: center;
-        gap: 12px;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 16px;
+        padding: 16px 20px 16px 68px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: linear-gradient(90deg, #ffffff 0%, #ffffff 65%, #f8fbff 100%);
+        color: #172033;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
     }
 
-    .page-title-icon {
-        width: 42px;
-        height: 42px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 14px;
-        background: linear-gradient(135deg, var(--sp-primary), #1d4ed8);
-        color: #fff;
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
-        font-size: 16px;
-        flex-shrink: 0;
+    .sris-page-header::before {
+        content: "\25C8";
+        position: absolute;
+        left: 20px;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 0;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #ffffff;
+        font-size: 18px;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
     }
 
-    .page-title-text {
+    .sris-page-header::after {
+        content: "";
+        position: absolute;
+        top: -82px;
+        right: 40px;
+        width: 260px;
+        height: 190px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.08), transparent 68%);
+        pointer-events: none;
+    }
+
+    .sris-page-header-title {
+        position: relative;
+        z-index: 1;
         margin: 0;
-        font-size: 26px;
-        font-weight: 700;
-        color: var(--sp-text);
-        letter-spacing: -0.02em;
+        color: #172033;
+        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
     }
 
-    .page-title-subtext {
-        margin: 2px 0 0 0;
-        font-size: 13px;
-        color: var(--sp-muted);
+    .sris-page-header-unit {
+        position: relative;
+        z-index: 1;
+        padding: 7px 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1e40af;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
     }
 
     .filter-label {
@@ -534,7 +566,6 @@
         }
     }
 
-    .page-panel,
     .filter-panel,
     .result-panel,
     #spSudahPpjbModal {
@@ -542,7 +573,7 @@
         color: #263449;
     }
 
-    .page-title-text,
+    .sris-page-header-title,
     .filter-label,
     .modal-header h5,
     .action-btn {
@@ -596,24 +627,6 @@
         pointer-events: none;
         user-select: none;
         -webkit-user-select: none;
-    }
-
-    .page-title-icon.sertipikat-style-heading-icon {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        flex: 0 0 34px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border: 0 !important;
-        border-radius: 11px !important;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        color: #ffffff !important;
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24) !important;
-        font-size: 18px !important;
-        font-weight: 700 !important;
-        line-height: 1 !important;
     }
 
     .report-wrapper {
@@ -974,13 +987,9 @@
     </div>
 </div>
 
-<div class="page-panel">
-    <div class="page-title-wrap">
-        <div class="page-title-icon sertipikat-style-heading-icon" aria-hidden="true">◈</div>
-        <div>
-            <h5 class="page-title-text">Daftar SP Sudah PPJB</h5>
-        </div>
-    </div>
+<div class="sris-page-header">
+    <span class="sris-page-header-title">Daftar SP Sudah PPJB</span>
+    <code class="sris-page-header-unit">UNIT {{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}</code>
 </div>
 
 <div class="filter-panel">
@@ -1391,11 +1400,11 @@
             }
         }
 
-        $('input, textarea').not('#main-display, .filter-panel, .page-panel, #spSudahPpjbModal, script, style, noscript').each(function () {
+        $('input, textarea').not('#main-display, .filter-panel, .sris-page-header, #spSudahPpjbModal, script, style, noscript').each(function () {
             push($(this).val());
         });
 
-        $('[title]').not('#main-display, .filter-panel, .page-panel, #spSudahPpjbModal, script, style, noscript').each(function () {
+        $('[title]').not('#main-display, .filter-panel, .sris-page-header, #spSudahPpjbModal, script, style, noscript').each(function () {
             push($(this).attr('title'));
         });
 
@@ -1412,7 +1421,7 @@
         for (var index = 0; index < headerSelectors.length; index++) {
             $(headerSelectors[index]).each(function () {
                 var $clone = $(this).clone();
-                $clone.find('#main-display, .filter-panel, .page-panel, #spSudahPpjbModal, script, style, noscript').remove();
+                $clone.find('#main-display, .filter-panel, .sris-page-header, #spSudahPpjbModal, script, style, noscript').remove();
                 push($clone.text());
             });
         }

@@ -1067,101 +1067,80 @@
         }
     }
 
-    .lampiran-st-page-hero {
-
-    display: flex;
-    min-height: 88px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    margin-bottom: 16px;
-    padding: 18px 22px;
-    overflow: hidden;
-    border: 1px solid rgba(15, 35, 65, 0.08);
-    border-radius: 18px;
-    background: linear-gradient(90deg, #ffffff 0%, #ffffff 62%, #f8fafc 100%);
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-
-    }
-
-    .lampiran-st-page-heading {
+    .sris-page-header {
+        position: relative;
         display: flex;
-        min-width: 0;
+        min-height: 78px;
         align-items: center;
-        gap: 15px;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 16px;
+        padding: 16px 20px 16px 68px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: linear-gradient(90deg, #ffffff 0%, #ffffff 65%, #f8fbff 100%);
+        color: #172033;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
     }
 
-    .lampiran-st-page-heading-icon {
-        display: inline-flex;
-        width: 58px;
-        height: 58px;
-        flex: 0 0 58px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 15px;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    .sris-page-header::before {
+        content: "\25C8";
+        position: absolute;
+        left: 20px;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 0;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         color: #ffffff;
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
-        font-size: 25px;
+        font-size: 18px;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
     }
 
-    .lampiran-st-page-heading h1 {
+    .sris-page-header::after {
+        content: "";
+        position: absolute;
+        top: -82px;
+        right: 40px;
+        width: 260px;
+        height: 190px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.08), transparent 68%);
+        pointer-events: none;
+    }
+
+    .sris-page-header-title {
+        position: relative;
+        z-index: 1;
         margin: 0;
-        color: #0f172a;
-        font-size: clamp(19px, 1.65vw, 27px);
-        font-weight: 800;
-        line-height: 1.2;
-        letter-spacing: -0.35px;
+        color: #172033;
+        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
     }
 
-    .lampiran-st-page-unit-badge {
-        display: inline-flex;
-        min-height: 36px;
-        align-items: center;
-        gap: 8px;
-        margin-left: auto;
-        padding: 8px 12px;
+    .sris-page-header-unit {
+        position: relative;
+        z-index: 1;
+        padding: 7px 12px;
         border: 1px solid #bfdbfe;
         border-radius: 999px;
         background: #eff6ff;
         color: #1e40af;
-        font-size: 12px;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
         white-space: nowrap;
     }
 
     @media (max-width: 680px) {
-        .lampiran-st-page-hero { padding: 16px; }
-        .lampiran-st-page-heading-icon {
-            width: 50px;
-            height: 50px;
-            flex-basis: 50px;
-        }
-        .lampiran-st-page-unit-badge { display: none; }
-    }
-
-    .lampiran-st-page-heading-icon.sertipikat-style-heading-icon {
-
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        flex: 0 0 34px !important;
-        border: 0 !important;
-        border-radius: 11px !important;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        color: #ffffff !important;
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24) !important;
-        font-size: 18px !important;
-        font-weight: 700 !important;
-        line-height: 1 !important;
-
-    }
-
-    @media (max-width: 680px) {
-        .lampiran-st-page-heading-icon.sertipikat-style-heading-icon {
-            width: 34px !important;
-            height: 34px !important;
-            flex-basis: 34px !important;
-        }
+        .sris-page-header { padding: 16px 16px 16px 58px; }
     }
 
     .lampiran-st-page,
@@ -1178,7 +1157,7 @@
         font-family: "Segoe UI", Tahoma, Arial, sans-serif !important;
     }
 
-    .lampiran-st-page .lampiran-st-page-heading h1,
+    .lampiran-st-page .sris-page-header-title,
     .lampiran-st-page .lampiran-st-title,
     .lampiran-st-page .lampiran-st-heading,
     .lampiran-st-page .lampiran-st-label,
@@ -1195,33 +1174,6 @@
             radial-gradient(1100px 340px at 12% -10%, rgba(37, 99, 235, 0.10), transparent 62%),
             radial-gradient(900px 300px at 100% 0%, rgba(37, 99, 235, 0.06), transparent 60%),
             #f4f7fc;
-    }
-
-    .lampiran-st-page .lampiran-st-page-hero {
-        position: relative;
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        background: linear-gradient(135deg, #ffffff 0%, #ffffff 55%, #f5f9ff 100%);
-        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
-    }
-
-    .lampiran-st-page .lampiran-st-page-hero::before {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        border-radius: 16px 16px 0 0;
-        background: linear-gradient(90deg, #2563eb, #60a5fa 55%, rgba(96, 165, 250, 0));
-        content: "";
-    }
-
-    .lampiran-st-page .lampiran-st-page-unit-badge {
-        border-color: #cfe0fb;
-        background: linear-gradient(180deg, #eff6ff, #dbeafe);
-        color: #1e40af;
-        font-weight: 700;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
     .lampiran-st-page .lampiran-st-frame {
@@ -1952,17 +1904,10 @@
         </div>
     </div>
 
-    <section class="lampiran-st-page-hero">
-        <div class="lampiran-st-page-heading">
-            <div class="lampiran-st-page-heading-icon sertipikat-style-heading-icon" aria-hidden="true">◈</div>
-            <h1>Lampiran Surat Undangan Serah Terima</h1>
-        </div>
-
-        <div class="lampiran-st-page-unit-badge" title="Unit aktif">
-            <i class="fas fa-building"></i>
-            <span>Unit: <strong>{{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}</strong></span>
-        </div>
-    </section>
+    <div class="sris-page-header">
+        <span class="sris-page-header-title">Lampiran Surat Undangan Serah Terima</span>
+        <code class="sris-page-header-unit">UNIT {{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}</code>
+    </div>
 
     <div class="lampiran-st-frame">
         <div class="lampiran-st-toolbar">

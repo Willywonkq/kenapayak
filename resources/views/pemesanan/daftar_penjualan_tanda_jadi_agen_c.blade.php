@@ -170,7 +170,6 @@
         font-family: "Segoe UI", Tahoma, Arial, sans-serif;
     }
 
-    .penjualan-tanda-jadi-content .page-panel,
     .penjualan-tanda-jadi-content .filter-panel,
     .penjualan-tanda-jadi-content .result-panel {
         margin-bottom: 16px;
@@ -181,37 +180,76 @@
         box-shadow: var(--ptj-shadow);
     }
 
-    .penjualan-tanda-jadi-content .page-panel {
-        padding: 18px 20px;
-    }
-
-    .penjualan-tanda-jadi-content .page-title-wrap {
+    .sris-page-header {
+        position: relative;
         display: flex;
+        min-height: 78px;
         align-items: center;
-        gap: 12px;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 16px;
+        padding: 16px 20px 16px 68px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: linear-gradient(90deg, #ffffff 0%, #ffffff 65%, #f8fbff 100%);
+        color: #172033;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
     }
 
-    .penjualan-tanda-jadi-content .page-title-icon {
-        width: 42px;
-        height: 42px;
-        display: inline-flex;
-        flex: 0 0 42px;
-        align-items: center;
-        justify-content: center;
+    .sris-page-header::before {
+        content: "\25C8";
+        position: absolute;
+        left: 20px;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 0;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         color: #ffffff;
-        border-radius: 14px;
-        background: linear-gradient(135deg, var(--ptj-primary), var(--ptj-primary-dark));
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
-        font-size: 16px;
+        font-size: 18px;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
     }
 
-    .penjualan-tanda-jadi-content .page-title-text {
+    .sris-page-header::after {
+        content: "";
+        position: absolute;
+        top: -82px;
+        right: 40px;
+        width: 260px;
+        height: 190px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.08), transparent 68%);
+        pointer-events: none;
+    }
+
+    .sris-page-header-title {
+        position: relative;
+        z-index: 1;
         margin: 0;
-        color: var(--ptj-text);
+        color: #172033;
         font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
-        font-size: 20px;
-        font-weight: 700;
-        letter-spacing: -0.01em;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+    }
+
+    .sris-page-header-unit {
+        position: relative;
+        z-index: 1;
+        padding: 7px 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1e40af;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
     }
 
     .penjualan-tanda-jadi-content .filter-label {
@@ -708,41 +746,6 @@
         }
     }
 
-    .penjualan-tanda-jadi-content .page-title-wrap {
-        justify-content: space-between;
-    }
-
-    .penjualan-tanda-jadi-content .page-title-main {
-        min-width: 0;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .penjualan-tanda-jadi-content .page-title-copy {
-        min-width: 0;
-    }
-
-    .penjualan-tanda-jadi-content .page-title-description {
-        margin: 4px 0 0;
-        color: var(--ptj-muted);
-        font-size: 12px;
-        line-height: 1.5;
-    }
-
-    .penjualan-tanda-jadi-content .status-badge {
-        flex: 0 0 auto;
-        padding: 7px 11px;
-        color: #9a6700;
-        border: 1px solid #fde68a;
-        border-radius: 999px;
-        background: #fffbeb;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .02em;
-        text-transform: uppercase;
-    }
-
     .penjualan-tanda-jadi-content .filter-panel {
         padding: 0;
         overflow: hidden;
@@ -883,14 +886,9 @@
     }
 
     @media (max-width: 767.98px) {
-        .penjualan-tanda-jadi-content .page-title-wrap,
         .penjualan-tanda-jadi-content .filter-actions {
             align-items: stretch;
             flex-direction: column;
-        }
-
-        .penjualan-tanda-jadi-content .status-badge {
-            align-self: flex-start;
         }
 
         .penjualan-tanda-jadi-content .filter-field,
@@ -918,24 +916,6 @@
         pointer-events: none;
         user-select: none;
         -webkit-user-select: none;
-    }
-
-    .page-title-icon.sertipikat-style-heading-icon {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        flex: 0 0 34px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border: 0 !important;
-        border-radius: 11px !important;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        color: #ffffff !important;
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24) !important;
-        font-size: 18px !important;
-        font-weight: 700 !important;
-        line-height: 1 !important;
     }
 
     .penjualan-tanda-jadi-content .desktop-filter-layout {
@@ -1381,20 +1361,9 @@
     </div>
 </div>
 
-<div class="page-panel">
-    <div class="page-title-wrap">
-        <div class="page-title-main">
-            <div class="page-title-icon sertipikat-style-heading-icon" aria-hidden="true">◈</div>
-
-            <div class="page-title-copy">
-                <h5 class="page-title-text">
-                    Daftar Penjualan Per Tanggal Tanda Jadi Per Agen
-                </h5>
-            </div>
-        </div>
-
-        <span class="status-badge">Belum PPJB</span>
-    </div>
+<div class="sris-page-header">
+    <span class="sris-page-header-title">Daftar Penjualan Per Tanggal Tanda Jadi Per Agen</span>
+    <code class="sris-page-header-unit">UNIT {{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}</code>
 </div>
 
 <div class="filter-panel">

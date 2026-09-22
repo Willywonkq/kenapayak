@@ -35,77 +35,76 @@
         box-shadow: 0 7px 24px rgba(15, 35, 65, 0.08);
     }
 
-    .page-hero {
+    .sris-page-header {
         position: relative;
         display: flex;
-        min-height: 88px;
+        min-height: 78px;
         align-items: center;
         justify-content: space-between;
-        gap: 20px;
+        gap: 18px;
         margin-bottom: 16px;
-        padding: 18px 22px;
+        padding: 16px 20px 16px 68px;
         overflow: hidden;
-        background:
-            radial-gradient(circle at 92% 0%, rgba(255, 118, 0, 0.11), transparent 33%),
-            linear-gradient(90deg, #ffffff 0%, #ffffff 57%, #fffaf5 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: linear-gradient(90deg, #ffffff 0%, #ffffff 65%, #f8fbff 100%);
+        color: #172033;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
     }
 
-    .page-heading {
-        position: relative;
-        z-index: 2;
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        gap: 15px;
-    }
-
-    .page-heading-icon {
-        display: inline-flex;
-        width: 58px;
-        height: 58px;
-        flex: 0 0 58px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 15px;
-        background: linear-gradient(145deg, #ff8a16, #f36500);
-        color: #ffffff;
-        box-shadow: 0 10px 22px rgba(255, 118, 0, 0.27);
-        font-size: 25px;
-    }
-
-    .page-heading-copy {
-        min-width: 0;
-    }
-
-    .page-heading h1 {
-        margin: 0 0 4px;
-        color: var(--st-text);
-        font-size: clamp(19px, 1.65vw, 27px);
-        font-weight: 800;
-        line-height: 1.2;
-        letter-spacing: -0.35px;
-    }
-
-    .page-heading p {
-        margin: 0;
-        color: #5f6878;
-        font-size: 13px;
-        font-weight: 500;
-    }
-
-    .page-hero-art {
+    .sris-page-header::before {
+        content: "\25C8";
         position: absolute;
-        right: 16px;
-        bottom: -5px;
-        width: min(430px, 34vw);
-        height: 82px;
-        color: rgba(255, 118, 0, 0.34);
+        left: 20px;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 0;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #ffffff;
+        font-size: 18px;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
+    }
+
+    .sris-page-header::after {
+        content: "";
+        position: absolute;
+        top: -82px;
+        right: 40px;
+        width: 260px;
+        height: 190px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.08), transparent 68%);
         pointer-events: none;
     }
 
-    .page-hero-art svg {
-        width: 100%;
-        height: 100%;
+    .sris-page-header-title {
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        color: #172033;
+        font-family: "Segoe UI Semibold", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+    }
+
+    .sris-page-header-unit {
+        position: relative;
+        z-index: 1;
+        padding: 7px 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1e40af;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
     }
 
     .summary-grid {
@@ -806,19 +805,8 @@
     }
 
     @media (max-width: 720px) {
-        .page-hero {
-            padding: 16px;
-        }
-
-        .page-heading-icon {
-            width: 50px;
-            height: 50px;
-            flex-basis: 50px;
-        }
-
-        .page-heading p,
-        .page-hero-art {
-            display: none;
+        .sris-page-header {
+            padding: 16px 16px 16px 58px;
         }
 
         .summary-grid,
@@ -876,30 +864,6 @@
         border-color: #e5e7eb;
         border-radius: 18px;
         box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-    }
-
-    .rencana-st-page .page-hero {
-        background:
-            radial-gradient(
-                circle at 92% 0%,
-                rgba(37, 99, 235, 0.08),
-                transparent 34%
-            ),
-            linear-gradient(
-                90deg,
-                #ffffff 0%,
-                #ffffff 58%,
-                #f8fafc 100%
-            );
-    }
-
-    .rencana-st-page .page-heading-icon {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
-    }
-
-    .rencana-st-page .page-hero-art {
-        color: rgba(37, 99, 235, 0.24);
     }
 
     .rencana-st-page .summary-icon.orange,
@@ -1080,31 +1044,6 @@
         }
     }
 
-    .rencana-st-page .page-heading-icon.sertipikat-style-heading-icon {
-
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        flex: 0 0 34px !important;
-        border: 0 !important;
-        border-radius: 11px !important;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        color: #ffffff !important;
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24) !important;
-        font-size: 18px !important;
-        font-weight: 700 !important;
-        line-height: 1 !important;
-
-    }
-
-    @media (max-width: 720px) {
-        .rencana-st-page .page-heading-icon.sertipikat-style-heading-icon {
-            width: 34px !important;
-            height: 34px !important;
-            flex-basis: 34px !important;
-        }
-    }
-
     .rencana-st-page,
     .rencana-st-page input,
     .rencana-st-page select,
@@ -1112,12 +1051,11 @@
     .rencana-st-page textarea,
     .rencana-st-page label,
     .rencana-st-page table,
-    .rencana-st-page td,
-    .rencana-st-page .page-heading p {
+    .rencana-st-page td {
         font-family: "Segoe UI", Tahoma, Arial, sans-serif !important;
     }
 
-    .rencana-st-page .page-heading h1,
+    .rencana-st-page .sris-page-header-title,
     .rencana-st-page .filter-label,
     .rencana-st-page .summary-label,
     .rencana-st-page .report-table th,
@@ -1479,25 +1417,10 @@
         </div>
     </div>
 
-    <section class="modern-card page-hero">
-        <div class="page-heading">
-            <div class="page-heading-icon sertipikat-style-heading-icon" aria-hidden="true">◈</div>
-            <div class="page-heading-copy">
-                <h1>Daftar Rencana Serah Terima Bangunan</h1>
-            </div>
-        </div>
-
-        <div class="page-hero-art" aria-hidden="true">
-            <svg viewBox="0 0 520 105" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0 91C70 87 112 89 162 87C215 85 240 74 277 76C324 78 360 92 520 88" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M183 84V47L217 28L250 47V84M192 84V52H240V84M205 60H214V70H205V60ZM223 60H232V70H223V60Z" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M260 84V39L298 15L337 39V84M270 84V43H327V84M283 51H293V62H283V51ZM305 51H315V62H305V51ZM283 68H293V79H283V68ZM305 68H315V79H305V68Z" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M346 84V55L374 39L403 55V84M355 84V59H394V84M367 66H377V77H367V66Z" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M428 84V68M428 69C418 66 415 58 420 51C424 44 434 45 438 52C442 59 438 67 428 69ZM462 84V72M462 72C453 69 451 62 455 56C459 50 467 50 471 56C475 62 471 70 462 72Z" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M407 21C446 8 481 8 520 18M402 28C449 13 483 14 520 25M397 35C445 19 483 20 520 33M393 42C443 26 483 27 520 40" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-            </svg>
-        </div>
-    </section>
+    <div class="sris-page-header">
+        <span class="sris-page-header-title">Daftar Rencana Serah Terima Bangunan</span>
+        <code class="sris-page-header-unit">UNIT {{ session('kd_unit') ?? session('kd_perusahaan') ?? 'DTSA' }}</code>
+    </div>
 
     <section class="summary-grid" aria-label="Ringkasan rencana serah terima">
         <article class="modern-card summary-card">
