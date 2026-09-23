@@ -760,3 +760,44 @@ kedua perbaikan sekaligus: bloknya berawalan Z dan keluarganya DBPSS-.
 `daftar_sertifikat_berakhir_haknya_m.php` masih memakai
 `awalanSertipikatIdk()`. Saringan bloknya sudah benar. Belum diukur,
 jadi belum diubah.
+
+
+## Daftar Sertipikat Berakhir Hak: terbukti tabel induk, bukan kode
+
+Tanggal pemeriksaan: 23 September 2026
+Query: `balik_nama_dan_berakhir_hak_cek_sbks.sql`. Hanya membaca.
+
+Diuji pada unit SBKS, blok A sampai Z, sektor semua, Tgl Berlaku
+01-07-2023 sampai 23-09-2026, Apartemen tidak dicentang, Status AJB
+Semua.
+
+    aplikasi desktop   4 baris
+    aplikasi web       2 baris
+
+Keempat barisnya ditelusuri satu per satu:
+
+| blok    | sertipikat_id | tgl_berlaku | dalam rentang | jenis | punya induk |
+|---------|---------------|-------------|---------------|-------|-------------|
+| RCH/009 | DBPSA-25836   | 2025-03-20  | ya            | RMH   | TIDAK       |
+| RDE/007 | DBPSA-23657   | 2025-04-04  | ya            | RMH   | ya          |
+| TD/021  | DBPSA-13943   | 2024-02-16  | ya            | RKN   | ya          |
+| ZCB/070 | DBPSA-28442   | 2025-06-12  | ya            | RMH   | TIDAK       |
+
+Keempatnya lolos saringan tanggal, unit, blok, dan jenis. Yang
+membedakan hanya satu kolom: dua baris yang hilang dari web TIDAK punya
+pasangan di sr_sertipikat_idk.
+
+Corong keseluruhannya menegaskan hal yang sama, 4 calon menjadi 4
+sesudah saringan jenis, 4 sesudah saringan blok, dan 2 sesudah
+sambungan ke tabel induk.
+
+Modelnya tidak perlu diubah. Laporan ini akan terisi sendiri begitu
+sr_sertipikat_idk dimigrasikan ulang.
+
+### Catatan atas kekeliruan corong laporan balik nama
+
+Susunan corong untuk Daftar Sertipikat Balik Nama pada berkas yang sama
+semula KELIRU: saringan jenis bangunan tidak ikut dihitung, padahal
+model membuang APT dan KTR ketika centang Apartemen kosong. Angkanya
+keluar 952 sehingga tidak bisa disandingkan dengan 317 yang tampil.
+Susunannya sudah dibetulkan dan perlu dijalankan ulang.

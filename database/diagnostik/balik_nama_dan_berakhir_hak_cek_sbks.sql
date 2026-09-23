@@ -60,11 +60,24 @@
 
 
 /* ------------------------------------------------------------
- * QUERY 1
+ * QUERY 1 (DIPERBAIKI)
  * CORONG LAPORAN BALIK NAMA.
  *
- * Perhatikan dua angka terakhir. Selisihnya adalah baris yang
- * hilang semata-mata karena nasabahnya tidak ada.
+ * Susunan sebelumnya KELIRU: saringan jenis bangunan tidak ikut
+ * dihitung, padahal model membuang APT dan KTR ketika centang
+ * Apartemen kosong. Karena itu angkanya keluar 952, jauh di atas
+ * 317 yang tampil di layar, sehingga tidak bisa dibandingkan.
+ *
+ * Sekarang urutannya mengikuti modelnya:
+ *
+ *   t6_ada_pembeli_aktif   harusnya mendekati 353, yaitu angka
+ *                          desktop, sebab di SQL Server nasabah
+ *                          lengkap
+ *   t7_nasabahnya_ketemu   harusnya 317, yaitu angka web
+ *
+ * Kalau kedua dugaan itu kena, seluruh selisih 36 baris memang
+ * berasal dari sr_nasabah yang belum lengkap, dan modelnya tidak
+ * perlu diubah sama sekali.
  * ------------------------------------------------------------ */
 WITH kolom AS (
     SELECT
@@ -72,11 +85,15 @@ WITH kolom AS (
           WHERE table_schema='public' AND table_name='sr_stok'
             AND column_name = ANY (ARRAY['kd_perusahaan','kd_unit','kd_pt'])
           ORDER BY array_position(ARRAY['kd_perusahaan','kd_unit','kd_pt'], column_name)
-          LIMIT 1) AS stok_unit
+          LIMIT 1) AS stok_unit,
+        (SELECT column_name FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='sr_stok'
+            AND column_name = ANY (ARRAY['kd_jenis_bgn','kd_jenis'])
+          ORDER BY array_position(ARRAY['kd_jenis_bgn','kd_jenis'], column_name)
+          LIMIT 1) AS stok_jenis
 ),
 ser AS MATERIALIZED (
-    SELECT
-        BTRIM(CAST(s.stok_id AS TEXT)) AS kunci_stok
+    SELECT BTRIM(CAST(s.stok_id AS TEXT)) AS kunci_stok
     FROM public.sr_sertipikat AS s
     WHERE UPPER(BTRIM(COALESCE(CAST(s.status_blk_nm AS TEXT), ''))) = 'Y'
       AND SUBSTRING(CAST(s.tgl_input_blk_nm AS TEXT) FROM 1 FOR 10)
@@ -86,7 +103,8 @@ stok AS MATERIALIZED (
     SELECT
         BTRIM(CAST(st.stok_id AS TEXT)) AS kunci_stok,
         UPPER(BTRIM(COALESCE(CAST(st.blok AS TEXT), '')))  AS blok,
-        UPPER(BTRIM(COALESCE(CAST(st.nomor AS TEXT), ''))) AS nomor
+        UPPER(BTRIM(COALESCE(CAST(st.nomor AS TEXT), ''))) AS nomor,
+        UPPER(BTRIM(COALESCE(to_jsonb(st) ->> k.stok_jenis, ''))) AS jenis
     FROM public.sr_stok AS st
     CROSS JOIN kolom AS k
     WHERE UPPER(BTRIM(COALESCE(to_jsonb(st) ->> k.stok_unit, ''))) = 'SBKS'
@@ -113,34 +131,37 @@ pembeli_bernama AS MATERIALIZED (
         ON BTRIM(CAST(n.nasabah_id AS TEXT)) = BTRIM(CAST(pp.nasabah_id AS TEXT))
     WHERE UPPER(BTRIM(COALESCE(CAST(pp.flag_aktif AS TEXT), ''))) = 'Y'
       AND NULLIF(BTRIM(CAST(n.nama AS TEXT)), '') IS NOT NULL
+),
+langkah AS (
+    SELECT
+        (stok.kunci_stok IS NOT NULL)                        AS ada_stok,
+        (stok.jenis NOT IN ('APT','KTR'))                    AS bukan_apt,
+        ((stok.blok || '/' || stok.nomor BETWEEN 'A' AND 'ZZ')
+            OR (stok.blok BETWEEN 'A' AND 'ZZ'))             AS dalam_blok,
+        (ppjb.ppjb_id IS NOT NULL)                           AS ada_ppjb,
+        (pembeli.ppjb_id IS NOT NULL)                        AS ada_pembeli,
+        (pembeli_bernama.ppjb_id IS NOT NULL)                AS ada_nama
+    FROM ser
+    LEFT JOIN stok            ON stok.kunci_stok = ser.kunci_stok
+    LEFT JOIN ppjb            ON ppjb.kunci_stok = stok.kunci_stok
+    LEFT JOIN pembeli         ON pembeli.ppjb_id = ppjb.ppjb_id
+    LEFT JOIN pembeli_bernama ON pembeli_bernama.ppjb_id = ppjb.ppjb_id
 )
 SELECT
-    COUNT(*)                                              AS t1_sertipikat_dalam_tanggal,
-    COUNT(*) FILTER (WHERE stok.kunci_stok IS NOT NULL)   AS t2_stok_sbks,
-    COUNT(*) FILTER (WHERE stok.kunci_stok IS NOT NULL
-                       AND ((stok.blok || '/' || stok.nomor BETWEEN 'A' AND 'ZZ')
-                            OR (stok.blok BETWEEN 'A' AND 'ZZ')))
-                                                          AS t3_dalam_blok,
-    COUNT(*) FILTER (WHERE stok.kunci_stok IS NOT NULL
-                       AND ((stok.blok || '/' || stok.nomor BETWEEN 'A' AND 'ZZ')
-                            OR (stok.blok BETWEEN 'A' AND 'ZZ'))
-                       AND ppjb.ppjb_id IS NOT NULL)      AS t4_ada_ppjb_aktif,
-    COUNT(*) FILTER (WHERE stok.kunci_stok IS NOT NULL
-                       AND ((stok.blok || '/' || stok.nomor BETWEEN 'A' AND 'ZZ')
-                            OR (stok.blok BETWEEN 'A' AND 'ZZ'))
-                       AND ppjb.ppjb_id IS NOT NULL
-                       AND pembeli.ppjb_id IS NOT NULL)   AS t5_ada_pembeli_aktif,
-    COUNT(*) FILTER (WHERE stok.kunci_stok IS NOT NULL
-                       AND ((stok.blok || '/' || stok.nomor BETWEEN 'A' AND 'ZZ')
-                            OR (stok.blok BETWEEN 'A' AND 'ZZ'))
-                       AND ppjb.ppjb_id IS NOT NULL
-                       AND pembeli_bernama.ppjb_id IS NOT NULL)
-                                                          AS t6_nasabahnya_ketemu
-FROM ser
-LEFT JOIN stok            ON stok.kunci_stok = ser.kunci_stok
-LEFT JOIN ppjb            ON ppjb.kunci_stok = stok.kunci_stok
-LEFT JOIN pembeli         ON pembeli.ppjb_id = ppjb.ppjb_id
-LEFT JOIN pembeli_bernama ON pembeli_bernama.ppjb_id = ppjb.ppjb_id;
+    COUNT(*)                                        AS t1_sertipikat_dalam_tanggal,
+    COUNT(*) FILTER (WHERE ada_stok)                AS t2_stok_sbks,
+    COUNT(*) FILTER (WHERE ada_stok AND bukan_apt)  AS t3_bukan_apt_ktr,
+    COUNT(*) FILTER (WHERE ada_stok AND bukan_apt
+                       AND dalam_blok)              AS t4_dalam_blok,
+    COUNT(*) FILTER (WHERE ada_stok AND bukan_apt
+                       AND dalam_blok AND ada_ppjb) AS t5_ada_ppjb_aktif,
+    COUNT(*) FILTER (WHERE ada_stok AND bukan_apt
+                       AND dalam_blok AND ada_ppjb
+                       AND ada_pembeli)             AS t6_ada_pembeli_aktif,
+    COUNT(*) FILTER (WHERE ada_stok AND bukan_apt
+                       AND dalam_blok AND ada_ppjb
+                       AND ada_nama)                AS t7_nasabahnya_ketemu
+FROM langkah;
 
 
 /* ------------------------------------------------------------
