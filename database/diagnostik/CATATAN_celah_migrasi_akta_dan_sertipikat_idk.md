@@ -696,3 +696,67 @@ tunggal untuk seluruh unit, sama seperti yang sudah diperbaiki pada
 model pecahan. Untuk SBKS tidak berpengaruh karena keluarganya memang
 DBPSA-, tetapi untuk unit DBPSS- laporannya akan kosong tanpa sebab
 yang kelihatan.
+
+
+## Cacat saringan blok ternyata ada di dua model, dan keduanya diperbaiki
+
+Tanggal: 23 September 2026
+
+### Cacat yang sama persis
+
+Dua model menulis syarat bloknya dengan dua kekeliruan yang sama:
+
+* kedua penanda pada cabang kedua sama-sama diisi blok AKHIR, bukan awal
+  dan akhir, sehingga cabang itu hanya cocok bila bloknya persis sama
+  dengan batas atas;
+* batas atasnya dibiarkan 'Z', padahal dalam perbandingan teks 'ZBJ'
+  lebih besar daripada 'Z' karena 'Z' awalan yang lebih pendek.
+
+Akibatnya seluruh blok berawalan Z gugur pada kedua cabang sekaligus.
+Untuk unit SBKS itu berat sekali: ZCC 98 stok, ZD 85, ZCB 66, ZCD 65,
+ZAC 60, dan puluhan blok lain.
+
+    dftr_pengajuan_balik_nama_m.php     diukur, 87 menjadi 151 baris
+    dftr_sertifikat_balik_nama_m.php    cacatnya identik, belum diukur
+
+Sepuluh model lain sudah benar karena mengubah blok akhir 'Z' menjadi
+'ZZ' lebih dulu, mengikuti desktop yang mencetak "BLOK : A s/d ZZ" dari
+masukan 'A' sampai 'Z'. Kedua model di atas kini ikut.
+
+### Awalan per unit pada pengajuan balik nama
+
+`awalanSertipikatIdk()` diganti `awalanUnit()` dan ditambah
+`pastikanKeluargaAda()`, sama persis seperti yang sudah dikerjakan pada
+model Daftar Sertipikat Pecahan. Alasannya sama: satu awalan untuk
+seluruh unit membuat unit di luar keluarga pemenang menyusun kunci yang
+tidak akan pernah ketemu, dan laporannya kosong tanpa sebab yang
+kelihatan.
+
+### Bukti
+
+Data uji bersusun dua keluarga, dengan blok AA milik SBKS, blok ZBJ
+milik SBKS, blok ZCL milik SSPG, dan satu unit KOSG yang punya stok
+tetapi tidak punya baris idk sama sekali.
+
+Daftar Pengajuan Sertipikat Balik Nama:
+
+| unit | kode lama | kode baru                |
+|------|-----------|--------------------------|
+| SBKS | 1 baris   | 2 baris, ZBJ kembali     |
+| SSPG | 0 baris   | 1 baris, ZCL kembali     |
+| KOSG | 0 baris   | DITOLAK dengan pesan     |
+
+Daftar Sertipikat Balik Nama:
+
+| unit | kode lama | kode baru            |
+|------|-----------|----------------------|
+| SBKS | 1 baris   | 2 baris, ZBJ kembali |
+
+Unit SSPG kembali bukan hanya karena saringan blok, melainkan karena
+kedua perbaikan sekaligus: bloknya berawalan Z dan keluarganya DBPSS-.
+
+### Masih tersisa satu
+
+`daftar_sertifikat_berakhir_haknya_m.php` masih memakai
+`awalanSertipikatIdk()`. Saringan bloknya sudah benar. Belum diukur,
+jadi belum diubah.
