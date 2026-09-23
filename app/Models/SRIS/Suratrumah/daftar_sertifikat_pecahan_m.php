@@ -93,6 +93,8 @@ class daftar_sertifikat_pecahan_m extends Model
             throw new RuntimeException('Kode perusahaan/unit tidak tersedia.');
         }
 
+        $this->pastikanKeluargaAda($perusahaan);
+
         if ($sektor === '') {
             $sektor = '*';
         }
@@ -266,7 +268,7 @@ class daftar_sertifikat_pecahan_m extends Model
         SQL;
 
         return DB::connection(self::CONNECTION)->select($sql, [
-            'awalan_idk' => $this->awalanSertipikatIdk(),
+            'awalan_idk' => $this->awalanUnit($perusahaan),
             'perusahaan_langsung' => $perusahaan,
             'tampil_penggabungan' => $tampilPenggabungan,
             'apartemen' => $apartemen,
@@ -405,7 +407,7 @@ class daftar_sertifikat_pecahan_m extends Model
         SQL;
 
         return DB::connection(self::CONNECTION)->select($sql, [
-            'awalan_idk' => $this->awalanSertipikatIdk(),
+            'awalan_idk' => $this->awalanUnit($perusahaan),
             'perusahaan_langsung' => $perusahaan,
             'apartemen' => $apartemen,
             'blok_awal_unit' => $blokAwal,
@@ -433,53 +435,123 @@ class daftar_sertifikat_pecahan_m extends Model
             SQL;
     }
 
-    private function awalanSertipikatIdk(): string
+    private function awalanUnit(string $kdPerusahaan): string
     {
-        static $awalan = null;
+        static $ingatan = [];
 
-        if ($awalan !== null) {
-            return $awalan;
+        if (isset($ingatan[$kdPerusahaan])) {
+            return $ingatan[$kdPerusahaan];
         }
+
+        $stokPerusahaan = $this->kolomKode('sr_stok', [
+            'kd_perusahaan', 'kd_unit', 'kd_pt',
+        ]);
 
         $sql = <<<SQL
             SELECT
-                ser.awalan AS awalan,
-                COUNT(*) AS cocok
-            FROM (
-                SELECT
-                    BTRIM(CAST(i.sertipikat_id AS TEXT)) AS angka,
-                    UPPER(BTRIM(COALESCE(CAST(i.ser_pisah AS TEXT), ''))) AS no_ser,
-                    UPPER(BTRIM(COALESCE(CAST(i.su_pisah AS TEXT), ''))) AS su_pisah
-                FROM public.sr_sertipikat_idk AS i
-                WHERE BTRIM(CAST(i.sertipikat_id AS TEXT)) ~ '^[0-9]+$'
-                  AND (
-                        BTRIM(COALESCE(CAST(i.ser_pisah AS TEXT), '')) <> ''
-                        OR BTRIM(COALESCE(CAST(i.su_pisah AS TEXT), '')) <> ''
-                      )
-            ) AS idk
-            INNER JOIN (
-                SELECT
-                    REGEXP_REPLACE(BTRIM(CAST(s.sertipikat_id AS TEXT)), '[0-9]+$', '')
-                        AS awalan,
-                    REGEXP_REPLACE(BTRIM(CAST(s.sertipikat_id AS TEXT)), '^[^0-9]+', '')
-                        AS angka,
-                    UPPER(BTRIM(COALESCE(CAST(s.no_sertipikat AS TEXT), ''))) AS no_ser,
-                    UPPER(BTRIM(COALESCE(CAST(s.su_pisah AS TEXT), ''))) AS su_pisah
-                FROM public.sr_sertipikat AS s
-                WHERE s.sertipikat_id IS NOT NULL
-            ) AS ser
-                ON ser.angka = idk.angka
-            WHERE (idk.no_ser <> '' AND idk.no_ser = ser.no_ser)
-               OR (idk.su_pisah <> '' AND idk.su_pisah = ser.su_pisah)
+                REGEXP_REPLACE(BTRIM(CAST(stok_id AS TEXT)), '[0-9]+$', '')
+                    AS awalan,
+                COUNT(*) AS jumlah
+            FROM public.sr_stok
+            WHERE stok_id IS NOT NULL
+              AND UPPER(BTRIM(COALESCE(
+                      CAST({$stokPerusahaan} AS TEXT), ''))) = :kd_perusahaan
             GROUP BY 1
-            ORDER BY 2 DESC, 1 ASC
+            ORDER BY jumlah DESC, awalan
             LIMIT 1
         SQL;
 
-        $baris = DB::connection(self::CONNECTION)->select($sql);
-        $awalan = $baris ? (string) $baris[0]->awalan : '';
+        $baris = DB::connection(self::CONNECTION)->select($sql, [
+            'kd_perusahaan' => $kdPerusahaan,
+        ]);
 
-        return $awalan;
+        return $ingatan[$kdPerusahaan] = $baris
+            ? (string) $baris[0]->awalan
+            : '';
+    }
+
+    private function pastikanKeluargaAda(string $kdPerusahaan): void
+    {
+        static $ingatan = [];
+
+        if (isset($ingatan[$kdPerusahaan])) {
+            if ($ingatan[$kdPerusahaan] === false) {
+                $this->tolakKeluargaKosong($kdPerusahaan);
+            }
+
+            return;
+        }
+
+        $awalan = $this->awalanUnit($kdPerusahaan);
+
+        if ($awalan === '') {
+            $ingatan[$kdPerusahaan] = false;
+            $this->tolakKeluargaKosong($kdPerusahaan);
+        }
+
+        $stokPerusahaan = $this->kolomKode('sr_stok', [
+            'kd_perusahaan', 'kd_unit', 'kd_pt',
+        ]);
+
+        $sql = <<<SQL
+            WITH angka_sertipikat AS (
+                SELECT
+                    REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)),
+                                   '^[^0-9]+', '') AS angka,
+                    MIN(REGEXP_REPLACE(BTRIM(CAST(sertipikat_id AS TEXT)),
+                                       '[0-9]+$', '')) AS awalan,
+                    COUNT(DISTINCT REGEXP_REPLACE(
+                        BTRIM(CAST(sertipikat_id AS TEXT)), '[0-9]+$', ''))
+                        AS banyak_keluarga
+                FROM public.sr_sertipikat
+                WHERE sertipikat_id IS NOT NULL
+                GROUP BY 1
+            ),
+            pasti AS (
+                SELECT angka_sertipikat.awalan || angka_sertipikat.angka AS kunci
+                FROM public.sr_sertipikat_idk AS idk
+                INNER JOIN angka_sertipikat
+                    ON angka_sertipikat.angka
+                     = BTRIM(CAST(idk.sertipikat_id AS TEXT))
+                WHERE angka_sertipikat.banyak_keluarga = 1
+                  AND angka_sertipikat.awalan = :awalan
+                  AND BTRIM(CAST(idk.sertipikat_id AS TEXT)) ~ '^[0-9]+$'
+            )
+            SELECT COUNT(*) AS jumlah
+            FROM pasti
+            INNER JOIN public.sr_sertipikat AS sertipikat
+                ON BTRIM(CAST(sertipikat.sertipikat_id AS TEXT)) = pasti.kunci
+            INNER JOIN public.sr_stok AS stok
+                ON BTRIM(CAST(stok.stok_id AS TEXT))
+                 = BTRIM(CAST(sertipikat.stok_id AS TEXT))
+            WHERE UPPER(BTRIM(COALESCE(
+                      CAST(stok.{$stokPerusahaan} AS TEXT), ''))) = :kd_perusahaan
+        SQL;
+
+        $baris = DB::connection(self::CONNECTION)->select($sql, [
+            'awalan' => $awalan,
+            'kd_perusahaan' => $kdPerusahaan,
+        ]);
+
+        $ada = $baris && (int) $baris[0]->jumlah > 0;
+        $ingatan[$kdPerusahaan] = $ada;
+
+        if (!$ada) {
+            $this->tolakKeluargaKosong($kdPerusahaan);
+        }
+    }
+
+    private function tolakKeluargaKosong(string $kdPerusahaan): void
+    {
+        throw new RuntimeException(
+            'Data SERTIPIKAT_IDK untuk unit ' . $kdPerusahaan
+            . ' belum termigrasi. Tidak ada satu pun baris yang asal'
+            . ' databasenya dapat dipastikan sekaligus terhubung ke stok'
+            . ' unit ini, sehingga laporannya tidak bisa disusun tanpa'
+            . ' mengarang. Laporan sengaja dikosongkan daripada'
+            . ' menampilkan baris milik unit lain. Silakan teruskan ke'
+            . ' tim migrasi.'
+        );
     }
 
     private function syaratBlok(string $blok, string $nomor): string

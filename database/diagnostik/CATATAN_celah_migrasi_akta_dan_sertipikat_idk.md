@@ -512,16 +512,70 @@ jadi itu salah ketik pada data aslinya, bukan cacat migrasi.
 
 ### Dua hal pada kode yang perlu ditindaklanjuti terpisah
 
-1. `daftar_sertifikat_pecahan_m.php` belum punya penjagaan keluarga
-   seperti `pastikanKeluargaAda()` pada model IMB, PBB, Pengambilan
-   Surat, dan Undangan Surat Rumah. Dari 23.308 baris idk, tidak satu
-   pun awalannya selamat dan 19.465 di antaranya angkanya dipakai kedua
-   keluarga. Untuk unit berawalan DBPSS- laporan ini berisiko
-   menampilkan baris milik unit lain, seperti yang dulu terjadi pada IMB
-   dan PBB.
+1. SUDAH DIKERJAKAN, lihat bagian berikutnya. Ralat atas catatan awal:
+   laporan ini TIDAK berisiko menampilkan baris milik unit lain, sebab
+   saringan unit diterapkan pada stok SESUDAH sambungan kunci, sehingga
+   baris unit lain selalu terbuang. Gejalanya berbeda dan lebih sunyi,
+   yaitu laporan yang kosong tanpa sebab yang kelihatan.
 
 2. Centang "Tampilkan Sertipikat Penggabungan" tidak mengubah baris yang
    tampil sama sekali. Nilainya hanya dipakai memilih rumus selisih
    luas, sedangkan sumber tanggal ditentukan oleh jenis laporannya,
    bukan oleh centang itu. Perlu dipastikan dulu ke desktop apa yang
    semestinya berubah.
+
+
+## Perbaikan awalan per unit pada Daftar Sertipikat Pecahan
+
+Tanggal: 23 September 2026
+
+### Apa yang keliru
+
+`awalanSertipikatIdk()` menyusun kembali awalan kunci dengan mencocokkan
+isi `ser_pisah` dan `su_pisah` antara sr_sertipikat_idk dan sr_sertipikat.
+Caranya benar, tetapi hasilnya diambil satu saja yang paling sering cocok,
+lalu awalan itu dipakai untuk SELURUH unit.
+
+Pada data sekarang pemenangnya DBPSA-. Akibatnya unit berawalan DBPSS-
+menyusun kunci dengan awalan yang salah, kuncinya tidak ketemu, dan
+laporannya kosong. Yang membuatnya sulit disadari: kosong karena awalan
+salah tidak bisa dibedakan dari kosong karena memang tidak ada data.
+
+### Apa yang diubah
+
+Awalan kini diambil dari unitnya sendiri lewat `awalanUnit()`, dibaca
+dari `sr_stok.stok_id` milik unit itu, sama seperti yang sudah dipakai
+model IMB dan PBB. `awalanSertipikatIdk()` dibuang karena tidak terpakai
+lagi.
+
+Ditambah `pastikanKeluargaAda()` yang menolak melayani unit yang tidak
+punya satu pun baris idk yang (a) asal databasenya dapat dipastikan,
+yaitu angkanya hanya dipakai satu keluarga, dan (b) terhubung ke stok
+unit itu. Syarat kedua lebih ketat daripada model lain, dan memang perlu:
+pada sr_sertipikat_idk baris yang pasti milik DBPSS- hanya 3 dari 19.468,
+sehingga penjagaan yang hanya menghitung per keluarga akan lolos oleh
+angka yang praktis derau.
+
+### Bukti
+
+Diuji dengan data kecil bersusun dua keluarga: stok DBPSA-100 milik SBKS
+dan DBPSS-200 milik SSPG, sertipikat DBPSA-500 dan DBPSS-600 yang khas,
+serta pasangan DBPSA-700 dan DBPSS-700 yang angkanya dipakai keduanya.
+
+| unit | kode lama | kode baru       |
+|------|-----------|-----------------|
+| SBKS | 2 baris   | 2 baris, sama   |
+| SSPG | 0 baris   | 2 baris, miliknya sendiri |
+
+Ketika baris pasti milik DBPSS- dihapus dari data uji, unit SSPG DITOLAK
+dengan pesan, bukan dikosongkan diam-diam.
+
+Unit yang keluarganya sama dengan pemenang lama, termasuk SBKS, tidak
+berubah sama sekali.
+
+### Masih ada di dua model lain
+
+`awalanSertipikatIdk()` dengan pola yang sama masih dipakai oleh
+`dftr_pengajuan_balik_nama_m.php` dan
+`daftar_sertifikat_berakhir_haknya_m.php`. Keduanya belum diukur, jadi
+belum diubah.
