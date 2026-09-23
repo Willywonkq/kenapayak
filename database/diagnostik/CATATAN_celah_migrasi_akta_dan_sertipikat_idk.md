@@ -579,3 +579,80 @@ berubah sama sekali.
 `dftr_pengajuan_balik_nama_m.php` dan
 `daftar_sertifikat_berakhir_haknya_m.php`. Keduanya belum diukur, jadi
 belum diubah.
+
+
+## Daftar Pengajuan Sertipikat Balik Nama: satu cacat kode, sisanya sr_akta
+
+Tanggal pemeriksaan: 23 September 2026
+Query: `balik_nama_bandingkan_tahap_sbks.sql` dan
+`sqlserver_balik_nama_bandingkan_sbks.sql`. Keduanya hanya membaca.
+
+Diuji pada unit SBKS, blok A sampai Z, sektor semua, Tgl Input AJB
+01-07-2023 sampai 23-09-2026.
+
+    aplikasi desktop   966 baris
+    aplikasi web        87 baris
+
+### Corong
+
+| tahap                                   | baris |
+|-----------------------------------------|------:|
+| AKTA dalam rentang, SELURUH unit        |   638 |
+| kuncinya ketemu di sertipikat           |   638 |
+| belum balik nama dan punya stok         |   232 |
+| stoknya milik SBKS                      |   151 |
+| lolos saringan blok CARA LAMA           |    87 |
+| lolos saringan blok CARA BENAR          |   151 |
+| sesudah disambung ke tabel induk        |   155 |
+
+### Cacat kode: saringan blok
+
+Dari 87 menjadi 151, yaitu 64 baris kembali. Sebabnya dua, dan keduanya
+sudah diperbaiki:
+
+* kedua penanda pada cabang kedua sama-sama diisi blok akhir, sehingga
+  cabang itu hanya cocok bila bloknya persis sama dengan batas atas;
+* batas atasnya dibiarkan 'Z', padahal dalam perbandingan teks 'ZBJ'
+  lebih besar daripada 'Z'.
+
+Blok yang terbuang seluruhnya berawalan Z, dan untuk SBKS jumlahnya
+besar: ZCC 98 stok, ZD 85, ZCB 66, ZCD 65, ZAC 60, dan seterusnya.
+
+Sepuluh model lain sudah mengubah blok akhir 'Z' menjadi 'ZZ' lebih
+dulu, mengikuti desktop yang mencetak "BLOK : A s/d ZZ" dari masukan
+'A' sampai 'Z'.
+
+### Sisanya bukan kode
+
+Seluruh tabel sr_akta di PostgreSQL hanya memuat 638 baris pada rentang
+itu UNTUK SELURUH UNIT, sedangkan desktop menampilkan 966 untuk SBKS
+saja. Berapa pun saringan yang dilonggarkan, angka itu tidak mungkin
+tercapai.
+
+Sebaran tahun sr_akta:
+
+    2022  1.513     2023  929     2024  12     2025  0     2026  0
+
+Berhenti pada awal 2024, sesuai catatan terdahulu bahwa sr_akta,
+sr_jaminan, dan sr_peralihan berhenti serentak Februari 2024.
+
+### Catatan ketelitian
+
+Corong ini mengukur tahap unit SESUDAH saringan status balik nama, jadi
+belum diketahui berapa baris AKTA milik SBKS sebelum saringan itu.
+Untuk kesimpulan di atas hal itu tidak berpengaruh, sebab 638 baris
+untuk seluruh unit sudah lebih kecil daripada 966.
+
+### Yang masih menggantung
+
+Sambungan ke sr_sertipikat_idk tidak membuang satu baris pun di sini,
+151 lawan 151, tetapi MENAMBAH 4 baris menjadi 155 karena sebagian
+sertipikat punya lebih dari satu induk. Pada laporan pecahan baris
+ganda semacam itu memang bermakna, pada laporan ini belum tentu.
+QUERY 4 pada berkas SQL Server memeriksanya.
+
+Model ini juga masih memakai `awalanSertipikatIdk()`, yaitu awalan
+tunggal untuk seluruh unit, sama seperti yang sudah diperbaiki pada
+model pecahan. Untuk SBKS tidak berpengaruh karena keluarganya memang
+DBPSA-, tetapi untuk unit DBPSS- laporannya akan kosong tanpa sebab
+yang kelihatan.
