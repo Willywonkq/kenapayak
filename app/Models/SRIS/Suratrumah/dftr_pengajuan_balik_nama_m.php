@@ -92,8 +92,8 @@ class dftr_pengajuan_balik_nama_m extends Model
             $blokAwal = 'A';
         }
 
-        if ($blokAkhir === '') {
-            $blokAkhir = 'Z';
+        if ($blokAkhir === '' || $blokAkhir === 'Z') {
+            $blokAkhir = 'ZZ';
         }
 
         $stokPerusahaan = $this->kolomKode('sr_stok', [
@@ -344,8 +344,8 @@ class dftr_pengajuan_balik_nama_m extends Model
             'perusahaan_langsung' => $perusahaan,
             'blok_awal_unit' => $blokAwal,
             'blok_akhir_unit' => $blokAkhir,
-            'blok_akhir_blok_min' => $blokAkhir,
-            'blok_akhir_blok_max' => $blokAkhir,
+            'blok_awal_blok' => $blokAwal,
+            'blok_akhir_blok' => $blokAkhir,
             'tgl_awal' => $tglAwal,
             'tgl_akhir_gpt' => $tglAkhirEksklusif,
             'perusahaan' => $perusahaan,
@@ -371,9 +371,7 @@ class dftr_pengajuan_balik_nama_m extends Model
                 OR
                 (
                     UPPER(BTRIM(COALESCE(CAST({$blok} AS TEXT), '')))
-                        >= :blok_akhir_blok_min
-                    AND UPPER(BTRIM(COALESCE(CAST({$blok} AS TEXT), '')))
-                        <= :blok_akhir_blok_max
+                        BETWEEN :blok_awal_blok AND :blok_akhir_blok
                 )
             )
             SQL;
