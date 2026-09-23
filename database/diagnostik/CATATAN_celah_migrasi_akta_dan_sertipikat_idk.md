@@ -643,13 +643,53 @@ belum diketahui berapa baris AKTA milik SBKS sebelum saringan itu.
 Untuk kesimpulan di atas hal itu tidak berpengaruh, sebab 638 baris
 untuk seluruh unit sudah lebih kecil daripada 966.
 
-### Yang masih menggantung
+### Dipastikan di sumber
 
-Sambungan ke sr_sertipikat_idk tidak membuang satu baris pun di sini,
-151 lawan 151, tetapi MENAMBAH 4 baris menjadi 155 karena sebagian
-sertipikat punya lebih dari satu induk. Pada laporan pecahan baris
-ganda semacam itu memang bermakna, pada laporan ini belum tentu.
-QUERY 4 pada berkas SQL Server memeriksanya.
+Angka SQL Server, dengan saringan yang sama persis:
+
+| tahap                                   | PostgreSQL | SQL Server |
+|-----------------------------------------|-----------:|-----------:|
+| AKTA dalam rentang, seluruh unit        |        638 |      2.898 |
+| belum balik nama                        |        232 |      1.662 |
+| unit SBKS                               |        151 |        935 |
+| blok dan nomor ada                      |        151 |        935 |
+| sesudah disambung ke tabel induk        |        155 |        966 |
+
+Angka 966 pada baris terakhir sama persis dengan yang tampil di
+desktop. Artinya dua hal.
+
+Pertama, desktop MEMANG menyambung ke SERTIPIKAT_IDK dengan INNER JOIN,
+dan memang menggandakan baris untuk sertipikat yang punya lebih dari
+satu induk: 935 sertipikat berbeda menjadi 966 baris. Jadi perilaku
+model kita, 151 sertipikat menjadi 155 baris, SUDAH BENAR dan bukan
+cacat. Dugaan semula bahwa sambungan itu berlebihan ternyata salah.
+
+Kedua, seluruh sisa selisihnya murni kekurangan baris sr_akta.
+
+Sebaran tahun membuktikannya. Sampai 2023 kedua sisi cocok hampir
+sempurna, lalu terjun:
+
+| tahun | PostgreSQL | SQL Server | selisih |
+|-------|-----------:|-----------:|--------:|
+| 2020  |        850 |        850 |       0 |
+| 2021  |      1.438 |      1.438 |       0 |
+| 2022  |      1.513 |      1.513 |       0 |
+| 2023  |        929 |        930 |       1 |
+| 2024  |         12 |      1.046 |   1.034 |
+| 2025  |          0 |        888 |     888 |
+| 2026  |          0 |        339 |     339 |
+
+Keseluruhan sr_akta kehilangan 2.260 dari 2.898 baris pada rentang ini,
+atau 78 persen.
+
+### Catatan ketelitian
+
+Nisbah tahap "belum balik nama" berbeda di kedua sisi, 36 persen di
+PostgreSQL dan 57 persen di SQL Server. Itu wajar dan bukan pertanda
+saringan yang berbeda: baris PostgreSQL yang tersisa hampir seluruhnya
+bertahun 2023, dan akta lama lebih besar kemungkinannya sudah selesai
+balik nama, sedangkan baris 2025 dan 2026 yang hanya ada di SQL Server
+sebagian besar memang masih tertunda.
 
 Model ini juga masih memakai `awalanSertipikatIdk()`, yaitu awalan
 tunggal untuk seluruh unit, sama seperti yang sudah diperbaiki pada
