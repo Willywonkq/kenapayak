@@ -794,10 +794,39 @@ sambungan ke tabel induk.
 Modelnya tidak perlu diubah. Laporan ini akan terisi sendiri begitu
 sr_sertipikat_idk dimigrasikan ulang.
 
-### Catatan atas kekeliruan corong laporan balik nama
+## Daftar Sertipikat Balik Nama: seluruh selisihnya sr_nasabah
 
-Susunan corong untuk Daftar Sertipikat Balik Nama pada berkas yang sama
-semula KELIRU: saringan jenis bangunan tidak ikut dihitung, padahal
-model membuang APT dan KTR ketika centang Apartemen kosong. Angkanya
-keluar 952 sehingga tidak bisa disandingkan dengan 317 yang tampil.
-Susunannya sudah dibetulkan dan perlu dijalankan ulang.
+Saringan dan corong yang sama, unit SBKS.
+
+    aplikasi desktop   353 baris
+    aplikasi web       317 baris
+
+| tahap                              | baris |
+|------------------------------------|------:|
+| sertipikat dalam rentang tanggal   | 1.406 |
+| stoknya milik SBKS                 | 1.063 |
+| bukan APT dan KTR                  |   353 |
+| dalam rentang blok                 |   353 |
+| ada PPJB aktif bukan turunan       |   353 |
+| ada pembeli aktif                  |   353 |
+| nasabahnya ketemu                  |   317 |
+
+Dua angka terakhir menjawab semuanya. Sampai tahap pembeli aktif
+hasilnya 353, sama persis dengan desktop. Begitu nasabah diwajibkan
+ketemu, tinggal 317, sama persis dengan web.
+
+Jadi seluruh selisih 36 baris berasal dari sr_nasabah yang belum
+lengkap, tidak ada satu pun yang berasal dari kesalahan model.
+
+Modelnya menyambung nama pembeli dengan INNER JOIN, dan itu SETIA pada
+desktop yang juga menyambung NASABAH dengan koma. Bedanya hanya isi
+tabelnya: di SQL Server NASABAH lengkap 46.818 baris, sedangkan
+sr_nasabah hasil migrasi kehilangan 45 persen barisnya.
+
+### Catatan atas kekeliruan corong yang pertama
+
+Susunan corong yang pertama KELIRU: saringan jenis bangunan tidak ikut
+dihitung, padahal model membuang APT dan KTR ketika centang Apartemen
+kosong. Angkanya keluar 952 sehingga tidak bisa disandingkan dengan 317
+yang tampil. Sesudah dibetulkan, tahap itu sendiri yang paling besar
+memangkas, dari 1.063 menjadi 353.
