@@ -426,3 +426,102 @@ berasal dari kesalahan model:
 Untuk rentang 2020 sampai 2023 kekurangan sr_imb tergolong kecil, 205
 baris untuk seluruh unit. Yang hilang besar adalah tahun 2024 ke atas,
 3.538 baris, karena sr_imb berhenti pada 28 Desember 2023.
+
+
+## sr_sertipikat_idk ikut berhenti, dan akibatnya pada Daftar Sertipikat Pecahan
+
+Tanggal pemeriksaan: 23 September 2026
+Query: `pecahan_bandingkan_tahap_sbks.sql`, `pecahan_cari_kolom_tanggal.sql`,
+`pecahan_cek_kemutakhiran_idk.sql`, dan `sqlserver_pecahan_bandingkan_sbks.sql`.
+Seluruhnya hanya membaca.
+
+Diuji pada unit SBKS, blok A sampai ZZ, Tgl Input Sert/Gabung 01-07-2023
+sampai 23-09-2026, semua sektor, Apartemen tidak dicentang, Kartu Surat
+Tanah tidak dicentang, Tampilkan Sertipikat Penggabungan tidak dicentang,
+Status AJB Semua.
+
+    aplikasi desktop   753 baris
+    aplikasi web       129 baris
+
+### Modelnya tidak keliru
+
+Pada SQL Server, dengan saringan yang sama persis:
+
+| cara menyaring tanggal        | baris |
+|-------------------------------|-------|
+| TGL_INPUT_SER                 |   753 |
+| ISNULL(TGL_INPUT_GABUNG, ...) |   753 |
+| TGL_SERTIPIKAT                | 1.353 |
+| SERTIPIKAT_IDK.TGL_INPUT      |   651 |
+
+Angka 753 itu sama persis dengan yang tampil di desktop, dan hanya
+TGL_INPUT_SER yang menghasilkannya. Itulah kolom yang dipakai model.
+COALESCE dengan TGL_INPUT_GABUNG lebih dulu pun memberi angka yang sama,
+jadi urutannya tidak merugikan.
+
+Tiga dugaan lain sudah diuji dan seluruhnya meleset:
+
+* bukan kolom tanggal pada tabel induk, sebab keempatnya memberi nol
+  baris dalam rentang di PostgreSQL;
+* bukan arti centang Apartemen, sebab seluruh baris yang masuk rentang
+  memang bukan apartemen sehingga memasukkannya tidak menambah apa pun;
+* bukan penyusunan ulang awalan kunci, sebab dengan DBPSA- ketemu 23.304
+  dari batas atas 23.307, hanya 4 baris yang hilang di tahap itu.
+
+### Barisnya memang tidak ada
+
+| ukuran                        | PostgreSQL | SQL Server | kurang |
+|-------------------------------|-----------:|-----------:|-------:|
+| SERTIPIKAT_IDK seluruhnya     |     23.308 |     27.550 |  4.242 |
+| SBKS, semua jenis             |      8.892 |      9.996 |  1.104 |
+| SBKS, bukan APT dan KTR       |      4.022 |      5.126 |  1.104 |
+| SBKS, dalam rentang tanggal   |        129 |        753 |    624 |
+
+Sebaran per tahun memperlihatkan kapan berhentinya. Sampai 2019 kedua
+sisi cocok sampai satuan, lalu menyimpang dan melebar:
+
+| tahun | PostgreSQL | SQL Server | selisih |
+|-------|-----------:|-----------:|--------:|
+| 2013  |      1.659 |      1.659 |       0 |
+| 2019  |        178 |        178 |       0 |
+| 2020  |        528 |        530 |       2 |
+| 2021  |        259 |        277 |      18 |
+| 2022  |        509 |        604 |      95 |
+| 2023  |        107 |        402 |     295 |
+| 2024  |         22 |        380 |     358 |
+| 2025  |          0 |        262 |     262 |
+| 2026  |          0 |          4 |       4 |
+
+Pada seluruh unit, sr_sertipikat_idk berhenti pada 2024 dengan 53 baris,
+sedangkan 2023 masih 1.415. Tabel pasangannya, sr_sertipikat, tetap
+mutakhir: 2024 sebanyak 2.666, 2025 sebanyak 2.249, dan 2026 sebanyak
+631. Jadi yang tertinggal memang hanya tabel induknya.
+
+Dilihat dari sisi sertipikat, dari 650 sertipikat SBKS yang memenuhi
+syarat dan masuk rentang tanggal, 575 di antaranya TIDAK punya pasangan
+di sr_sertipikat_idk. Itulah 624 baris laporan yang hilang.
+
+Dengan ini sr_sertipikat_idk resmi masuk rombongan sr_akta, sr_jaminan,
+dan sr_peralihan: tabel yang kolom kuncinya dijadikan angka oleh proses
+pemindahan yang sama, dan berhenti dijalankan sejak awal 2024.
+
+### Catatan kecil
+
+Tanggal 6201-05-02 pada SERTIPIKAT_IDK.TGL_INPUT ada di SQL Server juga,
+jadi itu salah ketik pada data aslinya, bukan cacat migrasi.
+
+### Dua hal pada kode yang perlu ditindaklanjuti terpisah
+
+1. `daftar_sertifikat_pecahan_m.php` belum punya penjagaan keluarga
+   seperti `pastikanKeluargaAda()` pada model IMB, PBB, Pengambilan
+   Surat, dan Undangan Surat Rumah. Dari 23.308 baris idk, tidak satu
+   pun awalannya selamat dan 19.465 di antaranya angkanya dipakai kedua
+   keluarga. Untuk unit berawalan DBPSS- laporan ini berisiko
+   menampilkan baris milik unit lain, seperti yang dulu terjadi pada IMB
+   dan PBB.
+
+2. Centang "Tampilkan Sertipikat Penggabungan" tidak mengubah baris yang
+   tampil sama sekali. Nilainya hanya dipakai memilih rumus selisih
+   luas, sedangkan sumber tanggal ditentukan oleh jenis laporannya,
+   bukan oleh centang itu. Perlu dipastikan dulu ke desktop apa yang
+   semestinya berubah.
