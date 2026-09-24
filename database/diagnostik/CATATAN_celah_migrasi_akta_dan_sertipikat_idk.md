@@ -977,5 +977,44 @@ Penanda bindingnya sudah benar, jadi cacatnya hanya satu, bukan dua:
     dftr_undangan_surat_rumah_m.php
 
 Yang undangan punya cabang '*' yang melewati saringan blok sama sekali,
-jadi hanya kena kalau pemakainya mengetik rentang. Keduanya BELUM
-diubah, dicatat supaya tidak hilang.
+jadi hanya kena kalau pemakainya mengetik rentang.
+
+KEDUANYA SUDAH DIBETULKAN pada hari yang sama.
+
+Bedanya dengan Jaminan Bank: perbaikan di sini BERAKIBAT SEKARANG, bukan
+tidur menunggu migrasi. Kedua model ini hanya membaca tabel yang masih
+mutakhir, yaitu sr_stok, sr_ppjb, sr_pembeli_ppjb, sr_sertipikat,
+sr_biaya_ajb, dan sr_tipe. Tidak ada sr_akta, sr_jaminan, sr_peralihan,
+maupun sr_sertipikat_idk di antaranya, jadi blok berawalan Z memang ada
+di datanya.
+
+Nilai bawaan viewnya yang selama ini menyelamatkan:
+
+    rekap_estimasi_biaya_ajb_v   kotak kosong -> 'ZZ'
+    daftar_undangan_surat_rumah  kotak kosong -> '*'
+
+Jadi yang kena hanya pemakai yang MENGETIK Z, dan itu justru yang
+tertulis di layar desktop, "Blok: A s.d Z". Akibatnya laporan yang sama
+memberi angka berbeda tergantung kotaknya diisi atau tidak.
+
+### Diuji
+
+Data uji berisi satu baris blok AA dan satu blok ZBJ, unit SBKS, tiga
+rentang blok:
+
+| rentang | lama | baru |
+|---------|-----:|-----:|
+| A s/d ZZ (atau * s/d *) | 2 | 2 |
+| A s/d Z                 | 1 | **2** |
+| B s/d D                 | 0 | 0 |
+
+Baris pertama membuktikan tidak ada yang rusak ketika kotaknya
+dikosongkan, baris kedua membuktikan perbaikannya bekerja, baris ketiga
+membuktikan rentang selain Z tidak ikut berubah.
+
+Cabang "belum diundang" pada model undangan TIDAK berhasil diuji: data
+ujinya mengembalikan nol baris bahkan dengan blok '*', jadi yang
+menghalangi bukan saringan bloknya melainkan syarat lain yang belum
+terpenuhi di data uji. Perbaikannya sendiri diletakkan SEBELUM percabangan,
+sehingga kedua cabang menerima nilai yang sudah dibetulkan, dan penanda
+binding pada cabang itu memang sudah benar sejak semula.

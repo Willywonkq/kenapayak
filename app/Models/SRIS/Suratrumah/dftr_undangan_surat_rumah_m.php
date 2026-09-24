@@ -234,6 +234,10 @@ class dftr_undangan_surat_rumah_m extends Model
             $blokAkhir = '*';
         }
 
+        if ($blokAkhir === 'Z') {
+            $blokAkhir = 'ZZ';
+        }
+
         if ($belumDiundang === 'Y') {
             return $this->obtainBelumDiundang(
                 $perusahaan, $sektor, $blokAwal, $blokAkhir,

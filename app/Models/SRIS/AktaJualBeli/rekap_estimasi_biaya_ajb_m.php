@@ -217,7 +217,7 @@ class rekap_estimasi_biaya_ajb_m extends Model
             $blokAwal = 'A';
         }
 
-        if ($blokAkhir === '') {
+        if ($blokAkhir === '' || $blokAkhir === 'Z') {
             $blokAkhir = 'ZZ';
         }
 
