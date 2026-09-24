@@ -830,3 +830,100 @@ dihitung, padahal model membuang APT dan KTR ketika centang Apartemen
 kosong. Angkanya keluar 952 sehingga tidak bisa disandingkan dengan 317
 yang tampil. Sesudah dibetulkan, tahap itu sendiri yang paling besar
 memangkas, dari 1.063 menjadi 353.
+
+---
+
+## Rekap PPAT / Akta Jual Beli: 546 lawan 1.928, tidak ada cacat kode
+
+Saringan: unit SBKS, blok A s/d Z, semua lokasi, semua sektor, Tanggal
+AJB 01-07-2023 s/d 24-09-2026, kotak Belum Ttd Akta tidak dicentang.
+
+### Corong tujuh tahap, disandingkan
+
+| tahap | PostgreSQL | SQL Server | sama? |
+|-------|-----------:|-----------:|:-----:|
+| 1  AKTA seluruhnya                        | 17.407 | 20.386 | tidak |
+| 2  akta dalam rentang, semua unit         |    757 |  3.727 | tidak |
+| 3  stok unit, aktif, blok dan nomor ada   |  9.807 |  9.807 | **ya** |
+| 4  ppjb aktif dan parent kosong, semua unit | 49.527 | 29.097 | tidak |
+| 5  ppjb yang stoknya milik unit           |  9.560 |  9.560 | **ya** |
+| 6  yang punya akta dalam rentang          |    546 |  1.928 | tidak |
+| 7  sesudah pembeli aktif (yang tampil)    |    546 |  1.928 | tidak |
+
+Tahap 7 sisi SQL Server, 1.928, sama persis dengan nomor baris terakhir
+di layar desktop. Jadi corong ini memang meniru desktop dengan tepat,
+dan angka pembandingnya sah.
+
+### Tahap 3 dan tahap 5 sama persis, dan itu yang menentukan
+
+9.807 dan 9.560, sampai satuannya. Artinya saringan unit, saringan
+blok, syarat flag aktif, syarat parent_id kosong, dan sambungan ppjb ke
+stok SEMUANYA SUDAH BENAR. Tidak ada satu pun cacat kode pada laporan
+ini.
+
+Ini berbeda dengan Daftar Pengajuan Sertipikat Balik Nama, yang selain
+kekurangan data juga menyimpan dua cacat saringan blok.
+
+### Seluruh selisihnya lahir di tahap 2
+
+1.928 dikurangi 546 sama dengan 1.382 baris yang hilang, dan semuanya
+berasal dari akta yang tidak ada di PostgreSQL.
+
+Sebaran tahun sr_akta menurut tgl_akta, seluruh unit:
+
+| tahun | PostgreSQL | SQL Server | selisih |
+|-------|-----------:|-----------:|--------:|
+| 2026  |      0 |   474 |   474 |
+| 2025  |      0 | 1.162 | 1.162 |
+| 2024  |     54 | 1.385 | 1.331 |
+| 2023  |  1.052 | 1.057 |     5 |
+| 2022  |  1.768 | 1.768 |     0 |
+| 2021  |  1.455 | 1.456 |     1 |
+| 2020  |    884 |   884 |     0 |
+| 2019  |    616 |   618 |     2 |
+| 2018  |    468 |   469 |     1 |
+| 2014  |    492 |   493 |     1 |
+| 2013 ke bawah | identik | identik | 0 |
+
+Sampai 2023 kedua sisi cocok hampir sempurna, lalu terjun di 2024 dan
+kosong sama sekali pada 2025 dan 2026.
+
+Khusus stok SBKS, sisi SQL Server memberi 2024 sebanyak 656, 2025
+sebanyak 563, dan 2026 sebanyak 165. Jumlahnya 1.384, dan itu menjawab
+1.382 baris yang hilang tadi hampir tepat.
+
+### Catatan: angka 638 yang terdahulu tidak sebanding
+
+Catatan terdahulu menyebut sr_akta hanya memuat 638 baris pada rentang
+yang mirip. Angka itu memakai kolom TGL_INPUT, dipakai oleh Daftar
+Pengajuan Sertipikat Balik Nama. Rekap AJB memakai TGL_AKTA, dan
+dengan kolom itu angkanya 757. Dua kolom berbeda, jadi wajar berbeda,
+dan keduanya sama sama benar untuk laporannya masing-masing.
+
+Dengan TGL_AKTA, sr_akta tidak berhenti Februari 2024 melainkan masih
+menyisakan 54 baris sepanjang 2024, lalu kosong. Kesimpulannya sama,
+angkanya saja yang perlu diluruskan.
+
+### Temuan sampingan: sr_akta tampaknya hanya membawa satu basis data
+
+Tahap 4 memperlihatkan pola yang terbalik. sr_ppjb di PostgreSQL berisi
+49.527 baris aktif sedangkan SQL Server PUSAT hanya 29.097, selisih
+20.430. Itu wajar: PostgreSQL adalah gabungan SRIS_PUSAT dan
+SRIS_SERPONG, sedangkan sambungan desktop yang dipakai menunjuk
+SRIS_PUSAT saja.
+
+Tetapi sr_akta justru LEBIH SEDIKIT daripada PUSAT saja, 17.407 lawan
+20.386, dan sebaran tahunnya 2013 ke bawah sama persis dengan PUSAT.
+Kalau sr_akta benar-benar gabungan dua basis data, ia seharusnya lebih
+banyak, bukan lebih sedikit.
+
+Dugaan, BELUM DIPASTIKAN: sr_akta hanya membawa baris PUSAT, dan baris
+SERPONG tidak ikut sama sekali. Perlu diperiksa dengan menghitung AKTA
+di SRIS_SERPONG lalu mencocokkannya. Dugaan ini disimpan sebagai
+dugaan, bukan temuan.
+
+### Yang perlu dikerjakan tim migrasi
+
+Pindahkan ulang sr_akta. Pada rentang tanggal ini saja ia kehilangan
+2.970 dari 3.727 baris, atau 80 persen, dan seluruh 2025 serta 2026
+kosong. Sekalian dipastikan apakah baris SERPONG memang belum ikut.
