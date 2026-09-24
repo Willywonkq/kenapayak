@@ -341,9 +341,11 @@ class rekap_ajb_m extends Model
             $stokSektor
         );
         $tabelBantu = $this->cteTabelBantu($lokasiKode);
+        $aktaRingkas = $this->cteAktaRingkas();
 
         $sql = <<<SQL
             WITH {$stokTerpilih},
+            {$aktaRingkas},
             {$tabelBantu}
 
             SELECT
@@ -408,6 +410,10 @@ class rekap_ajb_m extends Model
             INNER JOIN stok_terpilih AS stok
                 ON stok.kunci_stok = BTRIM(CAST(ppjb.stok_id AS TEXT))
 
+            LEFT JOIN akta_ringkas
+                ON akta_ringkas.kunci_ppjb
+                 = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
+
             LEFT JOIN sertipikat_unit
                 ON sertipikat_unit.kode = stok.kunci_stok
             LEFT JOIN lokasi_unik
@@ -426,19 +432,8 @@ class rekap_ajb_m extends Model
               AND ppjb.parent_id IS NULL
 
               AND (
-                    NOT EXISTS (
-                        SELECT 1
-                        FROM public.sr_akta AS a
-                        WHERE BTRIM(CAST(a.ppjb_id AS TEXT))
-                            = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
-                    )
-                    OR EXISTS (
-                        SELECT 1
-                        FROM public.sr_akta AS a
-                        WHERE BTRIM(CAST(a.ppjb_id AS TEXT))
-                            = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
-                          AND a.no_akta IS NULL
-                    )
+                    akta_ringkas.kunci_ppjb IS NULL
+                    OR akta_ringkas.jumlah_tanpa_nomor > 0
                   )
 
             ORDER BY
@@ -513,6 +508,21 @@ class rekap_ajb_m extends Model
         SQL;
     }
 
+    private function cteAktaRingkas(): string
+    {
+        return <<<SQL
+        akta_ringkas AS MATERIALIZED (
+                SELECT
+                    BTRIM(CAST(a.ppjb_id AS TEXT)) AS kunci_ppjb,
+                    COUNT(*) AS jumlah_akta,
+                    COUNT(*) FILTER (WHERE a.no_akta IS NULL)
+                        AS jumlah_tanpa_nomor
+                FROM public.sr_akta AS a
+                GROUP BY BTRIM(CAST(a.ppjb_id AS TEXT))
+            )
+        SQL;
+    }
+
     private function cteTabelBantu(string $lokasiKode): string
     {
         return <<<SQL
@@ -527,6 +537,11 @@ class rekap_ajb_m extends Model
                         x.luas_sup AS luas_sup,
                         x.ctid AS urutan_fisik
                     FROM public.sr_sertipikat AS x
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM stok_terpilih AS s
+                        WHERE s.kunci_stok = BTRIM(CAST(x.stok_id AS TEXT))
+                    )
                 ) AS daftar
                 ORDER BY kode, urutan_fisik
             ),

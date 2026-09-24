@@ -65,6 +65,73 @@
  * di atas waktunya ikut naik jauh lebih dari beberapa kali.
  *
  * ------------------------------------------------------------
+ * HASIL PENGUKURAN, 24-09-2026
+ *
+ * KUERI 1, jumlah baris:
+ *     sr_stok          61.994   72 MB
+ *     sr_ppjb          62.328   38 MB
+ *     sr_nasabah       42.464   23 MB
+ *     sr_pembeli_ppjb  63.447   19 MB
+ *     sr_sertipikat    50.479   15 MB
+ *     sr_akta          17.407  6,8 MB
+ *
+ * KUERI 4, akta dalam rentang: 757 baris, 03-07-2023 sampai
+ * 26-02-2024. KUERI 5, kembang sambungan: 757 -> 756 -> 766,
+ * perbandingan 1,01.
+ *
+ * Jadi DUGAAN SEMULA SALAH. sr_akta tidak membengkak, dan
+ * bagian "sudah ada akta" cuma menghasilkan 766 baris. Bagian
+ * itu bukan yang lambat.
+ *
+ * KUERI 7, baris calon bagian "belum ada akta": 9.560.
+ *
+ * KUERI 3 menunjukkan hal yang menentukan: daftar indeks hanya
+ * memuat sr_nasabah, sr_pembeli_ppjb, sr_ppjb, dan sr_stok.
+ *
+ *     sr_akta DAN sr_sertipikat SAMA SEKALI TIDAK PUNYA INDEKS.
+ *
+ * ------------------------------------------------------------
+ * SEBABNYA: DUA ANAK KUERI YANG DIRANGKAI DENGAN "OR"
+ *
+ * Postgres bisa mengubah EXISTS dan NOT EXISTS menjadi
+ * sambungan semi dan anti, dan itu cepat. Tetapi HANYA kalau
+ * anak kueri itu berdiri sebagai syarat AND di tingkat atas
+ * WHERE. Begitu dirangkai dengan OR, seperti di model ini:
+ *
+ *     NOT EXISTS (...) OR EXISTS (...)
+ *
+ * perubahan itu tidak bisa dilakukan. Keduanya tinggal sebagai
+ * anak kueri yang dijalankan ULANG UNTUK SETIAP BARIS.
+ *
+ * Hitungannya: 9.560 baris calon x 2 anak kueri x 17.407 baris
+ * sr_akta yang disapu utuh karena tidak ada indeks, dan
+ * kuncinya pun dibungkus BTRIM(CAST(...)) di kedua sisi
+ * sehingga indeks biasa tidak akan menolong sekalipun ada.
+ *
+ *     ~333 juta pembandingan, ~666 juta panggilan fungsi,
+ *     untuk satu kali buka laporan.
+ *
+ * Itu yang menembus batas 2 menit.
+ *
+ * ------------------------------------------------------------
+ * CATATAN SAMPINGAN: STATISTIK sr_nasabah TIDAK ADA
+ *
+ * Pada KUERI 2, sr_nasabah tercatat BARIS_HIDUP 0 dan kedua
+ * kolom ANALYZE kosong, padahal KUERI 1 menghitung 42.464
+ * baris. Artinya perencana kueri tidak punya gambaran sama
+ * sekali tentang tabel itu, dan bisa memilih rencana yang
+ * keliru pada LEFT JOIN ke sr_nasabah.
+ *
+ * Penyembuhannya satu perintah, ANALYZE public.sr_nasabah.
+ * Itu perawatan, bukan DDL, dan tidak mengubah isi data, tapi
+ * tetap perlu izin pemilik tabel. Sebaiknya diminta ke yang
+ * memegang basis data, jangan dijalankan sendiri.
+ *
+ * Tabel lain sudah dianalisis: sr_pembeli_ppjb dan sr_ppjb
+ * 21-07-2026, sr_stok 03-08-2026, sr_akta 08-09-2026,
+ * sr_sertipikat 15-09-2026.
+ *
+ * ------------------------------------------------------------
  * CARA PAKAI
  *
  * Jalankan berurutan. Kalau ada angka yang jauh berbeda dari
