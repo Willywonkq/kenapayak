@@ -1018,3 +1018,84 @@ menghalangi bukan saringan bloknya melainkan syarat lain yang belum
 terpenuhi di data uji. Perbaikannya sendiri diletakkan SEBELUM percabangan,
 sehingga kedua cabang menerima nilai yang sudah dibetulkan, dan penanda
 binding pada cabang itu memang sudah benar sejak semula.
+
+---
+
+## Daftar PBB kosong untuk SBKS: sr_pbb.tgl_input berhenti 2023
+
+Diperiksa 24 September 2026, sesudah laporan yang kemarin masih
+mengeluarkan data tiba-tiba menampilkan "Data tidak ditemukan".
+
+### Kodenya tidak berubah
+
+`dftr_pbb_m.php` terakhir disentuh 22 September dan itu pun hanya
+pembuangan komentar; viewnya juga. Sejak 23 September yang berubah hanya
+rekap_ajb_m, rekap_estimasi_biaya_ajb_m, dftr_jaminan_bank_m,
+dftr_undangan_surat_rumah_m, dan berkas diagnostik. Tidak satu pun
+dipakai bersama oleh Daftar PBB, yang memegang salinan awalanUnit() dan
+pastikanKeluargaAda()-nya sendiri.
+
+### Corongnya
+
+    TAHAP A  15.429   sr_pbb seluruhnya
+    TAHAP B  15.428   kuncinya ketemu di sr_sertipikat
+    TAHAP C   8.100   stoknya milik SBKS
+    TAHAP D       0   + tahun_pbb dan tgl_input   <- yang tampil
+
+Tahap B hanya kehilangan SATU baris. Penyusunan ulang kunci sertipikat
+dan awalan unitnya BENAR; awalanUnit() memilih DBPSA- dari 11.693 baris
+stok SBKS, tunggal, tidak rancu. Tahap C juga sehat, 8.100 baris PBB
+milik SBKS memang ada.
+
+Seluruhnya jatuh di tahap D, dan sebabnya satu kolom.
+
+### tgl_input berhenti pada 2023
+
+Sebaran tahun `sr_pbb.tgl_input`, seluruh unit:
+
+| tahun | baris |
+|-------|------:|
+| 2024, 2025, 2026 | **0** |
+| 2023 | 966 |
+| 2022 | 604 |
+| 2021 | 878 |
+| 2020 | 735 |
+| 2019 | 5.309 |
+| 2018 | 1.407 |
+
+Dari 966 baris tahun 2023 itu, hanya 312 yang jatuh pada 01-07-2023 ke
+atas untuk SELURUH unit, dan tidak satu pun miliknya SBKS.
+
+Jadi dengan saringan Tgl Input 01-07-2023 sampai 24-09-2026, laporan
+PBB unit SBKS MEMANG TIDAK MUNGKIN mengeluarkan baris. Bukan hari ini
+saja, melainkan sejak barisnya tidak ada. Kalau kemarin laporannya
+keluar, saringan tanggalnya pasti berbeda.
+
+Desktop menampilkan 826 baris dengan saringan yang sama.
+
+### sr_pbb masuk rombongan tabel yang berhenti dimigrasi
+
+Polanya sama persis dengan sr_akta (berhenti 2024), sr_jaminan (2024),
+dan sr_peralihan (2024). Bedanya sr_pbb berhenti lebih awal lagi, 2023.
+
+### Kotoran nilai yang perlu ikut dilaporkan
+
+    tgl_input kosong            324 baris
+    tgl_input tahun 2190, 2109, 2097, 2044    masing-masing 1 baris
+    tahun_pbb 2109, 209, 208, 201             masing-masing 1 baris
+    tahun_pbb 1                               10 baris
+    tahun_pbb 0                                4 baris
+
+Nilai semacam itu tidak merusak laporannya, tetapi menandakan
+pemindahannya tidak memeriksa kewajaran tanggal.
+
+### Statistik sr_pbb dan sr_imb sama sekali tidak ada
+
+Pada pg_stat_user_tables keduanya tercatat n_live_tup nol dan kedua
+kolom ANALYZE kosong, padahal sr_pbb berisi 15.429 baris. Sama halnya
+dengan sr_nasabah yang sudah tercatat sebelumnya. Perencana kueri jadi
+buta terhadap ketiga tabel itu.
+
+Penyembuhannya perawatan biasa, bukan DDL: ANALYZE public.sr_pbb,
+ANALYZE public.sr_imb, ANALYZE public.sr_nasabah. Perlu izin pemilik
+tabel, jadi diminta ke yang memegang basis data.
