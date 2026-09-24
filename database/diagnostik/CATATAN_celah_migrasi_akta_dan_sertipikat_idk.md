@@ -927,3 +927,55 @@ dugaan, bukan temuan.
 Pindahkan ulang sr_akta. Pada rentang tanggal ini saja ia kehilangan
 2.970 dari 3.727 baris, atau 80 persen, dan seluruh 2025 serta 2026
 kosong. Sekalian dipastikan apakah baris SERPONG memang belum ikut.
+
+---
+
+## Cacat saringan blok yang ketiga: Daftar Jaminan Bank
+
+Ditemukan 24 September 2026, waktu mengecek ulang angka 8 lawan 163.
+
+`dftr_jaminan_bank_m.php` menyimpan DUA cacat yang sama persis dengan
+yang dulu ditemukan pada kedua model balik nama:
+
+1. Blok akhir 'Z' tidak diubah menjadi 'ZZ'. Hanya keadaan kosong yang
+   ditangani. Padahal dalam perbandingan teks 'ZBJ' dan 'ZCL' LEBIH
+   BESAR daripada 'Z', sebab 'Z' awalan yang lebih pendek.
+
+2. Kedua penanda pada cabang blok saja diisi blok AKHIR:
+
+       'blok_akhir_blok_awal'  => $blokAkhir,
+       'blok_akhir_blok_akhir' => $blokAkhir,
+
+   sehingga cabang itu berarti blok = 'Z' persis, bukan rentang.
+
+Keduanya sudah dibetulkan, mengikuti bentuk yang sudah dipakai sebelas
+model lain.
+
+### Diuji
+
+Data uji diberi satu jaminan pada blok ZBJ dan satu pada blok AA, unit
+SBKS, dengan saringan blok A sampai Z:
+
+    cara lama  1 baris   AA saja
+    cara baru  2 baris   AA dan ZBJ
+
+### Ini TIDAK mengubah angka 8 yang sekarang
+
+Pengukuran 18 September dijalankan dengan blok A sampai ZZ diketik
+sendiri, dan hasilnya tetap 8. Jadi pada data sekarang yang membatasi
+memang barisnya yang tidak ada, bukan saringan bloknya.
+
+Perbaikan ini baru berbuah SESUDAH sr_jaminan dipindahkan ulang. Kalau
+dibiarkan, laporannya akan tetap salah walaupun datanya sudah lengkap,
+sebab desktop menampilkan blok ZCL pada baris 161 sampai 163.
+
+### Dua model lain yang juga belum mengubah 'Z' menjadi 'ZZ'
+
+Penanda bindingnya sudah benar, jadi cacatnya hanya satu, bukan dua:
+
+    rekap_estimasi_biaya_ajb_m.php
+    dftr_undangan_surat_rumah_m.php
+
+Yang undangan punya cabang '*' yang melewati saringan blok sama sekali,
+jadi hanya kena kalau pemakainya mengetik rentang. Keduanya BELUM
+diubah, dicatat supaya tidak hilang.

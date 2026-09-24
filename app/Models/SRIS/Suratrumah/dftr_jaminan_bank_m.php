@@ -120,7 +120,7 @@ class dftr_jaminan_bank_m extends Model
             $blokAwal = 'A';
         }
 
-        if ($blokAkhir === '') {
+        if ($blokAkhir === '' || $blokAkhir === 'Z') {
             $blokAkhir = 'ZZ';
         }
 
@@ -348,8 +348,8 @@ class dftr_jaminan_bank_m extends Model
                     )
                     OR
                     (
-                        hasil_dasar."BLOK" >= :blok_akhir_blok_awal
-                        AND hasil_dasar."BLOK" <= :blok_akhir_blok_akhir
+                        hasil_dasar."BLOK" >= :blok_awal_blok
+                        AND hasil_dasar."BLOK" <= :blok_akhir_blok
                     )
                   )
             ORDER BY
@@ -364,8 +364,8 @@ class dftr_jaminan_bank_m extends Model
             'blok_awal_unit' => $blokAwal,
             'blok_akhir_unit' => $blokAkhir,
 
-            'blok_akhir_blok_awal' => $blokAkhir,
-            'blok_akhir_blok_akhir' => $blokAkhir,
+            'blok_awal_blok' => $blokAwal,
+            'blok_akhir_blok' => $blokAkhir,
 
             'sektor_filter' => $sektor,
             'sektor_semua' => $sektor,
