@@ -170,6 +170,13 @@ class rekap_ajb_m extends Model
             $stokSektor
         );
         $tabelBantu = $this->cteTabelBantu($lokasiKode);
+        $ppjbTerpilih = $this->ctePpjbTerpilih(
+            'EXISTS ('
+            . ' SELECT 1 FROM akta_terpilih AS a'
+            . ' WHERE BTRIM(CAST(a.ppjb_id AS TEXT))'
+            . ' = BTRIM(CAST(ppjb.ppjb_id AS TEXT)))'
+        );
+        $pembeliTerpilih = $this->ctePembeliTerpilih();
 
         $sql = <<<SQL
             WITH akta_terpilih AS MATERIALIZED (
@@ -193,6 +200,8 @@ class rekap_ajb_m extends Model
                       END < CAST(:tgl_akhir_gpt AS DATE)
             ),
             {$stokTerpilih},
+            {$ppjbTerpilih},
+            {$pembeliTerpilih},
             {$tabelBantu}
 
             SELECT
@@ -246,20 +255,18 @@ class rekap_ajb_m extends Model
 
             FROM akta_terpilih AS akta
 
-            INNER JOIN public.sr_ppjb AS ppjb
-                ON BTRIM(CAST(ppjb.ppjb_id AS TEXT))
-                 = BTRIM(CAST(akta.ppjb_id AS TEXT))
+            INNER JOIN ppjb_terpilih AS ppjb
+                ON ppjb.kunci_ppjb = BTRIM(CAST(akta.ppjb_id AS TEXT))
 
-            INNER JOIN public.sr_pembeli_ppjb AS pembeli_ppjb
-                ON BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT))
-                 = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
+            INNER JOIN pembeli_terpilih AS pembeli_ppjb
+                ON pembeli_ppjb.kunci_ppjb = ppjb.kunci_ppjb
 
             LEFT JOIN public.sr_nasabah AS nasabah
                 ON BTRIM(CAST(nasabah.nasabah_id AS TEXT))
                  = BTRIM(CAST(pembeli_ppjb.nasabah_id AS TEXT))
 
             INNER JOIN stok_terpilih AS stok
-                ON stok.kunci_stok = BTRIM(CAST(ppjb.stok_id AS TEXT))
+                ON stok.kunci_stok = ppjb.kunci_stok
 
             LEFT JOIN sertipikat_unit
                 ON sertipikat_unit.kode = stok.kunci_stok
@@ -278,11 +285,6 @@ class rekap_ajb_m extends Model
             LEFT JOIN sales_unik
                 ON sales_unik.kode
                  = BTRIM(COALESCE(CAST(ppjb.kd_sales AS TEXT), ''))
-
-            WHERE UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
-              AND UPPER(BTRIM(COALESCE(CAST(pembeli_ppjb.flag_aktif AS TEXT), '')))
-                    = 'Y'
-              AND ppjb.parent_id IS NULL
 
             ORDER BY
                 UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), ''))) ASC,
@@ -342,9 +344,17 @@ class rekap_ajb_m extends Model
         );
         $tabelBantu = $this->cteTabelBantu($lokasiKode);
         $aktaRingkas = $this->cteAktaRingkas();
+        $ppjbTerpilih = $this->ctePpjbTerpilih(
+            'EXISTS ('
+            . ' SELECT 1 FROM stok_terpilih AS s'
+            . ' WHERE s.kunci_stok = BTRIM(CAST(ppjb.stok_id AS TEXT)))'
+        );
+        $pembeliTerpilih = $this->ctePembeliTerpilih();
 
         $sql = <<<SQL
             WITH {$stokTerpilih},
+            {$ppjbTerpilih},
+            {$pembeliTerpilih},
             {$aktaRingkas},
             {$tabelBantu}
 
@@ -397,22 +407,20 @@ class rekap_ajb_m extends Model
 
                 CAST('Y' AS VARCHAR(1)) AS "BELUM_TTD_AKTA"
 
-            FROM public.sr_ppjb AS ppjb
+            FROM ppjb_terpilih AS ppjb
 
-            INNER JOIN public.sr_pembeli_ppjb AS pembeli_ppjb
-                ON BTRIM(CAST(pembeli_ppjb.ppjb_id AS TEXT))
-                 = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
+            INNER JOIN pembeli_terpilih AS pembeli_ppjb
+                ON pembeli_ppjb.kunci_ppjb = ppjb.kunci_ppjb
 
             LEFT JOIN public.sr_nasabah AS nasabah
                 ON BTRIM(CAST(nasabah.nasabah_id AS TEXT))
                  = BTRIM(CAST(pembeli_ppjb.nasabah_id AS TEXT))
 
             INNER JOIN stok_terpilih AS stok
-                ON stok.kunci_stok = BTRIM(CAST(ppjb.stok_id AS TEXT))
+                ON stok.kunci_stok = ppjb.kunci_stok
 
             LEFT JOIN akta_ringkas
-                ON akta_ringkas.kunci_ppjb
-                 = BTRIM(CAST(ppjb.ppjb_id AS TEXT))
+                ON akta_ringkas.kunci_ppjb = ppjb.kunci_ppjb
 
             LEFT JOIN sertipikat_unit
                 ON sertipikat_unit.kode = stok.kunci_stok
@@ -426,12 +434,7 @@ class rekap_ajb_m extends Model
                 ON sales_unik.kode
                  = BTRIM(COALESCE(CAST(ppjb.kd_sales AS TEXT), ''))
 
-            WHERE UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), ''))) = 'A'
-              AND UPPER(BTRIM(COALESCE(CAST(pembeli_ppjb.flag_aktif AS TEXT), '')))
-                    = 'Y'
-              AND ppjb.parent_id IS NULL
-
-              AND (
+            WHERE (
                     akta_ringkas.kunci_ppjb IS NULL
                     OR akta_ringkas.jumlah_tanpa_nomor > 0
                   )
@@ -503,6 +506,43 @@ class rekap_ajb_m extends Model
                             UPPER(BTRIM(COALESCE(CAST(stok.blok AS TEXT), '')))
                             BETWEEN :blok_awal_blok AND :blok_akhir_blok
                         )
+                      )
+            )
+        SQL;
+    }
+
+    private function ctePpjbTerpilih(string $syaratKaitan): string
+    {
+        return <<<SQL
+        ppjb_terpilih AS MATERIALIZED (
+                SELECT
+                    ppjb.*,
+                    BTRIM(CAST(ppjb.ppjb_id AS TEXT)) AS kunci_ppjb,
+                    BTRIM(CAST(ppjb.stok_id AS TEXT)) AS kunci_stok
+                FROM public.sr_ppjb AS ppjb
+                WHERE UPPER(BTRIM(COALESCE(CAST(ppjb.flag_aktif AS TEXT), '')))
+                        = 'A'
+                  AND ppjb.parent_id IS NULL
+                  AND {$syaratKaitan}
+            )
+        SQL;
+    }
+
+    private function ctePembeliTerpilih(): string
+    {
+        return <<<SQL
+        pembeli_terpilih AS MATERIALIZED (
+                SELECT
+                    pembeli.*,
+                    BTRIM(CAST(pembeli.ppjb_id AS TEXT)) AS kunci_ppjb
+                FROM public.sr_pembeli_ppjb AS pembeli
+                WHERE UPPER(BTRIM(COALESCE(CAST(pembeli.flag_aktif AS TEXT), '')))
+                        = 'Y'
+                  AND EXISTS (
+                        SELECT 1
+                        FROM ppjb_terpilih AS p
+                        WHERE p.kunci_ppjb
+                            = BTRIM(CAST(pembeli.ppjb_id AS TEXT))
                       )
             )
         SQL;
